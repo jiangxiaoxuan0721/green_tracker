@@ -1,0 +1,57 @@
+/* 亮色主题 */
+[data-theme="light"] {
+  /* 主要颜色 */
+  --primary-color: #0066cc;
+  --primary-light: rgba(0, 102, 204, 0.8);
+  --primary-medium: rgba(0, 102, 204, 0.6);
+  --primary-dark: rgba(0, 102, 204, 0.4);
+  --primary-darker: rgba(0, 102, 204, 0.3);
+  --primary-darkest: rgba(0, 102, 204, 0.2);
+  --primary-subtle: rgba(0, 102, 204, 0.1);
+
+  /* 背景颜色 */
+  --bg-gradient-start: #f8f9fa;
+  --bg-gradient-mid: #e9ecef;
+  --bg-gradient-end: #dee2e6;
+  --bg-main: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 50%, var(--bg-gradient-end) 100%);
+  
+  /* 组件背景色 */
+  --bg-component: #ffffff;
+  --bg-input: rgba(248, 249, 250, 0.8);
+  --bg-input-focus: rgba(248, 249, 250, 0.95);
+  --bg-subtle: rgba(248, 249, 250, 0.6);
+  --bg-subtle-hover: rgba(233, 236, 239, 0.8);
+  
+  /* 文本颜色 */
+  --text-primary: rgba(33, 37, 41, 0.95);
+  --text-secondary: rgba(33, 37, 41, 0.9);
+  --text-medium: rgba(33, 37, 41, 0.8);
+  --text-muted: rgba(33, 37, 41, 0.6);
+  --text-subtle: rgba(33, 37, 41, 0.4);
+  
+  /* 边框和分割线 */
+  --border-primary: rgba(222, 226, 230, 0.8);
+  --border-medium: rgba(206, 212, 218, 0.8);
+  --border-light: rgba(189, 195, 199, 0.8);
+  --border-focus: var(--primary-medium);
+  
+  /* 阴影 */
+  --shadow-default: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-hover: 0 8px 20px rgba(0, 0, 0, 0.15);
+  --shadow-glow: 0 0 0 2px var(--primary-darker);
+  
+  /* 按钮颜色 */
+  --btn-default-bg: #6c757d;
+  --btn-hover-bg: #5a6268;
+  --btn-text: white;
+  
+  /* 状态颜色 - 浅色主题版本 */
+  --success-color: #28a745;
+  --success-color-rgb: 40, 167, 69;
+  --warning-color: #fd7e14;
+  --warning-color-rgb: 253, 126, 20;
+  --error-color: #dc3545;
+  --error-color-rgb: 220, 53, 69;
+  --info-color: #17a2b8;
+  --info-color-rgb: 23, 162, 184;
+}

@@ -1,0 +1,57 @@
+/* 天空蓝主题 */
+[data-theme="sky-blue"] {
+  /* 主要颜色 - 清新蓝色 */
+  --primary-color: #5ca7e8;
+  --primary-light: rgba(92, 167, 232, 0.8);
+  --primary-medium: rgba(92, 167, 232, 0.6);
+  --primary-dark: rgba(92, 167, 232, 0.4);
+  --primary-darker: rgba(92, 167, 232, 0.3);
+  --primary-darkest: rgba(92, 167, 232, 0.2);
+  --primary-subtle: rgba(92, 167, 232, 0.1);
+
+  /* 背景颜色 - 天空渐变 */
+  --bg-gradient-start: #e8f4fd;
+  --bg-gradient-mid: #d1e9fc;
+  --bg-gradient-end: #badef7;
+  --bg-main: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 50%, var(--bg-gradient-end) 100%);
+  
+  /* 组件背景色 - 清新透明 */
+  --bg-component: rgba(255, 255, 255, 0.95);
+  --bg-input: rgba(232, 244, 253, 0.8);
+  --bg-input-focus: rgba(232, 244, 253, 0.95);
+  --bg-subtle: rgba(232, 244, 253, 0.6);
+  --bg-subtle-hover: rgba(209, 233, 252, 0.8);
+  
+  /* 文本颜色 - 柔和深蓝 */
+  --text-primary: rgba(26, 54, 93, 0.95);
+  --text-secondary: rgba(26, 54, 93, 0.9);
+  --text-medium: rgba(26, 54, 93, 0.8);
+  --text-muted: rgba(26, 54, 93, 0.6);
+  --text-subtle: rgba(26, 54, 93, 0.4);
+  
+  /* 边框和分割线 - 淡蓝色 */
+  --border-primary: rgba(186, 222, 247, 0.8);
+  --border-medium: rgba(92, 167, 232, 0.6);
+  --border-light: rgba(209, 233, 252, 0.8);
+  --border-focus: var(--primary-medium);
+  
+  /* 阴影 - 蓝色阴影 */
+  --shadow-default: 0 4px 12px rgba(92, 167, 232, 0.15);
+  --shadow-hover: 0 8px 20px rgba(92, 167, 232, 0.25);
+  --shadow-glow: 0 0 0 2px var(--primary-darker);
+  
+  /* 按钮颜色 - 天空蓝 */
+  --btn-default-bg: #5ca7e8;
+  --btn-hover-bg: #4a95d6;
+  --btn-text: white;
+  
+  /* 状态颜色 - 天空蓝主题版本 */
+  --success-color: #52c41a;
+  --success-color-rgb: 82, 196, 26;
+  --warning-color: #faad14;
+  --warning-color-rgb: 250, 173, 20;
+  --error-color: #ff4d4f;
+  --error-color-rgb: 255, 77, 79;
+  --info-color: #1890ff;
+  --info-color-rgb: 24, 144, 255;
+}

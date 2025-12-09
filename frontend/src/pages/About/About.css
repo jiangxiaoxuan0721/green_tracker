@@ -1,0 +1,100 @@
+/* About CSS - 使用全局变量 */
+.about-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: var(--spacing-xxl) var(--spacing-xl);
+  background: var(--bg-main);
+  min-height: calc(100vh - 8rem);
+}
+
+.about-content {
+  text-align: center;
+}
+
+.about-content h1 {
+  color: var(--text-primary);
+  font-size: 2.5rem;
+  font-weight: 300;
+  margin-bottom: var(--spacing-xxl);
+  letter-spacing: -0.02em;
+}
+
+.about-content h2 {
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  margin-top: var(--spacing-xxl);
+  margin-bottom: var(--spacing-lg);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.about-content p {
+  color: var(--text-medium);
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: var(--spacing-xl);
+  font-weight: 300;
+  text-align: left;
+}
+
+.about-content ul {
+  color: var(--text-medium);
+  font-size: 1.05rem;
+  line-height: 2;
+  margin-bottom: var(--spacing-xl);
+  padding-left: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.about-content ul li {
+  margin-bottom: var(--spacing-sm);
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.about-content ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.75rem;
+  width: 4px;
+  height: 4px;
+  background-color: var(--primary-light);
+  border-radius: var(--radius-full);
+}
+
+.about-content > p:first-of-type {
+  font-size: 1.2rem;
+  line-height: 1.9;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xxl);
+}
+
+@media (max-width: 768px) {
+  .about-container {
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+  
+  .about-content h1 {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-xl);
+  }
+  
+  .about-content h2 {
+    font-size: 1.3rem;
+    margin-top: var(--spacing-xl);
+  }
+  
+  .about-content p {
+    font-size: 1rem;
+  }
+  
+  .about-content ul {
+    font-size: 0.95rem;
+  }
+  
+  .about-content > p:first-of-type {
+    font-size: 1.1rem;
+  }
+}

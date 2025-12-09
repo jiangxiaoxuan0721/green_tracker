@@ -1,0 +1,28 @@
+/* 导入全局变量 */
+@import './styles/variables.css';
+@import './styles/light-theme.css';
+@import './styles/dark-theme.css';
+@import './styles/mint-green-theme.css';
+@import './styles/sunset-theme.css';
+@import './styles/sky-blue-theme.css';
+
+/* 基础重置样式 */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  min-height: 100vh;
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+html, #root {
+  background: var(--bg-main);
+  min-height: 100vh;
+}
+
+/* 其他全局样式在App.css中定义 */

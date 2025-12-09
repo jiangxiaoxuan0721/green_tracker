@@ -1,0 +1,57 @@
+/* 日落主题 - 小清新版本 */
+[data-theme="sunset"] {
+  /* 主要颜色 - 清新的珊瑚橙色 */
+  --primary-color: #ffb88c;
+  --primary-light: rgba(255, 184, 140, 0.8);
+  --primary-medium: rgba(255, 184, 140, 0.6);
+  --primary-dark: rgba(255, 184, 140, 0.4);
+  --primary-darker: rgba(255, 184, 140, 0.3);
+  --primary-darkest: rgba(255, 184, 140, 0.2);
+  --primary-subtle: rgba(255, 184, 140, 0.1);
+
+  /* 背景颜色 - 清新的橙黄色渐变 */
+  --bg-gradient-start: #fff8f0;
+  --bg-gradient-mid: #ffefe0;
+  --bg-gradient-end: #ffe6d0;
+  --bg-main: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 50%, var(--bg-gradient-end) 100%);
+  
+  /* 组件背景色 - 清新的浅橙白色 */
+  --bg-component: rgba(255, 248, 240, 0.8);
+  --bg-input: rgba(255, 248, 240, 0.6);
+  --bg-input-focus: rgba(255, 248, 240, 0.9);
+  --bg-subtle: rgba(255, 184, 140, 0.08);
+  --bg-subtle-hover: rgba(255, 184, 140, 0.15);
+  
+  /* 文本颜色 - 温暖的深棕色 */
+  --text-primary: rgba(102, 51, 0, 0.9);
+  --text-secondary: rgba(102, 51, 0, 0.8);
+  --text-medium: rgba(102, 51, 0, 0.7);
+  --text-muted: rgba(102, 51, 0, 0.6);
+  --text-subtle: rgba(102, 51, 0, 0.4);
+  
+  /* 边框和分割线 - 柔和的橙色 */
+  --border-primary: rgba(255, 184, 140, 0.3);
+  --border-medium: rgba(255, 184, 140, 0.4);
+  --border-light: rgba(255, 184, 140, 0.5);
+  --border-focus: var(--primary-medium);
+  
+  /* 阴影 */
+  --shadow-default: 0 4px 12px rgba(255, 184, 140, 0.15);
+  --shadow-hover: 0 8px 20px rgba(255, 184, 140, 0.2);
+  --shadow-glow: 0 0 0 2px var(--primary-darker);
+  
+  /* 按钮颜色 - 清新橙色 */
+  --btn-default-bg: #ffd4b3;
+  --btn-hover-bg: #ffe0c7;
+  --btn-text: rgba(102, 51, 0, 0.9);
+  
+  /* 状态颜色 - 清新色调 */
+  --success-color: #b5e7a0;
+  --success-color-rgb: 181, 231, 160;
+  --warning-color: #ffb88c;
+  --warning-color-rgb: 255, 184, 140;
+  --error-color: #ffb3ba;
+  --error-color-rgb: 255, 179, 186;
+  --info-color: #bae1ff;
+  --info-color-rgb: 186, 225, 255;
+}

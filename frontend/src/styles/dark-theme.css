@@ -1,0 +1,57 @@
+/* 深色主题 */
+[data-theme="dark"] {
+  /* 主要颜色 */
+  --primary-color: #bb86fc;
+  --primary-light: rgba(187, 134, 252, 0.8);
+  --primary-medium: rgba(187, 134, 252, 0.6);
+  --primary-dark: rgba(187, 134, 252, 0.4);
+  --primary-darker: rgba(187, 134, 252, 0.3);
+  --primary-darkest: rgba(187, 134, 252, 0.2);
+  --primary-subtle: rgba(187, 134, 252, 0.1);
+
+  /* 背景颜色 */
+  --bg-gradient-start: #121212;
+  --bg-gradient-mid: #1e1e1e;
+  --bg-gradient-end: #2d2d2d;
+  --bg-main: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 50%, var(--bg-gradient-end) 100%);
+  
+  /* 组件背景色 */
+  --bg-component: #1e1e1e;
+  --bg-input: rgba(30, 30, 30, 0.6);
+  --bg-input-focus: rgba(30, 30, 30, 0.8);
+  --bg-subtle: rgba(45, 45, 45, 0.6);
+  --bg-subtle-hover: rgba(60, 60, 60, 0.8);
+  
+  /* 文本颜色 */
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.9);
+  --text-medium: rgba(255, 255, 255, 0.8);
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --text-subtle: rgba(255, 255, 255, 0.4);
+  
+  /* 边框和分割线 */
+  --border-primary: rgba(255, 255, 255, 0.1);
+  --border-medium: rgba(255, 255, 255, 0.15);
+  --border-light: rgba(255, 255, 255, 0.2);
+  --border-focus: var(--primary-medium);
+  
+  /* 阴影 */
+  --shadow-default: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 8px 20px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 0 2px var(--primary-darker);
+  
+  /* 按钮颜色 */
+  --btn-default-bg: #424242;
+  --btn-hover-bg: #616161;
+  --btn-text: white;
+  
+  /* 状态颜色 - 深色主题版本 */
+  --success-color: #81c784;
+  --success-color-rgb: 129, 199, 132;
+  --warning-color: #ffb74d;
+  --warning-color-rgb: 255, 183, 77;
+  --error-color: #e57373;
+  --error-color-rgb: 229, 115, 115;
+  --info-color: #64b5f6;
+  --info-color-rgb: 100, 181, 246;
+}
