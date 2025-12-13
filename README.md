@@ -103,7 +103,7 @@ REACT_APP_DEFAULT_USERNAME=admin
 REACT_APP_DEFAULT_PASSWORD=123456
 
 # API地址
-REACT_APP_API_BASE_URL=http://localhost:3001
+VITE_API_BASE_URL=http://localhost:6130
 ```
 
 ### 4. 启动开发服务器

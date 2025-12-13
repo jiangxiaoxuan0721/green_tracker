@@ -40,8 +40,8 @@ start: check-env
 # 开发模式 - 同时启动前后端 (支持热加载)
 dev: check-env
 	@echo "启动开发环境 (前端和后端，支持热加载)..."
-	@echo "前端将运行在: http://localhost:3000"
-	@echo "后端将运行在: http://localhost:3001"
+	@echo "前端将运行在: http://localhost:3010"
+	@echo "后端将运行在: http://localhost:6130"
 	@echo "按 Ctrl+C 停止所有服务"
 	@sleep 1
 	@$(MAKE) -j2 dev-frontend dev-backend
@@ -49,12 +49,17 @@ dev: check-env
 # 仅启动前端 (热加载)
 dev-frontend: check-env
 	@echo "启动前端开发服务器 (热加载)..."
+	@echo "前端配置："
+	@echo "- 端口: $$(grep '^PORT=' .env | cut -d'=' -f2)"
+	@echo "- API基础URL: $$(grep '^VITE_API_BASE_URL=' .env | cut -d'=' -f2)"
 	@cd frontend && npm run dev
 
 # 仅启动后端 (热加载)
 dev-backend: check-env
 	@echo "启动后端开发服务器 (热加载)..."
-	@cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 3001
+	@echo "后端配置："
+	@echo "- 端口: $$(grep '^API_PORT=' .env | cut -d'=' -f2)"
+	@cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 6130
 
 # 停止所有服务
 stop:

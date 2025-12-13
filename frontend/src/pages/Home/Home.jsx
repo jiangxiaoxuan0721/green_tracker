@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
+import { useAuth } from '../../hooks/auth/useAuth'
 import './Home.css'
 
 const Home = () => {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
 
   return (
     <><Navbar />
@@ -16,8 +18,11 @@ const Home = () => {
               集成卫星遥感、无人机监测和地面传感器网络，为农业生产提供全方位的数据支持和智能化决策服务
             </p>
             <div className="hero-actions">
-              <button className="btn btn-primary" onClick={() => navigate('/login')}>
-                开始体验
+              <button 
+                className="btn btn-primary" 
+                onClick={() => isAuthenticated ? navigate('/dashboard') : navigate('/login')}
+              >
+                {isAuthenticated ? '进入控制台' : '开始体验'}
               </button>
               <button className="btn btn-secondary" onClick={() => navigate('/about')}>
                 了解更多

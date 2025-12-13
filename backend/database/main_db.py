@@ -25,8 +25,7 @@ max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "20"))
 engine = create_engine(
     DATABASE_URL,
     pool_size=pool_size,
-    max_overflow=max_overflow,
-    connect_args={"options": f"-csearch_path={DB_USER},public"}
+    max_overflow=max_overflow
 )
 
 # 创建SessionLocal类，用于创建数据库会话

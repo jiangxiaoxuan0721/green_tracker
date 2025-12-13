@@ -13,15 +13,15 @@
 
 ### 前端配置
 
-- `PORT` - 前端服务器端口，默认为 3000
-- `VITE_API_BASE_URL` - 前端API请求的基础URL，默认为 http://localhost:3001
+- `PORT` - 前端服务器端口，默认为 3010
+- `VITE_API_BASE_URL` - 前端API请求的基础URL，默认为 http://localhost:6130
 - `VITE_DEFAULT_USERNAME` - 开发环境默认用户名（仅用于开发测试）
 - `VITE_DEFAULT_PASSWORD` - 开发环境默认密码（仅用于开发测试）
 
 ### 后端API配置
 
 - `API_HOST` - API服务器主机，默认为 0.0.0.0
-- `API_PORT` - API服务器端口，默认为 3001
+- `API_PORT` - API服务器端口，默认为 6130
 - `SECRET_KEY` - JWT密钥（生产环境请使用强随机密钥）
 - `JWT_ALGORITHM` - JWT算法，默认为 HS256
 - `JWT_EXPIRE_MINUTES` - JWT过期时间（分钟），默认为 30

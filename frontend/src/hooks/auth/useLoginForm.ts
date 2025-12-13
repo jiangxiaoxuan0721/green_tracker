@@ -58,8 +58,8 @@ export const useLoginForm = (loginFunction: LoginFunction): UseLoginFormReturn =
     
     if (!formData.password) {
       newErrors.password = '密码不能为空';
-    } else if (formData.password.length < 8) {
-      newErrors.password = '密码长度至少为8位';
+    } else if (formData.password.length < 6) {
+      newErrors.password = '密码长度至少为6位';
     }
     
     setErrors(newErrors);
@@ -70,10 +70,15 @@ export const useLoginForm = (loginFunction: LoginFunction): UseLoginFormReturn =
   const handleSubmit = async (e: FormEvent): Promise<{ success: boolean; error?: string }> => {
     e.preventDefault();
     
+    console.log('[前端登录表单] 开始处理表单提交');
+    console.log('[前端登录表单] 表单数据:', { ...formData, password: '***' });
+    
     if (validateForm()) {
+      console.log('[前端登录表单] 表单验证通过，调用登录函数');
       return await loginFunction(formData.username, formData.password);
     }
     
+    console.log('[前端登录表单] 表单验证失败:', errors);
     return { success: false, error: '请检查表单错误' };
   };
 

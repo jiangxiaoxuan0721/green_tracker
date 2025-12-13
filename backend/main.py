@@ -14,7 +14,7 @@ app = FastAPI(
 )
 
 # 配置CORS - 从环境变量读取
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(',')
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3010,http://127.0.0.1:3010").split(',')
 cors_methods = os.getenv("CORS_METHODS", "GET,POST,PUT,DELETE,OPTIONS").split(',')
 cors_headers = os.getenv("CORS_HEADERS", "Content-Type,Authorization").split(',')
 
@@ -25,6 +25,17 @@ app.add_middleware(
     allow_methods=cors_methods,
     allow_headers=cors_headers,
 )
+
+# 添加请求日志中间件
+@app.middleware("http")
+async def log_requests(request, call_next):
+    print(f"[后端Main] 收到请求: {request.method} {request.url}")
+    # 注意: 不要在这里记录敏感的请求数据，如密码
+    
+    response = await call_next(request)
+    
+    print(f"[后端Main] 响应状态码: {response.status_code}")
+    return response
 
 # 导入并包含路由模块
 from api.routes import auth_router
@@ -45,6 +56,6 @@ async def root():
 # 运行配置
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("API_PORT", "3001"))  # 默认使用3001端口，与前端配置一致
+    port = int(os.getenv("API_PORT", "6130"))  # 默认使用6130端口，与前端配置一致
     host = os.getenv("API_HOST", "0.0.0.0")
     uvicorn.run("main:app", host=host, port=port, reload=True)

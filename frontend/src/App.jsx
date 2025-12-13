@@ -1,21 +1,13 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import './App.css'
+import { useEffect } from 'react'
+import { AuthProvider } from './hooks/auth/useAuth'
 import { Home, About, Contact, Login, Register, Dashboard } from './pages'
+import './App.css'
 
-function App() {
+function AppContent() {
   const location = useLocation()
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
   
   useEffect(() => {
-    // 检查localStorage中是否有登录状态
-    const loginStatus = localStorage.getItem('isLoggedIn')
-    if (loginStatus === 'true') {
-      setIsLoggedIn(true)
-    } else {
-      setIsLoggedIn(false)
-    }
-
     // 只在Dashboard页面应用主题
     if (location.pathname === '/dashboard') {
       const savedTheme = localStorage.getItem('theme') || 'default'
@@ -46,6 +38,14 @@ function App() {
         </Routes>
       </main>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
 

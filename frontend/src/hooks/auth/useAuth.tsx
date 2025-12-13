@@ -65,24 +65,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // 登录函数
   const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    console.log('[前端Auth] 开始登录流程');
+    console.log('[前端Auth] 登录参数:', { username, password: '***' });
+    
     try {
       setLoading(true);
       setError(null);
       
+      console.log('[前端Auth] 调用authService.login');
       const response = await authService.login({ username, password });
+      
+      console.log('[前端Auth] 登录成功，响应数据:', response);
       
       // 保存token和用户信息
       localStorage.setItem('token', response.token);
       localStorage.setItem('user_id', response.user_id);
       localStorage.setItem('isLoggedIn', 'true');
       
+      console.log('[前端Auth] 已保存用户信息到localStorage');
+      
       setUser({
         id: response.user_id,
         token: response.token
       });
       
+      console.log('[前端Auth] 已更新用户状态');
       return { success: true };
     } catch (error: any) {
+      console.error('[前端Auth] 登录失败:', error);
       const errorMessage = error.response?.data?.detail || '登录失败';
       setError(errorMessage);
       return { 
@@ -96,28 +106,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // 注册函数
   const register = async (username: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    console.log('[前端Auth] 开始注册流程');
+    console.log('[前端Auth] 注册参数:', { username, email, password: '***' });
+    
     try {
       setLoading(true);
       setError(null);
       
+      console.log('[前端Auth] 调用authService.register');
       const response = await authService.register({ 
         username, 
         email, 
         password 
       });
       
+      console.log('[前端Auth] 注册成功，响应数据:', response);
+      
       // 保存token和用户信息
       localStorage.setItem('token', response.token);
       localStorage.setItem('user_id', response.user_id);
       localStorage.setItem('isLoggedIn', 'true');
+      
+      console.log('[前端Auth] 已保存用户信息到localStorage');
       
       setUser({
         id: response.user_id,
         token: response.token
       });
       
+      console.log('[前端Auth] 已更新用户状态');
       return { success: true };
     } catch (error: any) {
+      console.error('[前端Auth] 注册失败:', error);
       const errorMessage = error.response?.data?.detail || '注册失败';
       setError(errorMessage);
       return { 

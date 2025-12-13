@@ -97,7 +97,11 @@ export const useRegisterForm = (registerFunction: RegisterFunction): UseRegister
   const handleSubmit = async (e: FormEvent): Promise<{ success: boolean; error?: string }> => {
     e.preventDefault();
     
+    console.log('[前端注册表单] 开始处理表单提交');
+    console.log('[前端注册表单] 表单数据:', formData);
+    
     if (validateForm()) {
+      console.log('[前端注册表单] 表单验证通过，调用注册函数');
       return await registerFunction(
         formData.username, 
         formData.email, 
@@ -105,6 +109,7 @@ export const useRegisterForm = (registerFunction: RegisterFunction): UseRegister
       );
     }
     
+    console.log('[前端注册表单] 表单验证失败:', errors);
     return { success: false, error: '请检查表单错误' };
   };
 

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '../../hooks/auth/useAuth'
 import './Dashboard.css'
 
 // 导入子组件
@@ -12,7 +13,15 @@ import LogsTab from './components/LogsTab'
 
 const Dashboard = () => {
   const navigate = useNavigate()
+  const { isAuthenticated, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
+  
+  // 检查用户是否已登录
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login')
+    }
+  }, [isAuthenticated, navigate])
   
   // 菜单项数据
   const menuItems = [

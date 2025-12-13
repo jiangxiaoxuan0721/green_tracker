@@ -20,12 +20,17 @@ def create_user(db: Session, username: str, email: str, password_hash: str) -> U
     Raises:
         Exception: 如果用户名已存在
     """
+    print(f"[后端UserService] 开始创建用户: 用户名={username}, 邮箱={email}")
+    
     # 检查用户名是否已存在
+    print("[后端UserService] 检查用户名是否已存在")
     existing_user = db.query(User).filter(User.username == username).first()
     if existing_user:
+        print(f"[后端UserService] 用户名已存在: {username}")
         raise Exception("用户名已存在")
     
     # 创建新用户
+    print("[后端UserService] 创建新用户对象")
     new_user = User(
         userid=str(uuid.uuid4()),
         username=username,
@@ -33,11 +38,15 @@ def create_user(db: Session, username: str, email: str, password_hash: str) -> U
         password_hash=password_hash
     )
     
+    print(f"[后端UserService] 用户对象创建成功, userid={new_user.userid}")
+    
     # 保存到数据库
+    print("[后端UserService] 保存用户到数据库")
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     
+    print(f"[后端UserService] 用户保存成功: {new_user.userid}")
     return new_user
 
 def verify_user(db: Session, username: str, password: str) -> Optional[User]:
@@ -54,15 +63,24 @@ def verify_user(db: Session, username: str, password: str) -> Optional[User]:
     """
     from passlib.context import CryptContext
     
+    print(f"[后端UserService] 开始验证用户: {username}")
+    
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     
     # 查找用户
+    print("[后端UserService] 查询用户信息")
     user = db.query(User).filter(User.username == username).first()
     
     # 验证用户是否存在和密码是否匹配
     if user:
+        print(f"[后端UserService] 找到用户: {user.userid}, 开始验证密码")
         if pwd_context.verify(password, str(user.password_hash)):
+            print(f"[后端UserService] 密码验证成功")
             return user
+        else:
+            print(f"[后端UserService] 密码验证失败")
+    else:
+        print(f"[后端UserService] 用户不存在: {username}")
     
     return None
 
