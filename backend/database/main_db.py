@@ -1,0 +1,38 @@
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import os
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
+
+# 数据库连接配置
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME", "green_tracker")
+DB_USER = os.getenv("DB_USER", "jiangxiaoxuan")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "Zjw420916")
+
+# 创建数据库连接URL
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# 创建数据库引擎，设置连接参数
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"options": f"-csearch_path={DB_USER},public"}
+)
+
+# 创建SessionLocal类，用于创建数据库会话
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# 创建Base类，所有数据库模型都将继承自这个类
+Base = declarative_base()
+
+# 获取数据库会话的依赖注入函数
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
