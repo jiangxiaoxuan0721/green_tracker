@@ -1,7 +1,7 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './hooks/auth/useAuth'
-import { Home, About, Contact, Login, Register, Dashboard } from './pages'
+import { Home, About, Contact, Login, Register, Dashboard, NotFound } from './pages'
 import './App.css'
 
 function AppContent() {
@@ -35,6 +35,7 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
     </div>
