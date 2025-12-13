@@ -5,3 +5,7 @@ dotenv==0.9.9
 greenlet==3.3.0
 sqlalchemy==2.0.45
 psycopg2-binary==2.9.11
+passlib==1.7.4
+python-jose[cryptography]==3.3.0
+email-validator==2.3.0
+dnspython==2.8.0

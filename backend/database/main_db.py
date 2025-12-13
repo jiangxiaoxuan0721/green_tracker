@@ -11,15 +11,21 @@ load_dotenv()
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "green_tracker")
-DB_USER = os.getenv("DB_USER", "jiangxiaoxuan")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "Zjw420916")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 
 # 创建数据库连接URL
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
+# 连接池配置
+pool_size = int(os.getenv("DB_POOL_SIZE", "10"))
+max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "20"))
+
 # 创建数据库引擎，设置连接参数
 engine = create_engine(
     DATABASE_URL,
+    pool_size=pool_size,
+    max_overflow=max_overflow,
     connect_args={"options": f"-csearch_path={DB_USER},public"}
 )
 

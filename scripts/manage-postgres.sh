@@ -53,13 +53,13 @@ setup_postgres() {
     # 读取.env文件中的配置
     if [ -f ".env" ]; then
         source .env
-        DB_USER=${DB_USER:-"jiangxiaoxuan"}
-        DB_PASSWORD=${DB_PASSWORD:-"Zjw420916"}
+        DB_USER=${DB_USER:-"your_db_username"}
+        DB_PASSWORD=${DB_PASSWORD:-"your_db_password"}
         DB_NAME=${DB_NAME:-"green_tracker"}
     else
-        DB_USER="jiangxiaoxuan"
-        DB_PASSWORD="Zjw420916"
-        DB_NAME="green_tracker"
+        echo "错误：未找到.env文件，请先创建.env文件并配置数据库参数"
+        echo "参考.env.example文件创建.env文件"
+        exit 1
     fi
     
     echo "创建用户 '$DB_USER' 和数据库 '$DB_NAME'..."

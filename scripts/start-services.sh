@@ -51,8 +51,16 @@ if [ "$(docker ps -q -f name=minio)" ]; then
     echo -e "${GREEN}MinIO容器正在运行${NC}"
     echo "API: http://localhost:9000"
     echo "控制台: http://localhost:9001"
-    echo "用户名: minioadmin"
-    echo "密码: minioadmin123"
+    
+    # 从环境变量读取用户名和密码（如果存在）
+    if [ -f ".env" ]; then
+        source .env
+        echo "用户名: ${MINIO_ACCESS_KEY:-"minioadmin"}"
+        echo "密码: [已隐藏，请查看.env文件中的MINIO_SECRET_KEY]"
+    else
+        echo "用户名: [请查看.env文件中的MINIO_ACCESS_KEY]"
+        echo "密码: [已隐藏，请查看.env文件中的MINIO_SECRET_KEY]"
+    fi
 else
     echo -e "${RED}MinIO容器未运行${NC}"
 fi

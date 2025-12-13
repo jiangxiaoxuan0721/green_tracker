@@ -13,23 +13,24 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 配置CORS
+# 配置CORS - 从环境变量读取
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(',')
+cors_methods = os.getenv("CORS_METHODS", "GET,POST,PUT,DELETE,OPTIONS").split(',')
+cors_headers = os.getenv("CORS_HEADERS", "Content-Type,Authorization").split(',')
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境中应该设置为具体的前端地址
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=cors_methods,
+    allow_headers=cors_headers,
 )
 
 # 导入并包含路由模块
-# 注意：以下路由将在创建后取消注释
-# from api.routes import auth, devices, environmental_data, alerts, reports
-# app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
-# app.include_router(devices.router, prefix="/api/devices", tags=["设备管理"])
-# app.include_router(environmental_data.router, prefix="/api/data", tags=["环境数据"])
-# app.include_router(alerts.router, prefix="/api/alerts", tags=["告警管理"])
-# app.include_router(reports.router, prefix="/api/reports", tags=["报告生成"])
+from api.routes import auth_router
+
+# 注册认证路由
+app.include_router(auth_router) # /api/auth
 
 # 健康检查端点
 @app.get("/health") # /health

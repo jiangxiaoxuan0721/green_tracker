@@ -40,24 +40,28 @@ def create_user(db: Session, username: str, email: str, password_hash: str) -> U
     
     return new_user
 
-def verify_user(db: Session, username: str, password_hash: str) -> Optional[User]:
+def verify_user(db: Session, username: str, password: str) -> Optional[User]:
     """
     验证用户登录
     
     Args:
         db: 数据库会话
         username: 用户名
-        password_hash: 加密后的密码哈希
+        password: 原始密码
     
     Returns:
         User: 验证成功返回用户对象，失败返回None
     """
+    from passlib.context import CryptContext
+    
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    
     # 查找用户
     user = db.query(User).filter(User.username == username).first()
     
     # 验证用户是否存在和密码是否匹配
     if user:
-        if str(user.password_hash) == password_hash:
+        if pwd_context.verify(password, str(user.password_hash)):
             return user
     
     return None

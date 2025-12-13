@@ -9,11 +9,20 @@ NC='\033[0m' # No Color
 
 # 配置变量
 CONTAINER_NAME="minio"
-MINIO_USER="minioadmin"
-MINIO_PASSWORD="minioadmin123"
 MINIO_DATA_DIR="$HOME/minio-data"
 API_PORT=9000
 CONSOLE_PORT=9001
+
+# 从.env文件读取MinIO配置
+if [ -f ".env" ]; then
+    source .env
+    MINIO_USER=${MINIO_ACCESS_KEY:-"minioadmin"}
+    MINIO_PASSWORD=${MINIO_SECRET_KEY:-"minioadmin123"}
+else
+    echo "错误：未找到.env文件，请先创建.env文件并配置MinIO参数"
+    echo "参考.env.example文件创建.env文件"
+    exit 1
+fi
 
 echo -e "${GREEN}正在启动MinIO服务...${NC}"
 

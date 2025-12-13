@@ -1,0 +1,18 @@
+{
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "description": "用户注册",
+      "parameters": "username, email, password",
+      "returns": "user_id, token"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "description": "用户登录验证",
+      "parameters": "username, password",
+      "returns": "user_id, token"
+    }
+  ]
+}
