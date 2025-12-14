@@ -38,10 +38,13 @@ async def log_requests(request, call_next):
     return response
 
 # 导入并包含路由模块
-from api.routes import auth_router
+from api.routes import auth_router, feedback_router
 
 # 注册认证路由
 app.include_router(auth_router) # /api/auth
+
+# 注册反馈路由
+app.include_router(feedback_router) # /api/feedback
 
 # 健康检查端点
 @app.get("/health") # /health

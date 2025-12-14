@@ -1,0 +1,132 @@
+/* Feedback CSS - 使用全局变量 */
+.feedback-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: var(--spacing-xxl) var(--spacing-xl);
+  background: var(--bg-main);
+  min-height: calc(100vh - 8rem);
+}
+
+.feedback-content {
+  width: 100%;
+}
+
+.feedback-content h1 {
+  color: var(--text-primary);
+  font-size: 2.5rem;
+  font-weight: 300;
+  margin-bottom: var(--spacing-xxl);
+  letter-spacing: -0.02em;
+}
+
+.feedback-loading,
+.feedback-error,
+.feedback-empty {
+  text-align: center;
+  padding: var(--spacing-xxl);
+  font-size: 1.2rem;
+  color: var(--text-medium);
+}
+
+.feedback-error {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid #ef4444;
+}
+
+.feedback-list {
+  display: grid;
+  gap: var(--spacing-xl);
+}
+
+.feedback-item {
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-light);
+  border: 1px solid var(--border-primary);
+  transition: var(--transition-normal);
+}
+
+.feedback-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+.feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.feedback-subject {
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  margin-right: var(--spacing-md);
+}
+
+.feedback-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.feedback-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+}
+
+.feedback-name,
+.feedback-email {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.feedback-name {
+  font-weight: 500;
+}
+
+.feedback-content {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 768px) {
+  .feedback-container {
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+  
+  .feedback-content h1 {
+    font-size: 2rem;
+  }
+  
+  .feedback-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  
+  .feedback-date {
+    margin-top: var(--spacing-sm);
+  }
+  
+  .feedback-info {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .feedback-item {
+    padding: var(--spacing-lg);
+  }
+}

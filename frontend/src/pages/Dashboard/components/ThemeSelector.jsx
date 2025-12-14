@@ -32,8 +32,9 @@ const ThemeSelector = () => {
   }
 
   return (
-    <div className="theme-selector">
-      <label className="setting-label">颜色主题</label>
+    <div className="theme-container">
+      <h3>界面主题</h3>
+      <p className="theme-description">选择您喜欢的界面主题风格</p>
       <div className="theme-grid">
         {themes.map(theme => (
           <div

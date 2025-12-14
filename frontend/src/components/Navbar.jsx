@@ -29,6 +29,11 @@ const Navbar = () => {
               联系
             </Link>
           </li>
+          <li className="nav-item">
+            <Link to="/feedback" className="nav-link">
+              反馈
+            </Link>
+          </li>
         </ul>
       </div>
     </nav>

@@ -58,7 +58,11 @@
   overflow-y: auto;
 }
 
-.menu-item {
+.sidebar-menu li {
+  list-style: none;
+}
+
+.menu-link {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -66,13 +70,16 @@
   cursor: pointer;
   transition: var(--transition-normal);
   border-left: 3px solid transparent;
+  text-decoration: none;
+  color: var(--text-secondary);
 }
 
-.menu-item:hover {
+.menu-link:hover {
   background-color: var(--primary-subtle);
+  color: var(--text-primary);
 }
 
-.menu-item.active {
+.menu-link.active {
   background-color: var(--primary-darkest);
   border-left-color: var(--primary-light);
 }
@@ -83,7 +90,7 @@
   color: var(--text-medium);
 }
 
-.menu-item.active .menu-label {
+.menu-link.active .menu-label {
   color: var(--text-primary);
 }
 

@@ -146,6 +146,16 @@
   font-weight: 300;
 }
 
+.form-error {
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid #ef4444;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 768px) {
   .contact-container {
     padding: var(--spacing-xl) var(--spacing-md);

@@ -1,8 +1,11 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './hooks/auth/useAuth'
-import { Home, About, Contact, Login, Register, Dashboard, NotFound } from './pages'
+import { Home, About, Contact, Login, Register, Dashboard, Feedback, NotFound, DashboardPages } from './pages'
 import './App.css'
+
+// 解构Dashboard子页面
+const { Overview, Fields, Devices, Sessions, DataView, DataAnalyze, System, Logs } = DashboardPages
 
 function AppContent() {
   const location = useLocation()
@@ -34,7 +37,20 @@ function AppContent() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/feedback" element={<Feedback />} />
+          
+          {/* Dashboard 路由及其子路由 */}
+          <Route path="/dashboard" element={<Dashboard />}>
+            <Route index element={<Overview />} />
+            <Route path="fields" element={<Fields />} />
+            <Route path="devices" element={<Devices />} />
+            <Route path="sessions" element={<Sessions />} />
+            <Route path="data-view" element={<DataView />} />
+            <Route path="data-analyze" element={<DataAnalyze />} />
+            <Route path="system" element={<System />} />
+            <Route path="logs" element={<Logs />} />
+          </Route>
+          
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

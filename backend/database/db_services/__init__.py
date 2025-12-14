@@ -11,10 +11,19 @@ from .user_service import (
     update_user_email
 )
 
+from .feedback_service import (
+    create_feedback,
+    get_feedback_by_id,
+    get_all_feedback
+)
+
 __all__ = [
     "create_user",
     "verify_user",
     "get_user_by_id",
     "get_user_by_username",
-    "update_user_email"
+    "update_user_email",
+    "create_feedback",
+    "get_feedback_by_id",
+    "get_all_feedback"
 ]

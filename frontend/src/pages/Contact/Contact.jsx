@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import './Contact.css'
 import Navbar from '../../components/Navbar'
+import { feedbackService } from '../../services/feedbackService'
+
 const Contact = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -10,6 +12,8 @@ const Contact = () => {
   })
   
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -19,22 +23,41 @@ const Contact = () => {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // 这里可以添加表单提交逻辑
-    console.log('表单数据:', formData)
-    setIsSubmitted(true)
+    setIsSubmitting(true)
+    setError('')
     
-    // 模拟提交后重置表单
-    setTimeout(() => {
-      setFormData({
-        name: '',
-        email: '',
-        subject: '',
-        message: ''
-      })
-      setIsSubmitted(false)
-    }, 3000)
+    try {
+      // 映射表单数据到后端API
+      const feedbackData = {
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        content: formData.message
+      }
+      
+      console.log('[前端Contact] 提交反馈:', feedbackData)
+      await feedbackService.submitFeedback(feedbackData)
+      
+      setIsSubmitted(true)
+      
+      // 重置表单
+      setTimeout(() => {
+        setFormData({
+          name: '',
+          email: '',
+          subject: '',
+          message: ''
+        })
+        setIsSubmitted(false)
+      }, 3000)
+    } catch (err) {
+      console.error('[前端Contact] 提交反馈失败:', err)
+      setError(err.response?.data?.detail || '提交失败，请稍后再试')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -73,6 +96,8 @@ const Contact = () => {
           </div>
         ) : (
           <form className="contact-form" onSubmit={handleSubmit}>
+            {error && <div className="form-error">{error}</div>}
+            
             <div className="form-group">
             <label htmlFor="name">姓名</label>
             <input
@@ -82,7 +107,6 @@ const Contact = () => {
               value={formData.name}
               onChange={handleChange}
               placeholder="请输入您的姓名"
-              required
             />
             </div>
             
@@ -95,7 +119,6 @@ const Contact = () => {
               value={formData.email}
               onChange={handleChange}
               placeholder="your@email.com"
-              required
             />
             </div>
             
@@ -125,7 +148,13 @@ const Contact = () => {
             ></textarea>
             </div>
             
-            <button type="submit" className="submit-btn">发送消息</button>
+            <button 
+              type="submit" 
+              className="submit-btn"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? '提交中...' : '发送消息'}
+            </button>
           </form>
         )}
       </div>

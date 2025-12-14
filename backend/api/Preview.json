@@ -13,6 +13,20 @@
       "description": "用户登录验证",
       "parameters": "username, password",
       "returns": "user_id, token"
+    },
+    {
+      "method": "POST",
+      "path": "/api/feedback/",
+      "description": "提交用户反馈",
+      "parameters": "name (可选), email (可选), subject, content",
+      "returns": "id, name, email, subject, content, created_at"
+    },
+    {
+      "method": "GET",
+      "path": "/api/feedback/",
+      "description": "获取所有反馈信息",
+      "parameters": "无",
+      "returns": "反馈列表: [id, name, email, subject, content, created_at, ...]"
     }
   ]
 }
