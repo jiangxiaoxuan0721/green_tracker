@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database.main_db import get_db
 from database.db_services import create_user, verify_user
+from database.db_models.user_model import User
 from api.schemas.auth import UserRegister, UserLogin, UserResponse
 from passlib.context import CryptContext
-from jose import jwt
+from jose import jwt, JWTError
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
@@ -89,3 +91,34 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
     )
     
     return UserResponse(user_id=str(db_user.userid), token=access_token)
+
+
+# 安全方案
+security = HTTPBearer()
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """
+    从JWT令牌中获取当前用户
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="无法验证凭据",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        # 解码JWT令牌
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub") # type: ignore
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    # 从数据库获取用户
+    user = db.query(User).filter(User.userid == user_id).first()
+    if user is None:
+        raise credentials_exception
+    
+    return user

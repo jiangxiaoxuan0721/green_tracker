@@ -7,7 +7,6 @@
 """
 
 import sys
-from pathlib import Path
 from database.main_db import engine, Base
 from database.db_models.user_model import User
 

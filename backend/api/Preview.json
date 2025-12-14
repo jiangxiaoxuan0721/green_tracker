@@ -27,6 +27,55 @@
       "description": "获取所有反馈信息",
       "parameters": "无",
       "returns": "反馈列表: [id, name, email, subject, content, created_at, ...]"
+    },
+    {
+      "method": "POST",
+      "path": "/api/fields/",
+      "description": "创建新地块",
+      "parameters": "name, description (可选), location_wkt, area_m2 (可选), crop_type (可选), soil_type (可选), irrigation_type (可选), organization_id (可选)",
+      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at"
+    },
+    {
+      "method": "GET",
+      "path": "/api/fields/",
+      "description": "获取地块列表",
+      "parameters": "owner_id (可选), organization_id (可选), active_only (可选), keyword (可选), crop_type (可选), soil_type (可选), irrigation_type (可选)",
+      "returns": "地块列表: [id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at, ...]"
+    },
+    {
+      "method": "GET",
+      "path": "/api/fields/{field_id}",
+      "description": "根据ID获取特定地块",
+      "parameters": "field_id",
+      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/fields/{field_id}",
+      "description": "更新地块信息",
+      "parameters": "field_id, name (可选), description (可选), location_wkt (可选), area_m2 (可选), crop_type (可选), soil_type (可选), irrigation_type (可选), is_active (可选)",
+      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/fields/{field_id}",
+      "description": "删除地块",
+      "parameters": "field_id, soft_delete (可选)",
+      "returns": "无内容，状态码204"
+    },
+    {
+      "method": "POST",
+      "path": "/api/fields/{field_id}/restore",
+      "description": "恢复已软删除的地块",
+      "parameters": "field_id",
+      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at"
+    },
+    {
+      "method": "POST",
+      "path": "/api/fields/point-query",
+      "description": "查找包含指定点的地块",
+      "parameters": "longitude, latitude, owner_id (可选), organization_id (可选), active_only (可选)",
+      "returns": "地块列表: [id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at, ...]"
     }
   ]
 }

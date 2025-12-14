@@ -7,10 +7,7 @@
 """
 
 import sys
-from pathlib import Path
 from database.main_db import engine, Base
-from database.db_models.user_model import User
-from database.db_models.feedback_model import Feedback
 
 
 def test_db_connection():
