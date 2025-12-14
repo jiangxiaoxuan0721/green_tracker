@@ -2,3 +2,4 @@
 export { default as SettingsTab } from './SettingsTab'
 export { default as SettingItem } from './SettingItem'
 export { default as ThemeSelector } from './ThemeSelector'
+export { default as Modal } from './Modal'

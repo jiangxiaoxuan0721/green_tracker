@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Modal } from '../../components'
 
 const FieldDetail = ({ field, onClose, onEdit }) => {
   const [activeTab, setActiveTab] = useState('info')
@@ -80,7 +81,7 @@ const FieldDetail = ({ field, onClose, onEdit }) => {
   const renderLocationTab = () => (
     <div className="field-detail-location">
       <div className="detail-row">
-        <span className="detail-label">位置数据 (WKT格式):</span>
+        <span className="detail-label">位置数据(WKT格式):</span>
       </div>
       
       <div className="wkt-container">
@@ -101,10 +102,6 @@ const FieldDetail = ({ field, onClose, onEdit }) => {
       </div>
       
       <div className="action-buttons">
-        <button className="primary-btn" onClick={onEdit}>
-          编辑地块
-        </button>
-        
         <button className="secondary-btn">
           导出数据
         </button>
@@ -125,45 +122,46 @@ const FieldDetail = ({ field, onClose, onEdit }) => {
   )
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-container field-detail-modal">
-        <div className="modal-header">
-          <h2>地块详情</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="地块详情"
+      size="large"
+      footer={
+        <button className="primary-btn" onClick={onEdit}>
+          编辑地块
+        </button>
+      }
+    >
+      <div className="tabs-container">
+        <div className="tabs-header">
+          <button 
+            className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`}
+            onClick={() => setActiveTab('info')}
+          >
+            基本信息
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'location' ? 'active' : ''}`}
+            onClick={() => setActiveTab('location')}
+          >
+            位置信息
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'actions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('actions')}
+          >
+            操作
+          </button>
         </div>
         
-        <div className="modal-body">
-          <div className="tabs-container">
-            <div className="tabs-header">
-              <button 
-                className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`}
-                onClick={() => setActiveTab('info')}
-              >
-                基本信息
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'location' ? 'active' : ''}`}
-                onClick={() => setActiveTab('location')}
-              >
-                位置信息
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'actions' ? 'active' : ''}`}
-                onClick={() => setActiveTab('actions')}
-              >
-                操作
-              </button>
-            </div>
-            
-            <div className="tab-content">
-              {activeTab === 'info' && renderInfoTab()}
-              {activeTab === 'location' && renderLocationTab()}
-              {activeTab === 'actions' && renderActionsTab()}
-            </div>
-          </div>
+        <div className="tab-content">
+          {activeTab === 'info' && renderInfoTab()}
+          {activeTab === 'location' && renderLocationTab()}
+          {activeTab === 'actions' && renderActionsTab()}
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

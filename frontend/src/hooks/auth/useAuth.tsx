@@ -44,18 +44,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           const isValid = await authService.verifyToken(token);
           if (isValid) {
             setUser({ id: userId, token });
+            console.log('[前端Auth] Token验证成功，用户已登录');
           } else {
             // Token无效，清除本地存储
+            console.log('[前端Auth] Token无效，清除用户信息');
             localStorage.removeItem('token');
             localStorage.removeItem('user_id');
             localStorage.removeItem('isLoggedIn');
           }
         } catch (error) {
-          console.error('Token验证失败:', error);
+          console.error('[前端Auth] Token验证过程出错:', error);
+          // 清除本地存储
           localStorage.removeItem('token');
           localStorage.removeItem('user_id');
           localStorage.removeItem('isLoggedIn');
         }
+      } else {
+        console.log('[前端Auth] 未找到本地token，用户未登录');
       }
       setLoading(false);
     };

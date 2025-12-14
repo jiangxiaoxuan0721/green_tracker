@@ -42,14 +42,13 @@ export const authService = {
   },
 
   // 验证token有效性
-  async verifyToken(token: string): Promise<any> {
+  async verifyToken(token: string): Promise<boolean> {
     try {
-      const response = await api.get('/api/auth/verify', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data;
-    } catch (error) {
-      throw new Error('Token验证失败');
+      const response = await api.get('/api/auth/verify');
+      return response.data.valid === true;
+    } catch (error: any) {
+      console.error('[前端AuthService] Token验证失败:', error);
+      return false;
     }
   }
 };

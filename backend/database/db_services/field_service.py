@@ -39,8 +39,10 @@ def create_field(db: Session, name: str, description: str = "",
     # 处理几何数据
     geometry_obj = location_geom
     if HAS_POSTGIS and location_geom and isinstance(location_geom, str):
-        # 从WKT文本创建几何对象
-        geometry_obj = ST_GeomFromText(location_geom, 4326) # type: ignore
+        # 不直接创建几何对象，而是在SQL中转换
+        needs_geom_conversion = True
+    else:
+        needs_geom_conversion = False
     
     # 创建新地块
     print("[后端FieldService] 创建新地块对象")
@@ -62,13 +64,23 @@ def create_field(db: Session, name: str, description: str = "",
     print("[后端FieldService] 保存地块到数据库")
     db.add(new_field)
     db.commit()
-    db.refresh(new_field)
+    
+    # 如果需要转换几何数据（PostGIS且WKT字符串）
+    if HAS_POSTGIS and 'needs_geom_conversion' in locals() and needs_geom_conversion:
+        print("[后端FieldService] 转换几何数据")
+        db.execute(
+            text("UPDATE field SET location_geom = ST_GeomFromText(:wkt, 4326) WHERE id = :field_id"),
+            {"wkt": location_geom, "field_id": new_field.id}
+        )
+        db.commit()
     
     # 如果未提供面积但提供了位置几何，则计算面积
-    if not area_m2 and new_field.location_geom: # type: ignore
+    if not area_m2:
         print("[后端FieldService] 计算地块面积")
         calculate_and_update_area(db, new_field.id) # type: ignore
-        db.refresh(new_field)
+    
+    # 刷新对象以获取更新后的值
+    db.refresh(new_field)
     
     print(f"[后端FieldService] 地块保存成功: {new_field.id}")
     return new_field
@@ -86,14 +98,18 @@ def calculate_and_update_area(db: Session, field_id: str) -> Optional[float]:
     """
     try:
         if HAS_POSTGIS:
-            # 使用ST_Area计算面积，将几何转换为geography类型以获得平方米单位的面积
-            result = db.query(
-                func.ST_Area(Field.location_geom.cast('geography')) # type: ignore
-            ).filter(Field.id == field_id).scalar()
+            # 直接使用原始SQL查询，避免ORM缓存问题
+            result = db.execute(
+                text("""
+                    UPDATE field 
+                    SET area_m2 = ST_Area(location_geom::geography) 
+                    WHERE id = :field_id 
+                    RETURNING area_m2
+                """),
+                {"field_id": field_id}
+            ).scalar()
             
             if result:
-                # 更新面积字段
-                db.query(Field).filter(Field.id == field_id).update({"area_m2": result})
                 db.commit()
                 print(f"[后端FieldService] 地块面积已更新: {result} 平方米")
                 return result
@@ -103,6 +119,8 @@ def calculate_and_update_area(db: Session, field_id: str) -> Optional[float]:
             
     except Exception as e:
         print(f"[后端FieldService] 计算地块面积失败: {e}")
+        # 回滚事务
+        db.rollback()
     
     return None
 
@@ -418,15 +436,19 @@ def update_field(db: Session, field_id: str, owner_id: str = "", organization_id
     # 处理几何数据更新
     if location_geom is not None:
         if HAS_POSTGIS and isinstance(location_geom, str):
-            # 从WKT文本创建几何对象
-            update_data["location_geom"] = ST_GeomFromText(location_geom, 4326) # type: ignore
-            # 如果更新了几何但未提供面积，则需要重新计算面积
-            if area_m2 is None:
-                print("[后端FieldService] 几何数据已更新，将重新计算面积")
-                calculate_and_update_area(db, field_id)
-        else:
-            # 直接存储文本
+            # 不直接存储，而是使用SQL函数在数据库中转换
+            # 先保存字段，然后使用SQL更新几何数据
+            print("[后端FieldService] 将在SQL中转换几何数据")
+            # 记录需要更新几何数据，但不包含在update_data中
+            needs_geom_update = True
+        elif HAS_POSTGIS:
+            # 已经是几何对象，直接更新
             update_data["location_geom"] = location_geom
+        else:
+            # 无PostGIS，直接存储文本
+            update_data["location_geom"] = location_geom
+    else:
+        needs_geom_update = False
     
     if area_m2 is not None:
         update_data["area_m2"] = area_m2
@@ -446,6 +468,23 @@ def update_field(db: Session, field_id: str, owner_id: str = "", organization_id
         db.commit()
         # 刷新对象以获取更新后的值
         db.refresh(field)
+    
+    # 如果需要更新几何数据（PostGIS且WKT字符串）
+    if HAS_POSTGIS and 'needs_geom_update' in locals() and needs_geom_update: # type: ignore
+        print("[后端FieldService] 更新几何数据")
+        db.execute(
+            text("UPDATE field SET location_geom = ST_GeomFromText(:wkt, 4326) WHERE id = :field_id"),
+            {"wkt": location_geom, "field_id": field_id}
+        )
+        db.commit()
+        
+        # 如果更新了几何但未提供面积，则需要重新计算面积
+        if area_m2 is None:
+            print("[后端FieldService] 几何数据已更新，将重新计算面积")
+            calculate_and_update_area(db, field_id)
+    
+    # 刷新对象以获取更新后的值
+    db.refresh(field)
     
     print(f"[后端FieldService] 地块更新成功: {field.id}")
     return field

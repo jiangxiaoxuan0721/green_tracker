@@ -122,3 +122,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
     
     return user
+
+
+@router.get("/verify")
+async def verify_token(current_user: User = Depends(get_current_user)):
+    """
+    验证token有效性
+    """
+    # 如果能通过get_current_user依赖，说明token有效
+    return {"valid": True, "user_id": str(current_user.userid)}

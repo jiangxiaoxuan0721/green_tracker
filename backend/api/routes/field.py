@@ -144,17 +144,12 @@ async def get_field(
                 detail="地块不存在"
             )
         
-        # 检查权限（用户只能查看自己的地块或其组织的地块）
-        if (field_response["owner_id"] != current_user.userid and 
-            field_response["organization_id"] and 
-            field_response["organization_id"] != current_user.organization_id):
-            
-            # 尝试通过组织ID验证权限（如果用户有组织ID）
-            if not current_user.organization_id or field_response["organization_id"] != current_user.organization_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="无权访问该地块"
-                )
+        # 检查权限（用户只能查看自己的地块）
+        if field_response["owner_id"] != current_user.userid:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权访问该地块"
+            )
         
         print(f"[API] 返回地块信息: {field_response['name']}")
         return field_response
@@ -190,7 +185,6 @@ async def update_field_by_id(
             db=db,
             field_id=field_id,
             owner_id=current_user.userid,
-            organization_id=current_user.organization_id,
             name=field_update.name,
             description=field_update.description,
             location_geom=field_update.location_wkt,
@@ -245,7 +239,6 @@ async def delete_field_by_id(
             db=db,
             field_id=field_id,
             owner_id=current_user.userid,
-            organization_id=current_user.organization_id,
             soft_delete=soft_delete
         )
         
@@ -287,8 +280,7 @@ async def restore_field_by_id(
         db_field = restore_field(
             db=db,
             field_id=field_id,
-            owner_id=current_user.userid,
-            organization_id=current_user.organization_id
+            owner_id=current_user.userid
         )
         
         if not db_field:

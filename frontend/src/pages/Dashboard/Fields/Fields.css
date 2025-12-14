@@ -81,70 +81,7 @@
   gap: var(--spacing-sm);
 }
 
-/* 模态框样式 - 使用主题变量 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--overlay-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
 
-.modal-container {
-  background-color: var(--bg-component);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-heavy);
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.field-detail-modal {
-  max-width: 800px;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--border-primary);
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-secondary);
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-pill);
-  transition: var(--transition-normal);
-}
-
-.close-btn:hover {
-  background-color: var(--bg-hover);
-}
-
-.modal-body {
-  padding: var(--spacing-lg);
-}
 
 /* 表单样式 - 使用主题变量 */
 .field-form {
@@ -324,18 +261,11 @@
 }
 
 /* 按钮样式 - 使用主题定义的样式 */
-.primary-btn, .secondary-btn, .danger-btn {
-  /* 继承主题样式，只添加特定的自定义属性 */
-}
 
 /* 响应式设计 - 使用主题变量 */
 @media (max-width: 768px) {
   .fields-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .modal-container {
-    width: 95%;
   }
   
   .field-actions {

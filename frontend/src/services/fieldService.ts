@@ -112,9 +112,18 @@ export const fieldService = {
     console.log('[前端FieldService] 地块ID:', fieldId);
     console.log('[前端FieldService] 软删除:', softDelete);
     
-    await api.delete(`/api/fields/${fieldId}?soft_delete=${softDelete}`);
-    
-    console.log('[前端FieldService] 删除地块成功');
+    try {
+      await api.delete(`/api/fields/${fieldId}?soft_delete=${softDelete}`);
+      console.log('[前端FieldService] 删除地块成功');
+    } catch (error: any) {
+      console.error('[前端FieldService] 删除地块失败:', error);
+      // 如果是认证错误，不重新抛出，让API拦截器处理
+      if (error.response?.status === 401) {
+        return Promise.reject(error);
+      }
+      // 其他错误也重新抛出
+      throw error;
+    }
   },
 
   // 恢复已软删除的地块
