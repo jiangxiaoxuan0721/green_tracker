@@ -1,6 +1,6 @@
 -- =========================================================
 -- 【DDL-03】采集任务 / 观测会话表：collection_session
--- 角色：空-天-地-具身多源数据的“时间 + 行为 + 组织枢纽”
+-- 角色：空-天-地-具身多源数据的"时间 + 行为 + 组织枢纽"
 -- =========================================================
 
 
@@ -12,7 +12,7 @@
 -- 2）由哪个平台（device）
 -- 3）在什么时间
 -- 4）以什么方式（任务类型）
--- 5）采集了“一整批”什么数据
+-- 5）采集了"一整批"什么数据
 --
 -- 所有原始数据（图像/视频/环境数据）
 -- 都必须隶属于某一个 session
@@ -28,8 +28,6 @@ CREATE TABLE collection_session (
   -- 关联实体
   field_id          UUID NOT NULL REFERENCES field(id)
                       ON DELETE CASCADE,
-  device_id         UUID NOT NULL REFERENCES device(id)
-                      ON DELETE RESTRICT,
 
   -- 时间信息（核心）
   start_time        TIMESTAMPTZ NOT NULL,
@@ -60,15 +58,11 @@ CREATE TABLE collection_session (
 CREATE INDEX idx_session_field_id
 ON collection_session (field_id);
 
--- 3.2 按设备查询任务
-CREATE INDEX idx_session_device_id
-ON collection_session (device_id);
-
--- 3.3 按时间范围查询
+-- 3.2 按时间范围查询
 CREATE INDEX idx_session_time_range
 ON collection_session (start_time, end_time);
 
--- 3.4 按任务类型查询
+-- 3.3 按任务类型查询
 CREATE INDEX idx_session_mission_type
 ON collection_session (mission_type);
 
@@ -78,7 +72,6 @@ ON collection_session (mission_type);
 -- =========================
 -- id               ：采集任务唯一标识
 -- field_id         ：任务所属农田
--- device_id        ：执行任务的平台 / 设备
 -- start_time       ：任务开始时间
 -- end_time         ：任务结束时间
 -- mission_type     ：任务类型（巡检 / 定点 / 路径 / 应急）
@@ -96,7 +89,6 @@ ON collection_session (mission_type);
 
 INSERT INTO collection_session (
   field_id,
-  device_id,
   start_time,
   end_time,
   mission_type,
@@ -105,7 +97,6 @@ INSERT INTO collection_session (
   weather_snapshot
 ) VALUES (
   '11111111-1111-1111-1111-111111111111',  -- 示例 field_id
-  '22222222-2222-2222-2222-222222222222',  -- 示例 device_id
   '2025-06-01 09:00:00+08',
   '2025-06-01 09:45:00+08',
   '巡检',
@@ -126,10 +117,10 @@ WHERE field_id = '11111111-1111-1111-1111-111111111111'
 ORDER BY start_time DESC
 LIMIT 1;
 
--- 查询某设备在一段时间内执行的任务
+-- 查询某块地在一段时间内执行的任务
 SELECT *
 FROM collection_session
-WHERE device_id = '22222222-2222-2222-2222-222222222222'
+WHERE field_id = '11111111-1111-1111-1111-111111111111'
   AND start_time >= '2025-06-01'
   AND start_time <  '2025-06-02';
 
@@ -138,7 +129,7 @@ WHERE device_id = '22222222-2222-2222-2222-222222222222'
 -- collection_session 表作用总结
 -- =========================================================
 -- 1. 作为所有原始数据的逻辑父节点
--- 2. 统一组织“时序 + 空间 + 行为”
--- 3. 支撑空-天-地-具身协同调度
+-- 2. 统一组织"时序 + 空间 + 行为"
+-- 3. 支撑空-天-地协同调度
 -- 4. 支持按任务维度回溯农情数据
 -- =========================================================
