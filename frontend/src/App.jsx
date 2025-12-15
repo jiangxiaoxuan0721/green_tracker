@@ -11,8 +11,8 @@ function AppContent() {
   const location = useLocation()
   
   useEffect(() => {
-    // 只在Dashboard页面应用主题
-    if (location.pathname === '/dashboard') {
+    // 在Dashboard及其子页面应用主题
+    if (location.pathname.startsWith('/dashboard')) {
       const savedTheme = localStorage.getItem('theme') || 'default'
       if (savedTheme === 'default') {
         document.documentElement.removeAttribute('data-theme')

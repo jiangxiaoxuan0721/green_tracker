@@ -6,6 +6,7 @@ import '../AdditionalStyles.css'
 import './Devices.css'
 import DeviceForm from './components/DeviceForm'
 import DeviceDetail from './components/DeviceDetail'
+import ItemCard from '../../../components/common/ItemCard'
 
 const Devices = () => {
   const { user } = useAuth()
@@ -56,6 +57,7 @@ const Devices = () => {
 
   // 处理查看详情
   const handleViewDetail = (device) => {
+    console.log('查看设备详情:', device)
     setSelectedDevice(device)
     setShowDetail(true)
   }
@@ -94,11 +96,6 @@ const Devices = () => {
   const handleDetailClose = () => {
     setShowDetail(false)
     setSelectedDevice(null)
-  }
-
-  // 获取设备状态的CSS类
-  const getStatusClass = (isActive) => {
-    return isActive ? 'status-active' : 'status-inactive'
   }
 
   // 获取平台层级的显示名称
@@ -177,60 +174,29 @@ const Devices = () => {
       ) : (
         <div className="devices-grid">
           {devices.map(device => (
-            <div key={device.id} className="device-card">
-              <div className="device-header">
-                <div className="device-title">
-                  <h3>{device.model || `${getDeviceTypeText(device.device_type)}设备`}</h3>
-                  <span className="device-manufacturer">{device.manufacturer}</span>
-                </div>
-                <div className={`status-badge ${getStatusClass(device.is_active)}`}>
-                  {device.is_active ? '活跃' : '非活跃'}
-                </div>
-              </div>
-              
-              <div className="device-info">
-                <div className="info-item">
-                  <span className="info-label">类型</span>
-                  <span className="info-value">{getDeviceTypeText(device.device_type)}</span>
-                </div>
-                
-                <div className="info-item">
-                  <span className="info-label">平台层级</span>
-                  <span className="info-value">{getPlatformLevelText(device.platform_level)}</span>
-                </div>
-                
-                {device.sensors && Object.keys(device.sensors).length > 0 && (
-                  <div className="info-item">
-                    <span className="info-label">传感器</span>
-                    <span className="info-value">{Object.keys(device.sensors).join(', ')}</span>
-                  </div>
-                )}
-                
-                {device.actuators && Object.keys(device.actuators).length > 0 && (
-                  <div className="info-item">
-                    <span className="info-label">执行机构</span>
-                    <span className="info-value">{Object.keys(device.actuators).join(', ')}</span>
-                  </div>
-                )}
-                
-                <div className="info-item">
-                  <span className="info-label">创建时间</span>
-                  <span className="info-value">{new Date(device.created_at).toLocaleString()}</span>
-                </div>
-              </div>
-              
-              <div className="device-actions">
-                <button className="secondary-btn" onClick={() => handleViewDetail(device)}>
-                  详情
-                </button>
-                <button className="secondary-btn" onClick={() => handleEditDevice(device)}>
-                  编辑
-                </button>
-                <button className="danger-btn" onClick={() => handleDeleteDevice(device.id)}>
-                  删除
-                </button>
-              </div>
-            </div>
+            <ItemCard
+              key={device.id}
+              item={device}
+              itemType="device"
+              isActive={device.is_active}
+              onViewDetail={handleViewDetail}
+              onEdit={handleEditDevice}
+              onDelete={handleDeleteDevice}
+              getSubtitle={(item) => item.manufacturer}
+              getPrimaryInfo={(item) => [
+                { label: '类型', value: getDeviceTypeText(item.device_type) },
+                { label: '平台层级', value: getPlatformLevelText(item.platform_level) },
+                ...(item.sensors && Object.keys(item.sensors).length > 0 
+                  ? [{ label: '传感器', value: Object.keys(item.sensors).join(', ') }] 
+                  : []),
+                ...(item.actuators && Object.keys(item.actuators).length > 0 
+                  ? [{ label: '执行机构', value: Object.keys(item.actuators).join(', ') }] 
+                  : [])
+              ]}
+              getSecondaryInfo={(item) => [
+                { label: '创建时间', value: new Date(item.created_at).toLocaleString() }
+              ]}
+            />
           ))}
         </div>
       )}
@@ -251,6 +217,7 @@ const Devices = () => {
           device={selectedDevice}
           onClose={handleDetailClose}
           onEdit={() => {
+            console.log('从详情界面转到编辑界面')
             setShowDetail(false)
             handleEditDevice(selectedDevice)
           }}

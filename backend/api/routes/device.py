@@ -48,7 +48,7 @@ async def create_new_device(
         print(f"[API] 设备创建成功: {db_device.id}")
         
         # 转换为响应格式
-        return DeviceResponse.from_orm(db_device)
+        return DeviceResponse.model_validate(db_device)
         
     except Exception as e:
         print(f"[API] 创建设备失败: {str(e)}")
@@ -96,7 +96,7 @@ async def get_devices(
         )
         
         # 转换为响应格式
-        device_responses = [DeviceResponse.from_orm(device) for device in devices]
+        device_responses = [DeviceResponse.model_validate(device) for device in devices]
         
         print(f"[API] 返回 {len(device_responses)} 个设备")
         return device_responses
@@ -140,7 +140,7 @@ async def get_device(
             )
         
         print(f"[API] 返回设备信息: {device.model}")
-        return DeviceResponse.from_orm(device)
+        return DeviceResponse.model_validate(device)
         
     except HTTPException:
         # 重新抛出HTTP异常
@@ -190,7 +190,7 @@ async def update_device_by_id(
             )
         
         print(f"[API] 设备更新成功: {db_device.model}")
-        return DeviceResponse.from_orm(db_device)
+        return DeviceResponse.model_validate(db_device)
         
     except HTTPException:
         # 重新抛出HTTP异常
@@ -275,7 +275,7 @@ async def restore_device_by_id(
             )
         
         print(f"[API] 设备恢复成功: {db_device.model}")
-        return DeviceResponse.from_orm(db_device)
+        return DeviceResponse.model_validate(db_device)
         
     except HTTPException:
         # 重新抛出HTTP异常
@@ -314,7 +314,7 @@ async def get_devices_by_type_endpoint(
         filtered_devices = [device for device in devices if device.device_type == device_type]
         
         # 转换为响应格式
-        device_responses = [DeviceResponse.from_orm(device) for device in filtered_devices]
+        device_responses = [DeviceResponse.model_validate(device) for device in filtered_devices]
         
         print(f"[API] 返回 {len(device_responses)} 个{device_type}类型设备")
         return device_responses
@@ -353,7 +353,7 @@ async def get_devices_by_platform_endpoint(
         filtered_devices = [device for device in devices if device.platform_level == platform_level]
         
         # 转换为响应格式
-        device_responses = [DeviceResponse.from_orm(device) for device in filtered_devices]
+        device_responses = [DeviceResponse.model_validate(device) for device in filtered_devices]
         
         print(f"[API] 返回 {len(device_responses)} 个{platform_level}平台设备")
         return device_responses

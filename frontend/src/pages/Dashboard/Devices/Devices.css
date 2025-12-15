@@ -1,9 +1,9 @@
 /* 设备管理页面特定样式 */
 
-/* 设备卡片样式 - 使用主题变量 */
+/* 网格布局 - 使用通用卡片组件 */
 .devices-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--spacing-lg);
   margin-top: var(--spacing-xl);
 }
@@ -172,6 +172,110 @@
   gap: var(--spacing-md);
 }
 
+/* 表单分组样式 */
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+}
+
+/* 网格式复选框样式 */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.checkbox-card {
+  background-color: var(--bg-component);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  transition: var(--transition-normal);
+  position: relative;
+}
+
+.checkbox-card:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-light);
+}
+
+.checkbox-input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.checkbox-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  padding: var(--spacing-sm) 0;
+  position: relative;
+}
+
+.checkmark {
+  position: absolute;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
+  height: 20px;
+  width: 20px;
+  background-color: var(--bg-light);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkmark::after {
+  content: "";
+  display: none;
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-input:checked ~ .checkbox-label .checkmark {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.checkbox-input:checked ~ .checkbox-label .checkmark::after {
+  display: block;
+}
+
+.checkbox-input:checked ~ .checkbox-label {
+  color: var(--primary-color);
+}
+
+
+
+.sensor-name, .actuator-name {
+  font-size: 0.9rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.checkbox-input:checked ~ .checkbox-label .sensor-name,
+.checkbox-input:checked ~ .checkbox-label .actuator-name {
+  color: var(--text-primary);
+}
+
+/* 旧版复选框样式保持兼容性 */
 .checkbox-group {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -209,5 +313,13 @@
   
   .checkbox-group {
     grid-template-columns: 1fr;
+  }
+  
+  .checkbox-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  
+  .checkbox-card {
+    padding: var(--spacing-xs);
   }
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Modal } from '../../components'
 
 const DeviceDetail = ({ device, onClose, onEdit }) => {
+  console.log('DeviceDetail组件接收到的设备数据:', device)
   const [activeTab, setActiveTab] = useState('basic')
 
   // 获取平台层级的显示名称
@@ -27,6 +28,22 @@ const DeviceDetail = ({ device, onClose, onEdit }) => {
     return typeMap[deviceType] || deviceType
   }
 
+  // 获取传感器显示名称
+  const getSensorDisplayName = (key) => {
+    const sensorMap = {
+      'RGB': 'RGB相机',
+      'multispectral': '多光谱',
+      'thermal': '热成像',
+      'nir': '近红外',
+      'lidar': '激光雷达',
+      'soil_moisture': '土壤湿度',
+      'soil_temp': '土壤温度',
+      'air_temp': '空气温度',
+      'humidity': '空气湿度'
+    }
+    return sensorMap[key] || key
+  }
+
   // 渲染传感器列表
   const renderSensors = () => {
     if (!device.sensors || Object.keys(device.sensors).length === 0) {
@@ -37,7 +54,7 @@ const DeviceDetail = ({ device, onClose, onEdit }) => {
       <div className="sensor-list">
         {Object.entries(device.sensors).map(([sensor, enabled]) => (
           <div key={sensor} className="sensor-item">
-            <span className="sensor-name">{sensor}</span>
+            <span className="sensor-name">{getSensorDisplayName(sensor)}</span>
             <span className={`sensor-status ${enabled ? 'enabled' : 'disabled'}`}>
               {enabled ? '已启用' : '未启用'}
             </span>
@@ -45,6 +62,19 @@ const DeviceDetail = ({ device, onClose, onEdit }) => {
         ))}
       </div>
     )
+  }
+
+  // 获取执行机构显示名称
+  const getActuatorDisplayName = (key) => {
+    const actuatorMap = {
+      'flight': '飞行控制',
+      'wheels': '轮式移动',
+      'tracks': '履带移动',
+      'arm': '机械臂',
+      'spray': '喷洒系统',
+      'irrigation': '灌溉控制'
+    }
+    return actuatorMap[key] || key
   }
 
   // 渲染执行机构列表
@@ -57,7 +87,7 @@ const DeviceDetail = ({ device, onClose, onEdit }) => {
       <div className="actuator-list">
         {Object.entries(device.actuators).map(([actuator, enabled]) => (
           <div key={actuator} className="actuator-item">
-            <span className="actuator-name">{actuator}</span>
+            <span className="actuator-name">{getActuatorDisplayName(actuator)}</span>
             <span className={`actuator-status ${enabled ? 'enabled' : 'disabled'}`}>
               {enabled ? '已启用' : '未启用'}
             </span>
@@ -69,6 +99,7 @@ const DeviceDetail = ({ device, onClose, onEdit }) => {
 
   return (
     <Modal
+      isOpen={true}
       title="设备详情"
       onClose={onClose}
       className="device-detail-modal"

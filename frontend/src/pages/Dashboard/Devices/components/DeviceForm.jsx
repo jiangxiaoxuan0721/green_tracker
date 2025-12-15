@@ -42,7 +42,7 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
     { key: 'soil_moisture', label: '土壤湿度' },
     { key: 'soil_temp', label: '土壤温度' },
     { key: 'air_temp', label: '空气温度' },
-    { key: 'humidity', label: '湿度' }
+    { key: 'humidity', label: '空气湿度' }
   ]
 
   // 执行机构选项
@@ -135,6 +135,8 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
           Object.entries(formData.actuators).filter(([_, enabled]) => enabled)
         )
       }
+      
+      console.log('[DeviceForm] 准备提交的数据:', submitData);
 
       if (mode === 'create') {
         await deviceService.createDevice(submitData)
@@ -153,6 +155,7 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
 
   return (
     <Modal
+      isOpen={true}
       title={`${mode === 'create' ? '添加' : '编辑'}设备`}
       onClose={onClose}
       className="device-form-modal"
@@ -237,17 +240,21 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
         </div>
         
         <div className="form-group">
-          <label>传感器配置</label>
-          <div className="checkbox-group">
+          <label className="section-title">传感器配置</label>
+          <div className="checkbox-grid">
             {sensorOptions.map(option => (
-              <div key={option.key} className="checkbox-item">
+              <div key={option.key} className="checkbox-card">
                 <input
                   type="checkbox"
                   id={`sensor-${option.key}`}
                   checked={!!formData.sensors[option.key]}
                   onChange={() => handleSensorChange(option.key)}
+                  className="checkbox-input"
                 />
-                <label htmlFor={`sensor-${option.key}`}>{option.label}</label>
+                <label htmlFor={`sensor-${option.key}`} className="checkbox-label">
+                  <span className="checkmark"></span>
+                  <span className="sensor-name">{option.label}</span>
+                </label>
               </div>
             ))}
           </div>
@@ -255,17 +262,21 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
         </div>
         
         <div className="form-group">
-          <label>执行机构配置</label>
-          <div className="checkbox-group">
+          <label className="section-title">执行机构配置</label>
+          <div className="checkbox-grid">
             {actuatorOptions.map(option => (
-              <div key={option.key} className="checkbox-item">
+              <div key={option.key} className="checkbox-card">
                 <input
                   type="checkbox"
                   id={`actuator-${option.key}`}
                   checked={!!formData.actuators[option.key]}
                   onChange={() => handleActuatorChange(option.key)}
+                  className="checkbox-input"
                 />
-                <label htmlFor={`actuator-${option.key}`}>{option.label}</label>
+                <label htmlFor={`actuator-${option.key}`} className="checkbox-label">
+                  <span className="checkmark"></span>
+                  <span className="actuator-name">{option.label}</span>
+                </label>
               </div>
             ))}
           </div>

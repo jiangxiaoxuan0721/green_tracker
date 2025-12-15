@@ -48,10 +48,14 @@
   /* 状态颜色 - 清新色调 */
   --success-color: #81c784;
   --success-color-rgb: 129, 199, 132;
+  --success-light: rgba(129, 199, 132, 0.8);
   --warning-color: #ffb74d;
   --warning-color-rgb: 255, 183, 77;
+  --warning-light: rgba(255, 183, 77, 0.8);
   --error-color: #e57373;
   --error-color-rgb: 229, 115, 115;
+  --error-light: rgba(229, 115, 115, 0.8);
   --info-color: #64b5f6;
   --info-color-rgb: 100, 181, 246;
+  --info-light: rgba(100, 181, 246, 0.8);
 }

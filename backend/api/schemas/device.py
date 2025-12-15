@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, Dict, Any, Union
 from datetime import datetime
+from uuid import UUID
 
 
 class DeviceCreate(BaseModel):
@@ -46,7 +47,7 @@ class DeviceUpdate(BaseModel):
 
 
 class DeviceResponse(BaseModel):
-    id: str
+    id: Union[str, UUID]
     device_type: str
     platform_level: str
     model: Optional[str] = None
@@ -54,10 +55,18 @@ class DeviceResponse(BaseModel):
     sensors: Optional[Dict[str, Any]] = None
     actuators: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
-    owner_id: Optional[str] = None
+    owner_id: Optional[Union[str, UUID]] = None
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    @field_validator('id', 'owner_id', mode='before')
+    @classmethod
+    def convert_uuid_to_str(cls, v):
+        """将UUID对象转换为字符串"""
+        if isinstance(v, UUID):
+            return str(v)
+        return v
 
     class Config:
         from_attributes = True

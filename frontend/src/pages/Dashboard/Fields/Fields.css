@@ -1,9 +1,9 @@
 /* 地块管理页面特定样式 */
 
-/* 地块卡片样式 - 使用主题变量 */
+/* 网格布局 - 使用通用卡片组件 */
 .fields-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--spacing-lg);
   margin-top: var(--spacing-xl);
 }

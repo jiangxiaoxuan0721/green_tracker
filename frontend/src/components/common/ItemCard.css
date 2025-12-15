@@ -1,0 +1,137 @@
+/* 通用项目卡片组件样式 */
+.item-card {
+  background-color: var(--bg-component);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-light);
+  border: 1px solid var(--border-primary);
+  overflow: hidden;
+  transition: var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+}
+
+.item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+}
+
+/* 卡片头部 */
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--spacing-lg);
+  background-color: var(--bg-header);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.item-title {
+  text-align: left;
+  flex-grow: 1;
+}
+
+.item-title h3 {
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.item-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* 状态徽章 */
+.status-badge {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.status-badge.status-active, 
+.status-badge.status-good {
+  background-color: var(--success-light);
+  color: var(--success-color);
+}
+
+.status-badge.status-inactive {
+  background-color: var(--bg-disabled);
+  color: var(--text-muted);
+}
+
+/* 卡片信息区域 */
+.item-info {
+  padding: var(--spacing-lg);
+  flex-grow: 1;
+}
+
+.info-item {
+  display: flex;
+  margin-bottom: var(--spacing-sm);
+  align-items: flex-start;
+}
+
+.info-item.info-secondary {
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
+.info-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 80px;
+  flex-shrink: 0;
+  padding-right: var(--spacing-sm);
+  text-align: left;
+}
+
+.info-value {
+  font-weight: 400;
+  color: var(--text-primary);
+  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* 卡片操作按钮 */
+.item-actions {
+  display: flex;
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+  justify-content: space-between;
+}
+
+.item-actions button {
+  flex: 1;
+  min-width: 80px;
+  height: 36px;
+  font-size: 0.9rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .item-actions {
+    flex-direction: column;
+  }
+  
+  .info-label {
+    min-width: 70px;
+  }
+}

@@ -56,7 +56,20 @@ export const deviceService = {
     console.log('[前端DeviceService] 发送创建设备请求');
     console.log('[前端DeviceService] 请求数据:', deviceData);
     
-    const response = await api.post<Device>('/api/devices/', deviceData);
+    // 确保sensors和actuators是对象而不是字符串
+    const processedData = {
+      ...deviceData,
+      sensors: typeof deviceData.sensors === 'string' 
+        ? JSON.parse(deviceData.sensors) 
+        : (deviceData.sensors || {}),
+      actuators: typeof deviceData.actuators === 'string' 
+        ? JSON.parse(deviceData.actuators) 
+        : (deviceData.actuators || {})
+    };
+    
+    console.log('[前端DeviceService] 处理后的数据:', processedData);
+    
+    const response = await api.post<Device>('/api/devices/', processedData);
     
     console.log('[前端DeviceService] 创建设备成功:', response.data);
     return response.data;
@@ -90,7 +103,20 @@ export const deviceService = {
     console.log('[前端DeviceService] 设备ID:', deviceId);
     console.log('[前端DeviceService] 更新数据:', deviceData);
     
-    const response = await api.put<Device>(`/api/devices/${deviceId}`, deviceData);
+    // 确保sensors和actuators是对象而不是字符串
+    const processedData = {
+      ...deviceData,
+      sensors: typeof deviceData.sensors === 'string' 
+        ? JSON.parse(deviceData.sensors) 
+        : (deviceData.sensors || {}),
+      actuators: typeof deviceData.actuators === 'string' 
+        ? JSON.parse(deviceData.actuators) 
+        : (deviceData.actuators || {})
+    };
+    
+    console.log('[前端DeviceService] 处理后的数据:', processedData);
+    
+    const response = await api.put<Device>(`/api/devices/${deviceId}`, processedData);
     
     console.log('[前端DeviceService] 更新设备成功:', response.data);
     return response.data;

@@ -6,6 +6,7 @@ import '../AdditionalStyles.css'
 import './Fields.css'
 import FieldForm from './components/FieldForm'
 import FieldDetail from './components/FieldDetail'
+import ItemCard from '../../../components/common/ItemCard'
 
 const Fields = () => {
   const { user } = useAuth()
@@ -149,48 +150,23 @@ const Fields = () => {
       ) : (
         <div className="fields-grid">
           {fields.map(field => (
-            <div key={field.id} className="field-card">
-              <div className="field-header">
-                <h3>{field.name}</h3>
-                <div className={`health-badge ${field.is_active ? 'good' : 'inactive'}`}>
-                  {field.is_active ? '活跃' : '非活跃'}
-                </div>
-              </div>
-              
-              <div className="field-info">
-                <div className="info-item">
-                  <span className="info-label">面积</span>
-                  <span className="info-value">{field.area_m2 ? `${field.area_m2.toFixed(2)} 平方米` : '未知'}</span>
-                </div>
-                
-                <div className="info-item">
-                  <span className="info-label">作物</span>
-                  <span className="info-value">{field.crop_type || '未设置'}</span>
-                </div>
-                
-                <div className="info-item">
-                  <span className="info-label">土壤类型</span>
-                  <span className="info-value">{field.soil_type || '未设置'}</span>
-                </div>
-                
-                <div className="info-item">
-                  <span className="info-label">创建时间</span>
-                  <span className="info-value">{new Date(field.created_at).toLocaleString()}</span>
-                </div>
-              </div>
-              
-              <div className="field-actions">
-                <button className="secondary-btn" onClick={() => handleViewDetail(field)}>
-                  详情
-                </button>
-                <button className="secondary-btn" onClick={() => handleEditField(field)}>
-                  编辑
-                </button>
-                <button className="danger-btn" onClick={() => handleDeleteField(field.id)}>
-                  删除
-                </button>
-              </div>
-            </div>
+            <ItemCard
+              key={field.id}
+              item={field}
+              itemType="field"
+              isActive={field.is_active}
+              onViewDetail={handleViewDetail}
+              onEdit={handleEditField}
+              onDelete={handleDeleteField}
+              getSubtitle={(item) => item.area_m2 ? `${item.area_m2.toFixed(2)} 平方米` : '未知面积'}
+              getPrimaryInfo={(item) => [
+                { label: '作物', value: item.crop_type || '未设置' },
+                { label: '土壤类型', value: item.soil_type || '未设置' }
+              ]}
+              getSecondaryInfo={(item) => [
+                { label: '创建时间', value: new Date(item.created_at).toLocaleString() }
+              ]}
+            />
           ))}
         </div>
       )}
