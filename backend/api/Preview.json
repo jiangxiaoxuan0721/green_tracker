@@ -1,5 +1,5 @@
 {
-  "endpoints": [
+  "auth": [
     {
       "method": "POST",
       "path": "/api/auth/register",
@@ -13,7 +13,9 @@
       "description": "用户登录验证",
       "parameters": "username, password",
       "returns": "user_id, token"
-    },
+    }
+  ],
+  "feedback": [
     {
       "method": "POST",
       "path": "/api/feedback/",
@@ -27,7 +29,9 @@
       "description": "获取所有反馈信息",
       "parameters": "无",
       "returns": "反馈列表: [id, name, email, subject, content, created_at, ...]"
-    },
+    }
+  ],
+  "fields": [
     {
       "method": "POST",
       "path": "/api/fields/",
@@ -76,6 +80,64 @@
       "description": "查找包含指定点的地块",
       "parameters": "longitude, latitude, owner_id (可选), organization_id (可选), active_only (可选)",
       "returns": "地块列表: [id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at, ...]"
+    }
+  ],
+  "devices": [
+    {
+      "method": "POST",
+      "path": "/api/devices/",
+      "description": "创建新设备",
+      "parameters": "device_type, platform_level, model (可选), manufacturer (可选), sensors (可选), actuators (可选), description (可选)",
+      "returns": "id, device_type, platform_level, model, manufacturer, sensors, actuators, description, owner_id, is_active, created_at, updated_at"
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/",
+      "description": "获取设备列表",
+      "parameters": "owner_id (可选), device_type (可选), platform_level (可选), active_only (可选), keyword (可选), has_sensor (可选), has_actuator (可选)",
+      "returns": "设备列表: [id, device_type, platform_level, model, manufacturer, sensors, actuators, description, owner_id, is_active, created_at, updated_at, ...]"
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/{device_id}",
+      "description": "根据ID获取特定设备",
+      "parameters": "device_id",
+      "returns": "id, device_type, platform_level, model, manufacturer, sensors, actuators, description, owner_id, is_active, created_at, updated_at"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/devices/{device_id}",
+      "description": "更新设备信息",
+      "parameters": "device_id, device_type (可选), platform_level (可选), model (可选), manufacturer (可选), sensors (可选), actuators (可选), description (可选), is_active (可选)",
+      "returns": "id, device_type, platform_level, model, manufacturer, sensors, actuators, description, owner_id, is_active, created_at, updated_at"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/devices/{device_id}",
+      "description": "删除设备",
+      "parameters": "device_id, soft_delete (可选)",
+      "returns": "无内容，状态码204"
+    },
+    {
+      "method": "POST",
+      "path": "/api/devices/{device_id}/restore",
+      "description": "恢复已软删除的设备",
+      "parameters": "device_id",
+      "returns": "id, device_type, platform_level, model, manufacturer, sensors, actuators, description, owner_id, is_active, created_at, updated_at"
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/types/{device_type}",
+      "description": "根据设备类型获取设备列表",
+      "parameters": "device_type, active_only (可选)",
+      "returns": "设备列表: [id, device_type, platform_level, model, manufacturer, sensors, actuators, description, owner_id, is_active, created_at, updated_at, ...]"
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/platforms/{platform_level}",
+      "description": "根据平台层级获取设备列表",
+      "parameters": "platform_level, active_only (可选)",
+      "returns": "设备列表: [id, device_type, platform_level, model, manufacturer, sensors, actuators, description, owner_id, is_active, created_at, updated_at, ...]"
     }
   ]
 }

@@ -70,7 +70,6 @@ const Fields = () => {
       await fieldService.deleteField(fieldId)
       // 刷新列表
       setRefreshKey(prev => prev + 1)
-      alert('地块已删除')
     } catch (err) {
       setError(err.message || '删除地块失败')
       console.error('删除地块失败:', err)
@@ -135,11 +134,17 @@ const Fields = () => {
       
       {fields.length === 0 ? (
         <div className="empty-state">
-          <h3>暂无地块数据</h3>
-          <p>点击"添加地块"按钮创建您的第一个地块</p>
-          <button className="primary-btn" onClick={handleCreateField}>
-            添加地块
-          </button>
+          <div className="empty-icon">🌱</div>
+          <h3>还没有地块</h3>
+          <p>点击右上角的"添加地块"按钮开始管理您的农田</p>
+          <div className="empty-state-tips">
+            <p>您可以：</p>
+            <ul>
+              <li>创建多个地块进行精细化管理</li>
+              <li>设置作物类型和土壤信息</li>
+              <li>跟踪每个地块的面积和位置</li>
+            </ul>
+          </div>
         </div>
       ) : (
         <div className="fields-grid">

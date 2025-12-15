@@ -56,23 +56,31 @@ USING GIST (location_geom);
 CREATE INDEX idx_field_crop_type
 ON field (crop_type);
 
+-- 3.3 所有者ID索引（可选，多用户场景）
+CREATE INDEX idx_field_owner_id
+ON field (owner_id);
+
+-- 3.4 组织ID索引（可选，多组织场景）
+CREATE INDEX idx_field_organization_id
+ON field (organization_id);
+
 
 -- =========================
 -- 4. 字段语义说明
 -- =========================
--- id              ：地块唯一标识
--- name            ：地块名称
+-- id              ：地块唯一标识（UUID）
+-- name            ：地块名称（必填）
 -- description     ：地块说明信息
 -- location_geom   ：农田边界，多边形（WGS84 坐标系）
 -- area_m2         ：农田面积，单位平方米（可由 ST_Area 计算）
 -- crop_type       ：当前种植作物
 -- soil_type       ：土壤类型
--- irrigation_type ：灌溉方式
--- owner_id        ：地块负责人（预留）
--- organization_id ：所属组织（预留）
--- is_active       ：是否有效
--- created_at      ：创建时间
--- updated_at      ：更新时间
+-- irrigation_type ：灌溉方式（滴灌、喷灌、漫灌等）
+-- owner_id        ：地块负责人ID（UUID，多用户系统使用）
+-- organization_id ：所属组织ID（UUID，多组织系统使用）
+-- is_active       ：是否有效（布尔值，默认true）
+-- created_at      ：创建时间（带时区的时间戳）
+-- updated_at      ：更新时间（带时区的时间戳）
 
 
 -- =========================
@@ -82,8 +90,12 @@ INSERT INTO field (
   name,
   description,
   location_geom,
+  area_m2,
   crop_type,
-  soil_type
+  soil_type,
+  irrigation_type,
+  owner_id,
+  organization_id
 ) VALUES (
   '示例农田 A',
   '用于系统测试的示例地块',
@@ -97,8 +109,62 @@ INSERT INTO field (
     ))',
     4326
   ),
+  1000000.0,
   '小麦',
-  '壤土'
+  '壤土',
+  '滴灌',
+  NULL,
+  NULL
+);
+
+-- 更多示例数据
+INSERT INTO field (
+  name,
+  description,
+  location_geom,
+  area_m2,
+  crop_type,
+  soil_type,
+  irrigation_type,
+  owner_id
+) VALUES 
+(
+  '北部实验田',
+  '用于水稻品种试验的北部地块',
+  ST_GeomFromText(
+    'POLYGON((
+      116.30 39.85,
+      116.40 39.85,
+      116.40 39.95,
+      116.30 39.95,
+      116.30 39.85
+    ))',
+    4326
+  ),
+  1500000.0,
+  '水稻',
+  '黏土',
+  '漫灌',
+  '123e4567-e89b-12d3-a456-426614174000'::uuid
+),
+(
+  '南部高价值作物区',
+  '种植经济作物的高价值区域',
+  ST_GeomFromText(
+    'POLYGON((
+      116.25 39.80,
+      116.35 39.80,
+      116.35 39.88,
+      116.25 39.88,
+      116.25 39.80
+    ))',
+    4326
+  ),
+  800000.0,
+  '番茄',
+  '砂壤土',
+  '喷灌',
+  '123e4567-e89b-12d3-a456-426614174001'::uuid
 );
 
 
@@ -114,13 +180,61 @@ WHERE area_m2 IS NULL;
 -- 7. 典型查询示例
 -- =========================
 
--- 查询某个点位属于哪块农田
-SELECT id, name
+-- 7.1 查询某个点位属于哪块农田
+SELECT id, name, crop_type
 FROM field
 WHERE ST_Contains(
   location_geom,
   ST_SetSRID(ST_MakePoint(116.15, 39.95), 4326)
 );
+
+-- 7.2 按作物类型查询地块
+SELECT id, name, crop_type, area_m2
+FROM field
+WHERE crop_type = '小麦' AND is_active = TRUE;
+
+-- 7.3 按所有者查询地块
+SELECT id, name, crop_type, soil_type
+FROM field
+WHERE owner_id = '123e4567-e89b-12d3-a456-426614174000'::uuid;
+
+-- 7.4 按面积范围查询地块
+SELECT id, name, area_m2, crop_type
+FROM field
+WHERE area_m2 BETWEEN 500000 AND 2000000
+ORDER BY area_m2 DESC;
+
+-- 7.5 统计不同作物类型的总面积
+SELECT 
+  crop_type,
+  COUNT(*) AS field_count,
+  SUM(area_m2) AS total_area_m2,
+  SUM(area_m2)/10000 AS total_area_hectares  -- 转换为公顷
+FROM field
+WHERE is_active = TRUE
+GROUP BY crop_type
+ORDER BY total_area_m2 DESC;
+
+
+-- =========================
+-- 8. 表使用注意事项
+-- =========================
+
+-- 8.1 位置数据存储
+-- 使用 WGS84 (EPSG:4326) 坐标系存储几何数据
+-- 支持直接存储 Well-Known Text (WKT) 格式或使用 PostGIS 函数转换
+
+-- 8.2 面积计算
+-- 面积应使用 ST_Area(location_geom::geography) 计算
+-- 计算结果单位为平方米，可根据需要转换为其他单位（公顷、亩等）
+
+-- 8.3 数据完整性
+-- is_active 字段用于软删除，而不是物理删除
+-- 建议保留历史数据，仅标记为非活跃状态
+
+-- 8.4 性能优化
+-- 确保创建了空间索引 (GIST) 以支持高效的空间查询
+-- 根据查询模式考虑创建适当的属性索引
 
 
 -- =========================================================
@@ -130,4 +244,6 @@ WHERE ST_Contains(
 -- 2. 支持空-天-地多源数据空间对齐
 -- 3. 为具身智能感知与决策提供基础空间实体
 -- 4. 可长期稳定存在，不随采集任务变化
+-- 5. 支持多用户、多组织的权限管理场景
+-- 6. 提供完整的农业属性信息，支持精细化农田管理
 -- =========================================================

@@ -4,6 +4,7 @@ Pydantic schemas for data validation and serialization
 
 from .auth import UserRegister, UserLogin, UserResponse, TokenData
 from .feedback import FeedbackCreate, FeedbackResponse
+from .field import FieldCreate, FieldResponse, FieldUpdate, FieldListParams, PointQuery
 
 __all__ = [
     "UserRegister",
@@ -11,5 +12,10 @@ __all__ = [
     "UserResponse",
     "TokenData",
     "FeedbackCreate",
-    "FeedbackResponse"
+    "FeedbackResponse",
+    "FieldCreate",
+    "FieldResponse",
+    "FieldUpdate",
+    "FieldListParams",
+    "PointQuery"
 ]

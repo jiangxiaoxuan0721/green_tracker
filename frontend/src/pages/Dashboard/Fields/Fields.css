@@ -262,6 +262,66 @@
 
 /* 按钮样式 - 使用主题定义的样式 */
 
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  margin: var(--spacing-xl) 0;
+  background-color: var(--bg-light);
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border-primary);
+  text-align: center;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.7;
+}
+
+.empty-state h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+  font-size: 1.5rem;
+}
+
+.empty-state > p {
+  margin-bottom: var(--spacing-xl);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.empty-state-tips {
+  background-color: var(--bg-component);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+  border: 1px solid var(--border-primary);
+  text-align: left;
+}
+
+.empty-state-tips p {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.empty-state-tips ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.empty-state-tips li {
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
 /* 响应式设计 - 使用主题变量 */
 @media (max-width: 768px) {
   .fields-grid {
@@ -283,5 +343,10 @@
   
   .action-buttons {
     flex-direction: column;
+  }
+  
+  .empty-state {
+    margin: var(--spacing-md);
+    padding: var(--spacing-lg);
   }
 }

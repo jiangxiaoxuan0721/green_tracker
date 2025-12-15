@@ -71,10 +71,8 @@ const FieldForm = ({ mode, field, onClose, onSuccess }) => {
 
       if (mode === 'create') {
         await fieldService.createField(submitData)
-        alert('地块创建成功')
       } else {
         await fieldService.updateField(field.id, submitData)
-        alert('地块更新成功')
       }
       
       onSuccess()

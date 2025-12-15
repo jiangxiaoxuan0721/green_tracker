@@ -1,0 +1,213 @@
+/* 设备管理页面特定样式 */
+
+/* 设备卡片样式 - 使用主题变量 */
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+}
+
+.device-card {
+  background-color: var(--bg-component);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-light);
+  border: 1px solid var(--border-primary);
+  overflow: hidden;
+  transition: var(--transition-normal);
+}
+
+.device-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+}
+
+.device-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--spacing-lg);
+  background-color: var(--bg-header);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.device-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.device-manufacturer {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+.status-badge {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-badge.active {
+  background-color: var(--success-light);
+  color: var(--success-color);
+}
+
+.status-badge.inactive {
+  background-color: var(--bg-disabled);
+  color: var(--text-muted);
+}
+
+.device-info {
+  padding: var(--spacing-lg);
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.info-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.info-value {
+  font-weight: 400;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.device-actions {
+  display: flex;
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
+  gap: var(--spacing-sm);
+}
+
+/* 设备详情样式 */
+.device-detail-content {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.device-overview {
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.device-name {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 1.3rem;
+  color: var(--text-primary);
+}
+
+.device-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.device-type, .device-platform {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--bg-light);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.device-status.active {
+  background-color: var(--success-light);
+  color: var(--success-color);
+}
+
+.device-status.inactive {
+  background-color: var(--bg-disabled);
+  color: var(--text-muted);
+}
+
+.device-description {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* 传感器和执行机构列表样式 */
+.sensor-list, .actuator-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.sensor-item, .actuator-item {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--spacing-sm);
+  background-color: var(--bg-light);
+  border-radius: var(--radius-sm);
+}
+
+.sensor-name, .actuator-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.sensor-status.enabled, .actuator-status.enabled {
+  color: var(--success-color);
+}
+
+.sensor-status.disabled, .actuator-status.disabled {
+  color: var(--text-muted);
+}
+
+/* 设备表单样式 */
+.device-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.checkbox-item input {
+  margin: 0;
+}
+
+.checkbox-item label {
+  margin: 0;
+  font-weight: normal;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .devices-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .device-actions {
+    flex-direction: column;
+  }
+  
+  .device-meta {
+    flex-wrap: wrap;
+  }
+  
+  .checkbox-group {
+    grid-template-columns: 1fr;
+  }
+}
