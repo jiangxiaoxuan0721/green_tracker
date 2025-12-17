@@ -8,6 +8,8 @@
 
 import sys
 from database.main_db import engine, Base
+# 确保导入所有模型，以便创建表
+from database.db_models import Field, Device, User, Feedback, CollectionSession
 
 
 def test_db_connection():

@@ -38,7 +38,7 @@ async def log_requests(request, call_next):
     return response
 
 # 导入并包含路由模块
-from api.routes import auth_router, feedback_router, field_router
+from api.routes import auth_router, feedback_router, field_router, collection_session
 from api.routes.device import router as device_router
 
 # 注册认证路由
@@ -52,6 +52,9 @@ app.include_router(field_router) # /api/fields
 
 # 注册设备路由
 app.include_router(device_router) # /api/devices
+
+# 注册采集任务路由
+app.include_router(collection_session.router) # /api/collection-sessions
 
 # 健康检查端点
 @app.get("/health") # /health
