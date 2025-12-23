@@ -144,37 +144,37 @@
     {
       "method": "POST",
       "path": "/api/collection-sessions/",
-      "description": "创建新采集任务",
-      "parameters": "field_id, creator_id (可选), start_time, mission_type, end_time (可选), mission_name (可选), description (可选), weather_snapshot (可选), status (默认planned)",
-      "returns": "id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
+      "description": "创建新采集任务（需要认证）",
+      "parameters": "field_id, start_time, mission_type, end_time (可选), mission_name (可选), description (可选), weather_snapshot (可选), status (默认planned)",
+      "returns": "id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
     },
     {
       "method": "GET",
       "path": "/api/collection-sessions/{session_id}",
-      "description": "根据ID获取特定采集任务",
+      "description": "根据ID获取特定采集任务详情",
       "parameters": "session_id",
-      "returns": "id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
+      "returns": "id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
     },
     {
       "method": "GET",
       "path": "/api/collection-sessions/field/{field_id}",
       "description": "获取指定农田的采集任务列表",
       "parameters": "field_id, limit (可选), offset (可选), start_date (可选), end_date (可选), mission_types (可选), status (可选)",
-      "returns": "采集任务列表: [id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
+      "returns": "采集任务列表: [id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
     },
     {
       "method": "GET",
       "path": "/api/collection-sessions/",
-      "description": "获取采集任务列表（含农田信息）",
+      "description": "获取采集任务列表（含农田和创建者信息）",
       "parameters": "limit (可选), offset (可选), field_id (可选), start_date (可选), end_date (可选), mission_types (可选), status (可选)",
-      "returns": "采集任务列表: [id, field_id, creator_id, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
+      "returns": "采集任务列表: [id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
     },
     {
       "method": "PUT",
       "path": "/api/collection-sessions/{session_id}",
       "description": "更新采集任务信息",
       "parameters": "session_id, end_time (可选), mission_name (可选), description (可选), weather_snapshot (可选), status (可选)",
-      "returns": "id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
+      "returns": "id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
     },
     {
       "method": "DELETE",
@@ -188,14 +188,14 @@
       "path": "/api/collection-sessions/field/{field_id}/latest",
       "description": "获取指定农田的最新采集任务",
       "parameters": "field_id, mission_type (可选)",
-      "returns": "id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
+      "returns": "id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
     },
     {
       "method": "GET",
       "path": "/api/collection-sessions/status/{status}",
       "description": "根据状态获取采集任务列表",
       "parameters": "status, limit (可选), offset (可选)",
-      "returns": "采集任务列表: [id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
+      "returns": "采集任务列表: [id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
     }
   ]
 }

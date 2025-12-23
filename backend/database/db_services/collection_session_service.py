@@ -1,7 +1,8 @@
-from sqlalchemy import Column, and_, or_, func, desc, asc
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from database.db_models.collection_session_model import CollectionSession
 from database.db_models.field_model import Field
+from database.db_models.user_model import User
 import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -38,9 +39,25 @@ def create_collection_session(
     """
     print(f"[后端CollectionSessionService] 创建采集任务: 农田ID={field_id}, 任务类型={mission_type}, 创建者ID={creator_id}")
     
+    # 验证field_id是否为空或无效
+    if not field_id:
+        raise ValueError("农田ID不能为空")
+    
+    try:
+        # 尝试转换field_id为UUID
+        field_uuid = uuid.UUID(field_id) if isinstance(field_id, str) else field_id
+    except (ValueError, AttributeError) as e:
+        print(f"[后端CollectionSessionService] 无效的农田ID格式: {field_id}, 错误: {str(e)}")
+        raise ValueError(f"无效的农田ID格式: {field_id}")
+    
+    # 生成新的UUID作为ID
+    new_id = uuid.uuid4()
+    print(f"[后端CollectionSessionService] 生成的新ID: {new_id}")
+    
     # 创建新采集任务
     new_session = CollectionSession(
-        field_id=uuid.UUID(field_id) if isinstance(field_id, str) else field_id,
+        id=new_id,  # 显式设置新生成的ID
+        field_id=field_uuid,
         creator_id=creator_id,
         start_time=start_time,
         end_time=end_time,
@@ -71,6 +88,52 @@ def get_collection_session_by_id(db: Session, session_id: str) -> Optional[Colle
         Optional[CollectionSession]: 采集任务对象，如果不存在则返回None
     """
     return db.query(CollectionSession).filter(CollectionSession.id == uuid.UUID(session_id) if isinstance(session_id, str) else session_id).first()
+
+def get_collection_session_with_details(db: Session, session_id: str) -> Optional[Dict[str, Any]]:
+    """
+    根据ID获取采集任务详情，包含创建者和农田名称
+    
+    Args:
+        db: 数据库会话
+        session_id: 采集任务ID
+    
+    Returns:
+        Optional[Dict[str, Any]]: 包含采集任务详情的字典，如果不存在则返回None
+    """
+    # 执行连接查询
+    query = db.query(CollectionSession, Field, User).outerjoin(
+        Field, CollectionSession.field_id == Field.id
+    ).outerjoin(
+        User, CollectionSession.creator_id == User.userid
+    ).filter(
+        CollectionSession.id == uuid.UUID(session_id) if isinstance(session_id, str) else session_id
+    )
+    
+    result = query.first()
+    if not result:
+        return None
+    
+    session, field, user = result
+    
+    # 构建返回字典
+    session_dict = {
+        "id": str(session.id),
+        "field_id": str(session.field_id),
+        "field_name": field.name if field else "未知农田",
+        "creator_id": str(session.creator_id) if session.creator_id else None,
+        "creator_name": user.username if user else "未知用户",
+        "start_time": session.start_time.isoformat() if session.start_time else None,
+        "end_time": session.end_time.isoformat() if session.end_time else None,
+        "mission_type": session.mission_type,
+        "mission_name": session.mission_name,
+        "description": session.description,
+        "weather_snapshot": session.weather_snapshot,
+        "status": session.status,
+        "created_at": session.created_at.isoformat() if session.created_at else None,
+        "updated_at": session.updated_at.isoformat() if session.updated_at else None
+    }
+    
+    return session_dict
 
 def get_collection_sessions_by_field(
     db: Session, 
@@ -240,7 +303,7 @@ def get_collection_sessions_with_field_info(
     status: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
-    获取采集任务列表，包含关联的农田信息
+    获取采集任务列表，包含关联的农田和创建者信息
     
     Args:
         db: 数据库会话
@@ -253,11 +316,13 @@ def get_collection_sessions_with_field_info(
         status: 状态过滤（可选）
     
     Returns:
-        List[Dict[str, Any]]: 包含采集任务和农田信息的字典列表
+        List[Dict[str, Any]]: 包含采集任务、农田和创建者信息的字典列表
     """
     # 构建查询
-    query = db.query(CollectionSession, Field).join(
+    query = db.query(CollectionSession, Field, User).outerjoin(
         Field, CollectionSession.field_id == Field.id
+    ).outerjoin(
+        User, CollectionSession.creator_id == User.userid
     )
     
     # 添加过滤条件
@@ -286,12 +351,13 @@ def get_collection_sessions_with_field_info(
     
     # 转换为字典列表
     sessions_with_fields = []
-    for session, field in results:
+    for session, field, user in results:
         session_dict = {
             "id": str(session.id),
             "field_id": str(session.field_id),
             "creator_id": str(session.creator_id) if session.creator_id else None,
-            "field_name": field.name,
+            "field_name": field.name if field else "未知农田",
+            "creator_name": user.username if user else "未知用户",
             "start_time": session.start_time.isoformat() if session.start_time else None,
             "end_time": session.end_time.isoformat() if session.end_time else None,
             "mission_type": session.mission_type,

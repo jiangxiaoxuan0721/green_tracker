@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
-import uuid
 
 from database.main_db import get_db
+from api.routes.auth import get_current_user
+from database.db_models.user_model import User
 from database.db_services.collection_session_service import (
     create_collection_session,
     get_collection_session_by_id,
+    get_collection_session_with_details,
     get_collection_sessions_by_field,
     update_collection_session,
     delete_collection_session,
@@ -20,10 +22,33 @@ from database.db_services.collection_session_service import (
 # 创建路由器
 router = APIRouter(prefix="/api/collection-sessions", tags=["采集任务管理"])
 
+# 辅助函数：将CollectionSession对象转换为响应字典
+def convert_session_to_dict(session, include_user_info=False):
+    """将CollectionSession对象转换为字典，处理UUID转换"""
+    result = {
+        "id": str(session.id),
+        "field_id": str(session.field_id),
+        "creator_id": str(session.creator_id) if session.creator_id is not None else None,
+        "start_time": session.start_time,
+        "end_time": session.end_time,
+        "mission_type": session.mission_type,
+        "mission_name": session.mission_name,
+        "description": session.description,
+        "weather_snapshot": session.weather_snapshot,
+        "status": session.status,
+        "created_at": session.created_at,
+        "updated_at": session.updated_at
+    }
+    
+    # 如果需要包含用户信息，则添加创建者名称
+    if include_user_info and hasattr(session, 'creator_name'):
+        result["creator_name"] = session.creator_name
+    
+    return result
+
 # Pydantic 模型定义
 class CollectionSessionBase(BaseModel):
     field_id: str = Field(..., description="农田ID")
-    creator_id: Optional[str] = Field(None, description="任务创建者ID")
     start_time: datetime = Field(..., description="任务开始时间")
     mission_type: str = Field(..., description="任务类型（巡检/定点/路径/应急）")
     end_time: Optional[datetime] = Field(None, description="任务结束时间")
@@ -46,6 +71,7 @@ class CollectionSessionResponse(BaseModel):
     id: str
     field_id: str
     creator_id: Optional[str]
+    creator_name: Optional[str] = None
     start_time: datetime
     end_time: Optional[datetime]
     mission_type: str
@@ -64,6 +90,7 @@ class CollectionSessionWithFieldResponse(BaseModel):
     field_id: str
     creator_id: Optional[str]
     field_name: str
+    creator_name: Optional[str]
     start_time: Optional[str]
     end_time: Optional[str]
     mission_type: str
@@ -75,21 +102,28 @@ class CollectionSessionWithFieldResponse(BaseModel):
     updated_at: Optional[str]
 
 # API 路由定义
-@router.post("/", response_model=CollectionSessionResponse, summary="创建采集任务")
+@router.post("/", response_model=CollectionSessionWithFieldResponse, summary="创建采集任务")
 async def create_session(
     session_data: CollectionSessionCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     创建新的采集任务/观测会话
     """
     print(f"[API] 收到创建采集任务请求: 农田ID={session_data.field_id}, 任务类型={session_data.mission_type}")
+    print(f"[API] 接收到的完整数据: {session_data}")
+    print(f"[API] 当前用户: {current_user.username}, ID: {current_user.userid}")
     
     try:
+        # 自动设置创建者ID为当前登录用户的ID
+        creator_id = current_user.userid
+        
+        # 创建采集任务
         new_session = create_collection_session(
             db=db,
             field_id=session_data.field_id,
-            creator_id=session_data.creator_id,
+            creator_id=creator_id,  # 使用当前登录用户的ID
             start_time=session_data.start_time,
             mission_type=session_data.mission_type,
             end_time=session_data.end_time,
@@ -99,12 +133,24 @@ async def create_session(
             status=session_data.status
         )
         
-        return CollectionSessionResponse.from_orm(new_session)
+        # 获取创建后的带有详细信息的采集任务
+        session_with_details = get_collection_session_with_details(db, str(new_session.id))
+        
+        return CollectionSessionWithFieldResponse(**session_with_details)
+    except ValueError as e:
+        print(f"[API] 参数验证失败: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"[API] 创建采集任务失败: {str(e)}")
+        # 检查是否是唯一性约束错误
+        if "duplicate key" in str(e).lower() and "collection_session_pkey" in str(e):
+            raise HTTPException(status_code=409, detail="任务创建失败: ID冲突，请重试")
+        # 检查是否是UUID格式错误
+        if "badly formed hexadecimal UUID" in str(e):
+            raise HTTPException(status_code=400, detail="农田ID格式错误，请确保选择了有效的农田")
         raise HTTPException(status_code=400, detail=f"创建采集任务失败: {str(e)}")
 
-@router.get("/{session_id}", response_model=CollectionSessionResponse, summary="获取采集任务详情")
+@router.get("/{session_id}", response_model=CollectionSessionWithFieldResponse, summary="获取采集任务详情")
 async def get_session(
     session_id: str,
     db: Session = Depends(get_db)
@@ -114,13 +160,13 @@ async def get_session(
     """
     print(f"[API] 收到获取采集任务详情请求: ID={session_id}")
     
-    session = get_collection_session_by_id(db, session_id)
+    session = get_collection_session_with_details(db, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="采集任务不存在")
     
-    return CollectionSessionResponse.from_orm(session)
+    return CollectionSessionWithFieldResponse(**session)
 
-@router.get("/field/{field_id}", response_model=List[CollectionSessionResponse], summary="获取指定农田的采集任务列表")
+@router.get("/field/{field_id}", response_model=List[CollectionSessionWithFieldResponse], summary="获取指定农田的采集任务列表")
 async def get_sessions_by_field(
     field_id: str,
     limit: int = Query(100, description="返回记录数限制"),
@@ -156,18 +202,19 @@ async def get_sessions_by_field(
     if mission_types:
         mission_type_list = [t.strip() for t in mission_types.split(",")]
     
-    sessions = get_collection_sessions_by_field(
+    # 使用带有农田和创建者信息的查询
+    sessions_with_info = get_collection_sessions_with_field_info(
         db=db,
-        field_id=field_id,
         limit=limit,
         offset=offset,
+        field_id=field_id,
         start_date=start_datetime,
         end_date=end_datetime,
         mission_types=mission_type_list,
         status=status
     )
     
-    return [CollectionSessionResponse.from_orm(session) for session in sessions]
+    return [CollectionSessionWithFieldResponse(**session_dict) for session_dict in sessions_with_info]
 
 @router.get("/", response_model=List[CollectionSessionWithFieldResponse], summary="获取采集任务列表（含农田信息）")
 async def get_sessions_with_field(
@@ -218,7 +265,7 @@ async def get_sessions_with_field(
     
     return [CollectionSessionWithFieldResponse(**session_dict) for session_dict in sessions_with_fields]
 
-@router.put("/{session_id}", response_model=CollectionSessionResponse, summary="更新采集任务")
+@router.put("/{session_id}", response_model=CollectionSessionWithFieldResponse, summary="更新采集任务")
 async def update_session(
     session_id: str,
     session_update: CollectionSessionUpdate,
@@ -242,7 +289,10 @@ async def update_session(
     if not updated_session:
         raise HTTPException(status_code=404, detail="采集任务不存在")
     
-    return CollectionSessionResponse.from_orm(updated_session)
+    # 获取更新后的带有详细信息的采集任务
+    session_with_details = get_collection_session_with_details(db, session_id)
+    
+    return CollectionSessionWithFieldResponse(**session_with_details)
 
 @router.delete("/{session_id}", summary="删除采集任务")
 async def delete_session(
@@ -261,7 +311,7 @@ async def delete_session(
     
     return {"message": "采集任务删除成功"}
 
-@router.get("/field/{field_id}/latest", response_model=CollectionSessionResponse, summary="获取指定农田的最新采集任务")
+@router.get("/field/{field_id}/latest", response_model=CollectionSessionWithFieldResponse, summary="获取指定农田的最新采集任务")
 async def get_latest_session_by_field(
     field_id: str,
     mission_type: Optional[str] = Query(None, description="任务类型过滤"),
@@ -272,14 +322,18 @@ async def get_latest_session_by_field(
     """
     print(f"[API] 收到获取最新采集任务请求: 农田ID={field_id}")
     
+    # 先获取最新的采集任务
     session = get_latest_collection_session_by_field(db, field_id, mission_type)
     
     if not session:
         raise HTTPException(status_code=404, detail="未找到符合条件的采集任务")
     
-    return CollectionSessionResponse.from_orm(session)
+    # 然后获取带有详细信息的采集任务
+    session_with_details = get_collection_session_with_details(db, str(session.id))
+    
+    return CollectionSessionWithFieldResponse(**session_with_details)
 
-@router.get("/status/{status}", response_model=List[CollectionSessionResponse], summary="根据状态获取采集任务列表")
+@router.get("/status/{status}", response_model=List[CollectionSessionWithFieldResponse], summary="根据状态获取采集任务列表")
 async def get_sessions_by_status(
     status: str,
     limit: int = Query(100, description="返回记录数限制"),
@@ -291,6 +345,12 @@ async def get_sessions_by_status(
     """
     print(f"[API] 收到根据状态获取采集任务列表请求: 状态={status}")
     
-    sessions = get_collection_sessions_by_status(db, status, limit, offset)
+    # 使用带有农田和创建者信息的查询
+    sessions_with_info = get_collection_sessions_with_field_info(
+        db=db,
+        limit=limit,
+        offset=offset,
+        status=status
+    )
     
-    return [CollectionSessionResponse.from_orm(session) for session in sessions]
+    return [CollectionSessionWithFieldResponse(**session_dict) for session_dict in sessions_with_info]

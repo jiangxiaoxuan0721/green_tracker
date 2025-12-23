@@ -1,6 +1,6 @@
 import uuid
 from typing import TYPE_CHECKING
-from sqlalchemy import Column, String, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Index
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from database.main_db import Base
@@ -40,6 +40,19 @@ class CollectionSession(Base):
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # 定义索引以提高查询性能
+    __table_args__ = (
+        Index('idx_session_field_id', 'field_id'),
+        Index('idx_session_time_range', 'start_time', 'end_time'),
+        Index('idx_session_mission_type', 'mission_type'),
+        Index('idx_session_creator_id', 'creator_id'),
+        Index('idx_session_status', 'status'),
+        # 复合索引，用于常见查询组合
+        Index('idx_session_field_status', 'field_id', 'status'),
+        Index('idx_session_field_time', 'field_id', 'start_time'),
+        Index('idx_session_type_status', 'mission_type', 'status'),
+    )
     
     def __repr__(self):
         return f"<CollectionSession(id={self.id}, mission_type={self.mission_type}, status={self.status})>"
