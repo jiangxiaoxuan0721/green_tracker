@@ -1,9 +1,25 @@
 /// <reference path="../utils/vite-env.d.ts" />
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
+// 动态检测后端 API 地址
+// 从环境变量获取，如果没有则根据当前访问地址动态判断
+let apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+if (!apiBaseUrl) {
+  // 如果没有配置环境变量，根据当前访问地址自动判断
+  const currentHost = window.location.hostname;
+  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    // 本地访问：使用 localhost:6130
+    apiBaseUrl = 'http://localhost:6130';
+  } else {
+    // 外部访问：使用当前主机地址 + 6130 端口
+    apiBaseUrl = `http://${currentHost}:6130`;
+  }
+}
+
 // 创建axios实例
 const api: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:6130',
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,6 +28,7 @@ const api: AxiosInstance = axios.create({
 // 调试信息
 console.log('[前端API] 初始化API');
 console.log('- import.meta.env.VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+console.log('- 检测到的API地址:', apiBaseUrl);
 console.log('- 最终baseURL:', api.defaults.baseURL);
 
 // 请求拦截器 - 添加token到请求头
