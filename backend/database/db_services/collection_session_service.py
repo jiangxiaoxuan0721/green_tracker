@@ -143,7 +143,8 @@ def get_collection_sessions_by_field(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     mission_types: Optional[List[str]] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    creator_id: Optional[str] = None
 ) -> List[CollectionSession]:
     """
     获取指定农田的采集任务列表
@@ -157,6 +158,7 @@ def get_collection_sessions_by_field(
         end_date: 结束日期过滤
         mission_types: 任务类型过滤列表
         status: 状态过滤
+        creator_id: 创建者ID过滤（可选）
     
     Returns:
         List[CollectionSession]: 采集任务列表
@@ -178,6 +180,10 @@ def get_collection_sessions_by_field(
     # 添加状态过滤
     if status:
         query = query.filter(CollectionSession.status == status)
+    
+    # 添加创建者过滤条件，确保用户只能看到自己的任务
+    if creator_id:
+        query = query.filter(CollectionSession.creator_id == creator_id)
     
     # 按时间倒序排列
     query = query.order_by(desc(CollectionSession.start_time))
@@ -249,7 +255,7 @@ def delete_collection_session(db: Session, session_id: str) -> bool:
     
     return True
 
-def get_latest_collection_session_by_field(db: Session, field_id: str, mission_type: Optional[str] = None) -> Optional[CollectionSession]:
+def get_latest_collection_session_by_field(db: Session, field_id: str, mission_type: Optional[str] = None, creator_id: Optional[str] = None) -> Optional[CollectionSession]:
     """
     获取指定农田的最新采集任务
     
@@ -257,6 +263,7 @@ def get_latest_collection_session_by_field(db: Session, field_id: str, mission_t
         db: 数据库会话
         field_id: 农田ID
         mission_type: 任务类型过滤（可选）
+        creator_id: 创建者ID过滤（可选）
     
     Returns:
         Optional[CollectionSession]: 最新的采集任务对象，如果不存在则返回None
@@ -267,6 +274,10 @@ def get_latest_collection_session_by_field(db: Session, field_id: str, mission_t
     
     if mission_type:
         query = query.filter(CollectionSession.mission_type == mission_type)
+    
+    # 添加创建者过滤条件，确保用户只能看到自己的任务
+    if creator_id:
+        query = query.filter(CollectionSession.creator_id == creator_id)
     
     return query.order_by(desc(CollectionSession.start_time)).first()
 
@@ -300,7 +311,8 @@ def get_collection_sessions_with_field_info(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     mission_types: Optional[List[str]] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    creator_id: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
     获取采集任务列表，包含关联的农田和创建者信息
@@ -314,6 +326,7 @@ def get_collection_sessions_with_field_info(
         end_date: 结束日期过滤（可选）
         mission_types: 任务类型过滤列表（可选）
         status: 状态过滤（可选）
+        creator_id: 创建者ID过滤（可选）
     
     Returns:
         List[Dict[str, Any]]: 包含采集任务、农田和创建者信息的字典列表
@@ -342,6 +355,10 @@ def get_collection_sessions_with_field_info(
     
     if status:
         query = query.filter(CollectionSession.status == status)
+    
+    # 添加创建者过滤条件，确保用户只能看到自己的任务
+    if creator_id:
+        query = query.filter(CollectionSession.creator_id == creator_id)
     
     # 按时间倒序排列
     query = query.order_by(desc(CollectionSession.start_time))

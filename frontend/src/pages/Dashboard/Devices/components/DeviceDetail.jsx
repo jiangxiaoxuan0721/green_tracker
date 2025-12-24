@@ -1,9 +1,8 @@
-import { useState } from 'react'
-import { Modal } from '../../components'
+
+import DetailModal, { renderDetailRow, renderStatusBadge, renderListItem } from '../../../../components/common/DetailModal'
 
 const DeviceDetail = ({ device, onClose, onEdit }) => {
   console.log('DeviceDetail组件接收到的设备数据:', device)
-  const [activeTab, setActiveTab] = useState('basic')
 
   // 获取平台层级的显示名称
   const getPlatformLevelText = (platformLevel) => {
@@ -44,26 +43,6 @@ const DeviceDetail = ({ device, onClose, onEdit }) => {
     return sensorMap[key] || key
   }
 
-  // 渲染传感器列表
-  const renderSensors = () => {
-    if (!device.sensors || Object.keys(device.sensors).length === 0) {
-      return <p>无传感器配置</p>
-    }
-
-    return (
-      <div className="sensor-list">
-        {Object.entries(device.sensors).map(([sensor, enabled]) => (
-          <div key={sensor} className="sensor-item">
-            <span className="sensor-name">{getSensorDisplayName(sensor)}</span>
-            <span className={`sensor-status ${enabled ? 'enabled' : 'disabled'}`}>
-              {enabled ? '已启用' : '未启用'}
-            </span>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
   // 获取执行机构显示名称
   const getActuatorDisplayName = (key) => {
     const actuatorMap = {
@@ -77,145 +56,120 @@ const DeviceDetail = ({ device, onClose, onEdit }) => {
     return actuatorMap[key] || key
   }
 
-  // 渲染执行机构列表
-  const renderActuators = () => {
-    if (!device.actuators || Object.keys(device.actuators).length === 0) {
-      return <p>无执行机构配置</p>
-    }
+  // 准备标签页
+  const tabs = [
+    { id: 'basic', label: '基本信息' },
+    { id: 'sensors', label: '传感器' },
+    { id: 'actuators', label: '执行机构' }
+  ]
 
-    return (
-      <div className="actuator-list">
-        {Object.entries(device.actuators).map(([actuator, enabled]) => (
-          <div key={actuator} className="actuator-item">
-            <span className="actuator-name">{getActuatorDisplayName(actuator)}</span>
-            <span className={`actuator-status ${enabled ? 'enabled' : 'disabled'}`}>
-              {enabled ? '已启用' : '未启用'}
-            </span>
+  // 准备内容区块
+  const sections = []
+
+  // 设备概览区块
+  const overviewSection = {
+    title: '设备概览',
+    content: (
+      <div>
+        <div style={{ marginBottom: 'var(--spacing-md)' }}>
+          <h3 style={{ margin: '0 0 var(--spacing-sm) 0' }}>
+            {device.model || `${getDeviceTypeText(device.device_type)}设备`}
+          </h3>
+          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)' }}>
+            {renderStatusBadge(getDeviceTypeText(device.device_type), 'active')}
+            {renderStatusBadge(getPlatformLevelText(device.platform_level), 'active')}
+            {renderStatusBadge(device.is_active ? '活跃' : '非活跃', device.is_active ? 'valid' : 'invalid')}
           </div>
-        ))}
+          {device.description && <p>{device.description}</p>}
+        </div>
       </div>
     )
   }
 
+  // 基本信息区块
+  const basicInfoSection = {
+    tab: 'basic',
+    title: '基本信息',
+    content: (
+      <div className="detail-grid">
+        {renderDetailRow('设备ID', device.id)}
+        {renderDetailRow('设备类型', getDeviceTypeText(device.device_type))}
+        {renderDetailRow('平台层级', getPlatformLevelText(device.platform_level))}
+        {renderDetailRow('型号', device.model || '未设置')}
+        {renderDetailRow('制造商', device.manufacturer || '未设置')}
+        {renderDetailRow('状态', '', false, renderStatusBadge(device.is_active ? '活跃' : '非活跃', device.is_active ? 'valid' : 'invalid'))}
+        {renderDetailRow('创建时间', new Date(device.created_at).toLocaleString())}
+        {renderDetailRow('更新时间', device.updated_at ? new Date(device.updated_at).toLocaleString() : '未更新')}
+      </div>
+    )
+  }
+
+  // 传感器配置区块
+  const sensorsSection = {
+    tab: 'sensors',
+    title: '传感器配置',
+    content: (
+      <div className="detail-list">
+        {!device.sensors || Object.keys(device.sensors).length === 0 ? (
+          <div>无传感器配置</div>
+        ) : (
+          Object.entries(device.sensors).map(([sensor, enabled]) => (
+            renderListItem(
+              getSensorDisplayName(sensor),
+              enabled ? '已启用' : '未启用',
+              enabled ? 'enabled' : 'disabled'
+            )
+          ))
+        )}
+      </div>
+    )
+  }
+
+  // 执行机构配置区块
+  const actuatorsSection = {
+    tab: 'actuators',
+    title: '执行机构配置',
+    content: (
+      <div className="detail-list">
+        {!device.actuators || Object.keys(device.actuators).length === 0 ? (
+          <div>无执行机构配置</div>
+        ) : (
+          Object.entries(device.actuators).map(([actuator, enabled]) => (
+            renderListItem(
+              getActuatorDisplayName(actuator),
+              enabled ? '已启用' : '未启用',
+              enabled ? 'enabled' : 'disabled'
+            )
+          ))
+        )}
+      </div>
+    )
+  }
+
+  // 添加所有区块
+  sections.push(overviewSection)
+  sections.push(basicInfoSection)
+  sections.push(sensorsSection)
+  sections.push(actuatorsSection)
+
   return (
-    <Modal
+    <DetailModal
       isOpen={true}
-      title="设备详情"
       onClose={onClose}
-      className="device-detail-modal"
-    >
-      <div className="device-detail-content">
-        {/* 设备基本信息 */}
-        <div className="device-overview">
-          <h3 className="device-name">
-            {device.model || `${getDeviceTypeText(device.device_type)}设备`}
-          </h3>
-          <div className="device-meta">
-            <span className="device-type">{getDeviceTypeText(device.device_type)}</span>
-            <span className="device-platform">{getPlatformLevelText(device.platform_level)}</span>
-            <span className={`device-status ${device.is_active ? 'active' : 'inactive'}`}>
-              {device.is_active ? '活跃' : '非活跃'}
-            </span>
-          </div>
-          {device.description && (
-            <p className="device-description">{device.description}</p>
-          )}
-        </div>
-
-        {/* 标签页 */}
-        <div className="tabs-container">
-          <div className="tabs-header">
-            <button 
-              className={`tab-btn ${activeTab === 'basic' ? 'active' : ''}`}
-              onClick={() => setActiveTab('basic')}
-            >
-              基本信息
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'sensors' ? 'active' : ''}`}
-              onClick={() => setActiveTab('sensors')}
-            >
-              传感器
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'actuators' ? 'active' : ''}`}
-              onClick={() => setActiveTab('actuators')}
-            >
-              执行机构
-            </button>
-          </div>
-
-          <div className="tab-content">
-            {activeTab === 'basic' && (
-              <div className="basic-info-tab">
-                <div className="detail-row">
-                  <span className="detail-label">设备ID</span>
-                  <span className="detail-value">{device.id}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">设备类型</span>
-                  <span className="detail-value">{getDeviceTypeText(device.device_type)}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">平台层级</span>
-                  <span className="detail-value">{getPlatformLevelText(device.platform_level)}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">型号</span>
-                  <span className="detail-value">{device.model || '未设置'}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">制造商</span>
-                  <span className="detail-value">{device.manufacturer || '未设置'}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">状态</span>
-                  <span className="detail-value">
-                    <span className={`status-badge ${device.is_active ? 'active' : 'inactive'}`}>
-                      {device.is_active ? '活跃' : '非活跃'}
-                    </span>
-                  </span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">创建时间</span>
-                  <span className="detail-value">{new Date(device.created_at).toLocaleString()}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">更新时间</span>
-                  <span className="detail-value">
-                    {device.updated_at ? new Date(device.updated_at).toLocaleString() : '未更新'}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'sensors' && (
-              <div className="sensors-tab">
-                <h4>传感器配置</h4>
-                {renderSensors()}
-              </div>
-            )}
-
-            {activeTab === 'actuators' && (
-              <div className="actuators-tab">
-                <h4>执行机构配置</h4>
-                {renderActuators()}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 操作按钮 */}
-        <div className="device-actions">
+      title="设备详情"
+      tabs={tabs}
+      sections={sections}
+      footer={
+        <>
           <button className="primary-btn" onClick={onEdit}>
             编辑设备
           </button>
           <button className="secondary-btn" onClick={onClose}>
             关闭
           </button>
-        </div>
-      </div>
-    </Modal>
+        </>
+      }
+    />
   )
 }
 

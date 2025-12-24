@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database.db_models.user_model import User
 import uuid
 from typing import Optional
+from database.db_services.user_raw_data_service import init_user_raw_data_tables, remove_user_raw_data_tables
 
 def create_user(db: Session, username: str, email: str, password_hash: str) -> User:
     """
@@ -45,6 +46,13 @@ def create_user(db: Session, username: str, email: str, password_hash: str) -> U
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    # 初始化用户的原始数据表
+    print(f"[后端UserService] 初始化用户 {new_user.userid} 的原始数据表")
+    if init_user_raw_data_tables(new_user.userid):
+        print(f"[后端UserService] 用户 {new_user.userid} 的原始数据表初始化成功")
+    else:
+        print(f"[后端UserService] 用户 {new_user.userid} 的原始数据表初始化失败")
     
     print(f"[后端UserService] 用户保存成功: {new_user.userid}")
     return new_user
@@ -131,3 +139,42 @@ def update_user_email(db: Session, userid: str, new_email: str) -> Optional[User
         db.refresh(user)
         return user
     return None
+
+
+def delete_user(db: Session, userid: str) -> bool:
+    """
+    删除用户及其所有相关数据
+    
+    Args:
+        db: 数据库会话
+        userid: 用户ID
+    
+    Returns:
+        bool: 删除是否成功
+    """
+    print(f"[后端UserService] 开始删除用户: {userid}")
+    
+    # 查找用户
+    user = db.query(User).filter(User.userid == userid).first()
+    if not user:
+        print(f"[后端UserService] 用户不存在: {userid}")
+        return False
+    
+    try:
+        # 先删除用户的原始数据表
+        print(f"[后端UserService] 删除用户 {userid} 的原始数据表")
+        if remove_user_raw_data_tables(userid):
+            print(f"[后端UserService] 用户 {userid} 的原始数据表删除成功")
+        else:
+            print(f"[后端UserService] 用户 {userid} 的原始数据表删除失败")
+        
+        # 删除用户记录
+        db.delete(user)
+        db.commit()
+        
+        print(f"[后端UserService] 用户 {userid} 删除成功")
+        return True
+    except Exception as e:
+        print(f"[后端UserService] 删除用户 {userid} 失败: {e}")
+        db.rollback()
+        return False

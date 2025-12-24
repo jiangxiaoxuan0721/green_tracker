@@ -4,11 +4,14 @@ from .device_model import Device
 from .user_model import User
 from .feedback_model import Feedback
 from .collection_session_model import CollectionSession
+from .raw_data_model import RawData, RawDataTag
 
 __all__ = [
     "Field",
     "Device", 
     "User",
     "Feedback",
-    "CollectionSession"
+    "CollectionSession",
+    "RawData",
+    "RawDataTag"
 ]

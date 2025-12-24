@@ -1,0 +1,229 @@
+/* DataView 组件专用样式 */
+
+.dashboard-data-view {
+  padding: var(--spacing-lg);
+}
+
+/* 数据表格样式 */
+.data-table-container {
+  background: var(--bg-component);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-default);
+  border: 1px solid var(--border-primary);
+  margin-top: var(--spacing-lg);
+  width: 100%;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--border-primary);
+  white-space: nowrap;
+}
+
+/* 优化列宽分布 */
+.data-table th:nth-child(1), /* 时间戳 */
+.data-table td:nth-child(1) {
+  width: 18%;
+  min-width: 150px;
+}
+
+.data-table th:nth-child(2), /* 设备名称 */
+.data-table td:nth-child(2) {
+  width: 15%;
+  min-width: 120px;
+}
+
+.data-table th:nth-child(3), /* 设备类型 */
+.data-table td:nth-child(3) {
+  width: 12%;
+  min-width: 100px;
+}
+
+.data-table th:nth-child(4), /* 位置 */
+.data-table td:nth-child(4) {
+  width: 15%;
+  min-width: 120px;
+}
+
+.data-table th:nth-child(5), /* 数据类型 */
+.data-table td:nth-child(5) {
+  width: 12%;
+  min-width: 100px;
+}
+
+.data-table th:nth-child(6), /* 数值 */
+.data-table td:nth-child(6) {
+  width: 13%;
+  min-width: 100px;
+}
+
+.data-table th:nth-child(7), /* 操作 */
+.data-table td:nth-child(7) {
+  width: 15%;
+  min-width: 140px;
+}
+
+.data-table th {
+  background-color: var(--bg-subtle);
+  font-weight: 600;
+  color: var(--text-primary);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.data-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--bg-subtle);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-xs);
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.action-buttons button {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.danger-btn {
+  background-color: var(--danger-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.danger-btn:hover {
+  background-color: #d32f2f;
+}
+
+/* 分页控件 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  border-top: 1px solid var(--border-primary);
+}
+
+.page-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* 加载和无数据状态 */
+.loading, .no-data {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* 错误消息 */
+.error-message {
+  padding: var(--spacing-md);
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: var(--radius-sm);
+  color: var(--danger-color);
+  font-size: 0.875rem;
+}
+
+/* 过滤区域增强 */
+.filter-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  align-items: flex-end;
+  background-color: var(--bg-component);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-default);
+  border: 1px solid var(--border-primary);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.filter-group input,
+.filter-group select {
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .dashboard-data-view {
+    padding: var(--spacing-md);
+  }
+  
+  .filter-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-group {
+    min-width: auto;
+  }
+  
+  .data-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .data-table {
+    min-width: 800px;
+  }
+  
+  .pagination {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+}

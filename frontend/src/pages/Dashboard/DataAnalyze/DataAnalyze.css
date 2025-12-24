@@ -1,0 +1,161 @@
+/* DataAnalyze 组件专用样式 */
+
+.dashboard-data-analyze {
+  padding: var(--spacing-lg);
+}
+
+/* 分析控制区域 */
+.analysis-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-lg);
+  background-color: var(--bg-component);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-default);
+  border: 1px solid var(--border-primary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.control-group label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.control-group select {
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.field-selector,
+.device-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-sm);
+  max-height: 150px;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-main);
+}
+
+.field-checkbox,
+.device-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.field-checkbox input,
+.device-checkbox input {
+  margin: 0;
+}
+
+.field-checkbox label,
+.device-checkbox label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* 分析结果区域 */
+.analysis-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.data-summary {
+  background-color: var(--bg-component);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+}
+
+.data-summary h3 {
+  margin-top: 0;
+  color: var(--text-primary);
+}
+
+.data-summary p {
+  margin: var(--spacing-xs) 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.chart-container {
+  background-color: var(--bg-component);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-default);
+  border: 1px solid var(--border-primary);
+  overflow: hidden;
+}
+
+.chart-container h3 {
+  margin: 0;
+  padding: var(--spacing-md);
+  background-color: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.chart-placeholder {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--text-secondary);
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.chart-placeholder p {
+  margin: 0;
+}
+
+/* 加载状态 */
+.loading {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* 错误消息 */
+.error-message {
+  padding: var(--spacing-md);
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: var(--radius-sm);
+  color: var(--danger-color);
+  font-size: 0.875rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .dashboard-data-analyze {
+    padding: var(--spacing-md);
+  }
+  
+  .analysis-controls {
+    grid-template-columns: 1fr;
+  }
+  
+  .field-selector,
+  .device-selector {
+    max-height: 200px;
+  }
+}

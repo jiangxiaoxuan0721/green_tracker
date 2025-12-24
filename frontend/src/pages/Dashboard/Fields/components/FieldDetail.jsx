@@ -1,167 +1,97 @@
-import { useState } from 'react'
-import { Modal } from '../../components'
+
+import DetailModal, { renderDetailRow, renderStatusBadge, renderCodeBlock } from '../../../../components/common/DetailModal'
 
 const FieldDetail = ({ field, onClose, onEdit }) => {
-  const [activeTab, setActiveTab] = useState('info')
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString()
   }
 
-  const renderInfoTab = () => (
-    <div className="field-detail-info">
-      <div className="detail-row">
-        <span className="detail-label">地块ID:</span>
-        <span className="detail-value">{field.id}</span>
-      </div>
-      
-      <div className="detail-row">
-        <span className="detail-label">地块名称:</span>
-        <span className="detail-value">{field.name}</span>
-      </div>
-      
-      <div className="detail-row">
-        <span className="detail-label">描述:</span>
-        <span className="detail-value">{field.description || '无'}</span>
-      </div>
-      
-      <div className="detail-row">
-        <span className="detail-label">面积:</span>
-        <span className="detail-value">{field.area_m2 ? `${field.area_m2.toFixed(2)} 平方米` : '未知'}</span>
-      </div>
-      
-      <div className="detail-row">
-        <span className="detail-label">作物类型:</span>
-        <span className="detail-value">{field.crop_type || '未设置'}</span>
-      </div>
-      
-      <div className="detail-row">
-        <span className="detail-label">土壤类型:</span>
-        <span className="detail-value">{field.soil_type || '未设置'}</span>
-      </div>
-      
-      <div className="detail-row">
-        <span className="detail-label">灌溉方式:</span>
-        <span className="detail-value">{field.irrigation_type || '未设置'}</span>
-      </div>
-      
-      <div className="detail-row">
-        <span className="detail-label">状态:</span>
-        <span className={`status-badge ${field.is_active ? 'active' : 'inactive'}`}>
-          {field.is_active ? '活跃' : '非活跃'}
-        </span>
-      </div>
-      
-      <div className="detail-row">
-        <span className="detail-label">所有者ID:</span>
-        <span className="detail-value">{field.owner_id}</span>
-      </div>
-      
-      {field.organization_id && (
-        <div className="detail-row">
-          <span className="detail-label">组织ID:</span>
-          <span className="detail-value">{field.organization_id}</span>
-        </div>
-      )}
-      
-      <div className="detail-row">
-        <span className="detail-label">创建时间:</span>
-        <span className="detail-value">{formatDate(field.created_at)}</span>
-      </div>
-      
-      {field.updated_at && (
-        <div className="detail-row">
-          <span className="detail-label">更新时间:</span>
-          <span className="detail-value">{formatDate(field.updated_at)}</span>
-        </div>
-      )}
-    </div>
-  )
+  // 准备标签页
+  const tabs = [
+    { id: 'info', label: '基本信息' },
+    { id: 'location', label: '位置信息' },
+    { id: 'actions', label: '操作' }
+  ]
 
-  const renderLocationTab = () => (
-    <div className="field-detail-location">
-      <div className="detail-row">
-        <span className="detail-label">位置数据(WKT格式):</span>
-      </div>
-      
-      <div className="wkt-container">
-        <pre className="wkt-text">{field.location_wkt}</pre>
-      </div>
-      
-      <div className="map-placeholder">
-        <p>地图组件将在此显示</p>
-        <small>将来可以集成地图库（如 Leaflet 或 Mapbox）来可视化地块位置</small>
-      </div>
-    </div>
-  )
+  // 准备内容区块
+  const sections = []
 
-  const renderActionsTab = () => (
-    <div className="field-detail-actions">
-      <div className="action-description">
-        <p>在这里可以对地块执行各种操作</p>
+  // 基本信息区块
+  const infoSection = {
+    tab: 'info',
+    title: '地块信息',
+    content: (
+      <div className="detail-grid">
+        {renderDetailRow('地块ID', field.id)}
+        {renderDetailRow('地块名称', field.name)}
+        {renderDetailRow('描述', field.description || '无', true)}
+        {renderDetailRow('面积', field.area_m2 ? `${field.area_m2.toFixed(2)} 平方米` : '未知')}
+        {renderDetailRow('作物类型', field.crop_type || '未设置')}
+        {renderDetailRow('土壤类型', field.soil_type || '未设置')}
+        {renderDetailRow('灌溉方式', field.irrigation_type || '未设置')}
+        {renderDetailRow('状态', '', false, renderStatusBadge(field.is_active ? '活跃' : '非活跃', field.is_active ? 'valid' : 'invalid'))}
+        {renderDetailRow('所有者ID', field.owner_id)}
+        {field.organization_id && renderDetailRow('组织ID', field.organization_id)}
+        {renderDetailRow('创建时间', formatDate(field.created_at))}
+        {field.updated_at && renderDetailRow('更新时间', formatDate(field.updated_at))}
       </div>
-      
-      <div className="action-buttons">
-        <button className="secondary-btn">
-          导出数据
-        </button>
-        
-        <button className="secondary-btn">
-          查看历史记录
-        </button>
-        
-        <button className="secondary-btn">
-          查看关联设备
-        </button>
-        
-        <button className="secondary-btn">
-          查看采集数据
-        </button>
+    )
+  }
+
+  // 位置信息区块
+  const locationSection = {
+    tab: 'location',
+    title: '位置数据',
+    content: (
+      <div>
+        <div style={{ marginBottom: 'var(--spacing-md)' }}>
+          <h4>WKT格式位置数据</h4>
+          {renderCodeBlock(field.location_wkt)}
+        </div>
+        <div className="detail-section" style={{ textAlign: 'center', padding: 'var(--spacing-lg)' }}>
+          <p>地图组件将在此显示</p>
+          <small>将来可以集成地图库（如 Leaflet 或 Mapbox）来可视化地块位置</small>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  // 操作区块
+  const actionsSection = {
+    tab: 'actions',
+    title: '地块操作',
+    content: (
+      <div>
+        <p style={{ marginBottom: 'var(--spacing-md)' }}>在这里可以对地块执行各种操作</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 'var(--spacing-md)' }}>
+          <button className="secondary-btn">导出数据</button>
+          <button className="secondary-btn">查看历史记录</button>
+          <button className="secondary-btn">查看关联设备</button>
+          <button className="secondary-btn">查看采集数据</button>
+        </div>
+      </div>
+    )
+  }
+
+  // 添加所有区块
+  sections.push(infoSection)
+  sections.push(locationSection)
+  sections.push(actionsSection)
 
   return (
-    <Modal
+    <DetailModal
       isOpen={true}
       onClose={onClose}
       title="地块详情"
       size="large"
+      tabs={tabs}
+      sections={sections}
       footer={
         <button className="primary-btn" onClick={onEdit}>
           编辑地块
         </button>
       }
-    >
-      <div className="tabs-container">
-        <div className="tabs-header">
-          <button 
-            className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`}
-            onClick={() => setActiveTab('info')}
-          >
-            基本信息
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'location' ? 'active' : ''}`}
-            onClick={() => setActiveTab('location')}
-          >
-            位置信息
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'actions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('actions')}
-          >
-            操作
-          </button>
-        </div>
-        
-        <div className="tab-content">
-          {activeTab === 'info' && renderInfoTab()}
-          {activeTab === 'location' && renderLocationTab()}
-          {activeTab === 'actions' && renderActionsTab()}
-        </div>
-      </div>
-    </Modal>
+    />
   )
 }
 
