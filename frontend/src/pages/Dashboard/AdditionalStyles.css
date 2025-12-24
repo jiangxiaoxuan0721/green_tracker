@@ -37,6 +37,43 @@
   color: var(--text-primary);
 }
 
+.control-group select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  padding-right: 2rem;
+}
+
+.control-group select:hover {
+  background-color: var(--bg-subtle-hover);
+  border-color: var(--border-medium);
+}
+
+.control-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb, 0, 168, 107), 0.1);
+}
+
+.control-group select option {
+  background-color: var(--bg-component);
+  color: var(--text-primary);
+  padding: 0.5rem;
+}
+
+.control-group select option:hover {
+  background-color: var(--primary-subtle);
+  color: var(--text-primary);
+}
+
+.control-group select option:checked {
+  background-color: var(--primary-color);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
 .field-selector {
   display: flex;
   flex-direction: column;

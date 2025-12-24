@@ -186,16 +186,47 @@
   padding: var(--spacing-sm);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-sm);
-  background-color: var(--bg-main);
+  background-color: var(--bg-input);
   color: var(--text-primary);
   font-size: 0.875rem;
+}
+
+.filter-group select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  padding-right: 2rem;
+}
+
+.filter-group select:hover {
+  background-color: var(--bg-subtle-hover);
+  border-color: var(--border-medium);
 }
 
 .filter-group input:focus,
 .filter-group select:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb, 0, 168, 107), 0.1);
+}
+
+.filter-group select option {
+  background-color: var(--bg-component);
+  color: var(--text-primary);
+  padding: 0.5rem;
+}
+
+.filter-group select option:hover {
+  background-color: var(--primary-subtle);
+  color: var(--text-primary);
+}
+
+.filter-group select option:checked {
+  background-color: var(--primary-color);
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 /* 响应式调整 */
