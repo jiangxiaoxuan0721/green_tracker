@@ -1,9 +1,5 @@
 /* DataAnalyze 组件专用样式 */
 
-.dashboard-data-analyze {
-  padding: var(--spacing-lg);
-}
-
 /* 分析控制区域 */
 .analysis-controls {
   display: grid;
@@ -14,7 +10,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-default);
   border: 1px solid var(--border-primary);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .control-group {

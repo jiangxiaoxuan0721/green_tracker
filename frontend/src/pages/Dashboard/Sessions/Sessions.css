@@ -4,7 +4,7 @@
 .filter-container {
   display: flex;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-md);
   background-color: var(--bg-component);
   padding: 1rem;
   border-radius: var(--radius-md);

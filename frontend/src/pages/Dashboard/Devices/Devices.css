@@ -5,7 +5,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--spacing-lg);
-  margin-top: var(--spacing-xl);
+  margin-top: var(--spacing-lg);
 }
 
 .device-card {
@@ -297,28 +297,72 @@
   font-weight: normal;
 }
 
+/* 空状态图标 */
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.7;
+}
+
+.empty-state h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+  font-size: 1.5rem;
+}
+
+.empty-state > p {
+  margin-bottom: var(--spacing-xl);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.empty-state-tips {
+  background-color: var(--bg-component);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+  border: 1px solid var(--border-primary);
+  text-align: left;
+}
+
+.empty-state-tips p {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.empty-state-tips ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.empty-state-tips li {
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .devices-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .device-actions {
     flex-direction: column;
   }
-  
+
   .device-meta {
     flex-wrap: wrap;
   }
-  
+
   .checkbox-group {
     grid-template-columns: 1fr;
   }
-  
+
   .checkbox-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   }
-  
+
   .checkbox-card {
     padding: var(--spacing-xs);
   }

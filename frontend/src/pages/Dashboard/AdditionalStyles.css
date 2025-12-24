@@ -323,7 +323,7 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
+  margin-top: var(--spacing-md);
 }
 
 .save-btn, .reset-btn {

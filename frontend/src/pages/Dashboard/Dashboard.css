@@ -5,6 +5,37 @@
   background: var(--bg-main);
 }
 
+/* 页面根容器统一样式 */
+.dashboard-sessions,
+.dashboard-data-view,
+.dashboard-data-analyze,
+.dashboard-fields,
+.dashboard-devices {
+  padding: var(--spacing-md);
+  max-width: 100%;
+}
+
+/* 空状态居中 */
+.dashboard-sessions .empty-state,
+.dashboard-data-view .empty-state,
+.dashboard-data-analyze .empty-state,
+.dashboard-fields .empty-state,
+.dashboard-devices .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  margin: var(--spacing-xl) 0;
+  background-color: var(--bg-light);
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border-primary);
+  text-align: center;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .dashboard-sidebar {
   width: 240px;
   background-color: var(--bg-component);
@@ -102,7 +133,7 @@
 }
 
 .content-section {
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   flex: 1;
   overflow-y: auto;
 }
@@ -200,6 +231,7 @@
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
+  font-feature-settings: 'liga';
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }

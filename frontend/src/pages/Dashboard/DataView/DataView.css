@@ -1,9 +1,5 @@
 /* DataView 组件专用样式 */
 
-.dashboard-data-view {
-  padding: var(--spacing-lg);
-}
-
 /* 数据表格样式 */
 .data-table-container {
   background: var(--bg-component);
@@ -166,6 +162,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-default);
   border: 1px solid var(--border-primary);
+  margin-bottom: var(--spacing-md);
 }
 
 .filter-group {
