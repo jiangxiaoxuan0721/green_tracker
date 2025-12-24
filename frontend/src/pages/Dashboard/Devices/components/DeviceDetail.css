@@ -1,4 +1,4 @@
-/* 数据详情样式 - 与任务详情保持一致 */
+/* 设备详情样式 - 与任务详情保持一致 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -17,7 +17,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-default);
   width: 90%;
-  max-width: 700px;
+  max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
   border: 1px solid var(--border-primary);
@@ -96,35 +96,6 @@
 
 .modal-footer button {
   flex: 1;
-}
-
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-  color: var(--text-secondary);
-}
-
-.error-message {
-  background-color: var(--error-light);
-  color: var(--error-color);
-  padding: 1rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--error-color);
-}
-
-/* 标签样式 */
-.tag-item {
-  background-color: var(--bg-subtle);
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-sm);
-  margin-bottom: 0.5rem;
-  border: 1px solid var(--border-light);
-}
-
-.tag-item:last-child {
-  margin-bottom: 0;
 }
 
 /* 响应式设计 */
