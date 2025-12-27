@@ -1,4 +1,5 @@
-from sqlalchemy import Column, DateTime, Boolean, Text, Float
+import uuid
+from sqlalchemy import Column, DateTime, Text, Float
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
 from database.main_db import Base
@@ -7,9 +8,9 @@ HAS_POSTGIS = True
 
 class Field(Base):
     __tablename__ = "field"
-    
-    # 主键 - 在数据库端自动生成 UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+
+    # 主键 - 在 Python 端生成 UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # 基本信息
     name = Column(Text, nullable=False)  # 地块名称

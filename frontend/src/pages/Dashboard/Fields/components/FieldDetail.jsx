@@ -43,14 +43,6 @@ const FieldDetail = ({ field, onClose, onEdit }) => {
             <span className="value">{field.irrigation_type || '未设置'}</span>
           </div>
           <div className="detail-item">
-            <span className="label">状态:</span>
-            <span className="value">
-              <div className={`status-badge ${field.is_active ? 'status-completed' : 'status-failed'}`}>
-                {field.is_active ? '活跃' : '非活跃'}
-              </div>
-            </span>
-          </div>
-          <div className="detail-item">
             <span className="label">所有者ID:</span>
             <span className="value">{field.owner_id}</span>
           </div>

@@ -43,11 +43,11 @@ async def create_new_field(
             crop_type=field.crop_type,
             soil_type=field.soil_type,
             irrigation_type=field.irrigation_type,
-            owner_id=current_user.userid
+            owner_id=str(current_user.userid)
         )
         
         # 转换为响应格式
-        field_response = get_field_with_wkt(db, db_field.id)
+        field_response = get_field_with_wkt(db, str(db_field.id))
         if not field_response:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -86,22 +86,22 @@ async def get_fields(
 
         # 如果未提供owner_id，则使用当前用户ID
         if not owner_id:
-            owner_id = current_user.userid
+            owner_id = str(current_user.userid)
 
         # 使用搜索功能，支持多条件过滤
         fields = search_fields(
             db=db,
-            owner_id=owner_id,
-            keyword=keyword,
-            crop_type=crop_type,
-            soil_type=soil_type,
-            irrigation_type=irrigation_type
+            owner_id=owner_id or None,
+            keyword=keyword or None,
+            crop_type=crop_type or None,
+            soil_type=soil_type or None,
+            irrigation_type=irrigation_type or None
         )
         
         # 转换为响应格式（包含WKT）
         fields_with_wkt = []
         for field in fields:
-            field_wkt = get_field_with_wkt(db, field.id)
+            field_wkt = get_field_with_wkt(db, str(field.id))
             if field_wkt:
                 fields_with_wkt.append(field_wkt)
         
@@ -179,14 +179,14 @@ async def update_field_by_id(
         db_field = update_field(
             db=db,
             field_id=field_id,
-            owner_id=current_user.userid,
-            name=field_update.name,
-            description=field_update.description,
-            location_geom=field_update.location_wkt,
+            owner_id=str(current_user.userid),
+            name=field_update.name or None,
+            description=field_update.description or None,
+            location_geom=field_update.location_wkt or None,
             area_m2=field_update.area_m2,
-            crop_type=field_update.crop_type,
-            soil_type=field_update.soil_type,
-            irrigation_type=field_update.irrigation_type
+            crop_type=field_update.crop_type or None,
+            soil_type=field_update.soil_type or None,
+            irrigation_type=field_update.irrigation_type or None
         )
         
         if not db_field:
@@ -198,7 +198,8 @@ async def update_field_by_id(
         # 转换为响应格式
         field_response = get_field_with_wkt(db, field_id)
         
-        print(f"[API] 地块更新成功: {field_response['name']}")
+        if field_response:
+            print(f"[API] 地块更新成功: {field_response['name']}")
         return field_response
         
     except HTTPException:
@@ -230,7 +231,7 @@ async def delete_field_by_id(
         success = delete_field(
             db=db,
             field_id=field_id,
-            owner_id=current_user.userid
+            owner_id=str(current_user.userid)
         )
 
         if not success:
@@ -271,20 +272,20 @@ async def find_fields_by_point(
 
         # 如果未提供owner_id，则使用当前用户ID
         if not owner_id:
-            owner_id = current_user.userid
+            owner_id = str(current_user.userid)
 
         # 查找包含指定点的地块
         fields = find_fields_containing_point(
             db=db,
             longitude=point.longitude,
             latitude=point.latitude,
-            owner_id=owner_id
+            owner_id=owner_id or None
         )
         
         # 转换为响应格式（包含WKT）
         fields_with_wkt = []
         for field in fields:
-            field_wkt = get_field_with_wkt(db, field.id)
+            field_wkt = get_field_with_wkt(db, str(field.id))
             if field_wkt:
                 fields_with_wkt.append(field_wkt)
         

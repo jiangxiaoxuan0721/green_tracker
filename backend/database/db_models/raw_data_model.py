@@ -3,6 +3,7 @@
 用于原始数据的存储和管理
 """
 
+import uuid
 from sqlalchemy import Column, DateTime, Boolean, Text, Float, ForeignKey, String
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -12,9 +13,9 @@ from database.main_db import Base
 class RawData(Base):
     """原始数据表模型"""
     __tablename__ = "raw_data"
-    
-    # 主键 - 在数据库端自动生成 UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+
+    # 主键 - 在 Python 端生成 UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # 逻辑归属
     session_id = Column(UUID(as_uuid=True), ForeignKey("collection_session.id"), nullable=False, index=True)
@@ -72,9 +73,9 @@ class RawData(Base):
 class RawDataTag(Base):
     """原始数据标签表"""
     __tablename__ = "raw_data_tags"
-    
-    # 主键 - 在数据库端自动生成 UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+
+    # 主键 - 在 Python 端生成 UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # 关联关系
     raw_data_id = Column(UUID(as_uuid=True), ForeignKey("raw_data.id"), nullable=False, index=True)

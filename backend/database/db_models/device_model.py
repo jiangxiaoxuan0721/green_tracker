@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import Column, DateTime, Boolean, Text, JSON, String
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
@@ -5,9 +6,9 @@ from database.main_db import Base
 
 class Device(Base):
     __tablename__ = "device"
-    
-    # 主键 - 在数据库端自动生成 UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+
+    # 主键 - 在 Python 端生成 UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # 平台抽象
     device_type = Column(String(50), nullable=False)  # satellite / uav / ugv / robot / sensor

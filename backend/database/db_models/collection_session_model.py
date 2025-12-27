@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import Column, DateTime, Text, ForeignKey, Index, String
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -6,9 +7,9 @@ from database.main_db import Base
 class CollectionSession(Base):
     """采集任务/观测会话表 - 任务管理核心表"""
     __tablename__ = "collection_session"
-    
-    # 主键 - 在数据库端自动生成 UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+
+    # 主键 - 在 Python 端生成 UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # 关联实体
     field_id = Column(UUID(as_uuid=True), ForeignKey("field.id", ondelete="CASCADE"), nullable=False)

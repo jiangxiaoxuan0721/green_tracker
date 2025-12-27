@@ -13,6 +13,13 @@
       "description": "用户登录验证",
       "parameters": "username, password",
       "returns": "user_id, token"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/verify",
+      "description": "验证token有效性",
+      "parameters": "无 (需要JWT Token)",
+      "returns": "valid, user_id"
     }
   ],
   "feedback": [
@@ -36,50 +43,43 @@
       "method": "POST",
       "path": "/api/fields/",
       "description": "创建新地块",
-      "parameters": "name, description (可选), location_wkt, area_m2 (可选), crop_type (可选), soil_type (可选), irrigation_type (可选), organization_id (可选)",
-      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at"
+      "parameters": "name, description (可选), location_wkt, area_m2 (可选), crop_type (可选), soil_type (可选), irrigation_type (可选)",
+      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, created_at, updated_at"
     },
     {
       "method": "GET",
       "path": "/api/fields/",
       "description": "获取地块列表",
-      "parameters": "owner_id (可选), organization_id (可选), active_only (可选), keyword (可选), crop_type (可选), soil_type (可选), irrigation_type (可选)",
-      "returns": "地块列表: [id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at, ...]"
+      "parameters": "owner_id (可选, 不提供则返回当前用户的地块), keyword (可选), crop_type (可选), soil_type (可选), irrigation_type (可选)",
+      "returns": "地块列表: [id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, created_at, updated_at, ...]"
     },
     {
       "method": "GET",
       "path": "/api/fields/{field_id}",
       "description": "根据ID获取特定地块",
       "parameters": "field_id",
-      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at"
+      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, created_at, updated_at"
     },
     {
       "method": "PUT",
       "path": "/api/fields/{field_id}",
       "description": "更新地块信息",
-      "parameters": "field_id, name (可选), description (可选), location_wkt (可选), area_m2 (可选), crop_type (可选), soil_type (可选), irrigation_type (可选), is_active (可选)",
-      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at"
+      "parameters": "field_id, name (可选), description (可选), location_wkt (可选), area_m2 (可选), crop_type (可选), soil_type (可选), irrigation_type (可选)",
+      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, created_at, updated_at"
     },
     {
       "method": "DELETE",
       "path": "/api/fields/{field_id}",
-      "description": "删除地块",
-      "parameters": "field_id, soft_delete (可选)",
-      "returns": "无内容，状态码204"
-    },
-    {
-      "method": "POST",
-      "path": "/api/fields/{field_id}/restore",
-      "description": "恢复已软删除的地块",
+      "description": "删除地块（硬删除）",
       "parameters": "field_id",
-      "returns": "id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at"
+      "returns": "无内容，状态码204"
     },
     {
       "method": "POST",
       "path": "/api/fields/point-query",
       "description": "查找包含指定点的地块",
-      "parameters": "longitude, latitude, owner_id (可选), organization_id (可选), active_only (可选)",
-      "returns": "地块列表: [id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, organization_id, is_active, created_at, updated_at, ...]"
+      "parameters": "longitude, latitude, owner_id (可选)",
+      "returns": "地块列表: [id, name, description, location_wkt, area_m2, crop_type, soil_type, irrigation_type, owner_id, created_at, updated_at, ...]"
     }
   ],
   "devices": [
@@ -145,36 +145,36 @@
       "method": "POST",
       "path": "/api/collection-sessions/",
       "description": "创建新采集任务",
-      "parameters": "field_id, creator_id (可选), start_time, mission_type, end_time (可选), mission_name (可选), description (可选), weather_snapshot (可选), status (默认planned)",
-      "returns": "id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
+      "parameters": "field_id, start_time, mission_type, end_time (可选), mission_name (可选), description (可选), weather_snapshot (可选), status (默认planned)",
+      "returns": "id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
     },
     {
       "method": "GET",
       "path": "/api/collection-sessions/{session_id}",
       "description": "根据ID获取特定采集任务",
       "parameters": "session_id",
-      "returns": "id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
+      "returns": "id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
     },
     {
       "method": "GET",
       "path": "/api/collection-sessions/field/{field_id}",
       "description": "获取指定农田的采集任务列表",
-      "parameters": "field_id, limit (可选), offset (可选), start_date (可选), end_date (可选), mission_types (可选), status (可选)",
-      "returns": "采集任务列表: [id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
+      "parameters": "field_id, limit (默认100), offset (默认0), start_date (可选, YYYY-MM-DD), end_date (可选, YYYY-MM-DD), mission_types (可选, 逗号分隔), status (可选)",
+      "returns": "采集任务列表: [id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
     },
     {
       "method": "GET",
       "path": "/api/collection-sessions/",
       "description": "获取采集任务列表（含农田信息）",
-      "parameters": "limit (可选), offset (可选), field_id (可选), start_date (可选), end_date (可选), mission_types (可选), status (可选)",
-      "returns": "采集任务列表: [id, field_id, creator_id, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
+      "parameters": "limit (默认100), offset (默认0), field_id (可选), start_date (可选, YYYY-MM-DD), end_date (可选, YYYY-MM-DD), mission_types (可选, 逗号分隔), status (可选)",
+      "returns": "采集任务列表: [id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
     },
     {
       "method": "PUT",
       "path": "/api/collection-sessions/{session_id}",
       "description": "更新采集任务信息",
       "parameters": "session_id, end_time (可选), mission_name (可选), description (可选), weather_snapshot (可选), status (可选)",
-      "returns": "id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
+      "returns": "id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
     },
     {
       "method": "DELETE",
@@ -188,14 +188,14 @@
       "path": "/api/collection-sessions/field/{field_id}/latest",
       "description": "获取指定农田的最新采集任务",
       "parameters": "field_id, mission_type (可选)",
-      "returns": "id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
+      "returns": "id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at"
     },
     {
       "method": "GET",
       "path": "/api/collection-sessions/status/{status}",
       "description": "根据状态获取采集任务列表",
-      "parameters": "status, limit (可选), offset (可选)",
-      "returns": "采集任务列表: [id, field_id, creator_id, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
+      "parameters": "status, limit (默认100), offset (默认0)",
+      "returns": "采集任务列表: [id, field_id, creator_id, creator_name, field_name, start_time, end_time, mission_type, mission_name, description, weather_snapshot, status, created_at, updated_at, ...]"
     }
   ],
   "raw_data": [
@@ -203,7 +203,7 @@
       "method": "POST",
       "path": "/api/raw-data/",
       "description": "添加原始数据",
-      "parameters": "session_id, data_type, data_value, device_id (可选), device_display_name (可选), field_id (可选), field_display_name (可选), data_subtype (可选), data_unit (可选), data_format (可选), bucket_name (可选), object_key (可选), location_geom (可选), altitude_m (可选), heading (可选), sensor_meta (可选), file_meta (可选), acquisition_meta (可选), quality_score (可选), quality_flags (可选), checksum (可选), is_valid (可选), validation_notes (可选), capture_time (可选)",
+      "parameters": "user_id, session_id, data_type, data_value, device_id (可选), device_display_name (可选), field_id (可选), field_display_name (可选), data_subtype (可选), data_unit (可选), data_format (可选), bucket_name (可选), object_key (可选), location_geom (可选), altitude_m (可选), heading (可选), sensor_meta (可选), file_meta (可选), acquisition_meta (可选), quality_score (可选), quality_flags (可选), checksum (可选), is_valid (可选), validation_notes (可选), capture_time (可选)",
       "returns": "code, message, data: {id}"
     },
     {
@@ -245,7 +245,7 @@
       "method": "POST",
       "path": "/api/raw-data/{raw_data_id}/tags",
       "description": "添加原始数据标签",
-      "parameters": "raw_data_id, tag_category, tag_value, confidence (可选), source (默认manual), user_id",
+      "parameters": "raw_data_id, user_id, tag_category, tag_value, confidence (可选), source (默认manual)",
       "returns": "code, message, data: {tag_id}"
     },
     {
