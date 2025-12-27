@@ -22,7 +22,6 @@ from .field_service import (
     get_field_by_id,
     update_field,
     delete_field,
-    restore_field,
 )
 
 from .device_service import (
@@ -70,7 +69,6 @@ __all__ = [
     "get_field_by_id",
     "update_field",
     "delete_field",
-    "restore_field",
     "create_device",
     "get_device_by_id",
     "update_device",

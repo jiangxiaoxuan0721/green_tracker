@@ -1,19 +1,13 @@
-import uuid
-from typing import TYPE_CHECKING
-from sqlalchemy import Column, String, DateTime, Boolean, Text, JSON
+from sqlalchemy import Column, DateTime, Boolean, Text, JSON, String
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
 from database.main_db import Base
 
-# 仅在类型检查时导入，避免循环导入
-if TYPE_CHECKING:
-    from typing import Optional
-
 class Device(Base):
     __tablename__ = "device"
     
-    # 主键
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4())
+    # 主键 - 在数据库端自动生成 UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
     
     # 平台抽象
     device_type = Column(String(50), nullable=False)  # satellite / uav / ugv / robot / sensor

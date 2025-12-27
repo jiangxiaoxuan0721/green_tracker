@@ -1,20 +1,14 @@
-import uuid
-from typing import TYPE_CHECKING
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Index
+from sqlalchemy import Column, DateTime, Text, ForeignKey, Index, String
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from database.main_db import Base
-
-# 仅在类型检查时导入，避免循环导入
-if TYPE_CHECKING:
-    from typing import Optional
 
 class CollectionSession(Base):
     """采集任务/观测会话表 - 任务管理核心表"""
     __tablename__ = "collection_session"
     
-    # 主键
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4())
+    # 主键 - 在数据库端自动生成 UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
     
     # 关联实体
     field_id = Column(UUID(as_uuid=True), ForeignKey("field.id", ondelete="CASCADE"), nullable=False)

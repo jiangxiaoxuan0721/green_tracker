@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database.main_db import get_db
 from database.db_services.field_service import (
     create_field, get_field_by_id, get_fields_by_owner, get_all_fields,
-    search_fields, update_field, delete_field, restore_field,
+    search_fields, update_field, delete_field,
     get_field_with_wkt, get_fields_by_owner_with_wkt,
     find_fields_containing_point
 )
@@ -43,8 +43,7 @@ async def create_new_field(
             crop_type=field.crop_type,
             soil_type=field.soil_type,
             irrigation_type=field.irrigation_type,
-            owner_id=current_user.userid,
-            organization_id=field.organization_id
+            owner_id=current_user.userid
         )
         
         # 转换为响应格式
@@ -69,8 +68,6 @@ async def create_new_field(
 @router.get("/", response_model=List[FieldResponse])
 async def get_fields(
     owner_id: Optional[str] = Query(None, description="所有者ID，不提供则返回当前用户的地块"),
-    organization_id: Optional[str] = Query(None, description="组织ID"),
-    active_only: Optional[bool] = Query(True, description="是否只获取活跃地块"),
     keyword: Optional[str] = Query(None, description="搜索关键词"),
     crop_type: Optional[str] = Query(None, description="作物类型"),
     soil_type: Optional[str] = Query(None, description="土壤类型"),
@@ -80,27 +77,25 @@ async def get_fields(
 ):
     """
     获取地块列表
-    
+
     如果不提供owner_id，则返回当前用户的地块。
     提供关键字和作物类型等参数可以进行过滤。
     """
     try:
         print(f"[API] 用户 {current_user.username} 请求获取地块列表")
-        
+
         # 如果未提供owner_id，则使用当前用户ID
         if not owner_id:
             owner_id = current_user.userid
-        
+
         # 使用搜索功能，支持多条件过滤
         fields = search_fields(
             db=db,
             owner_id=owner_id,
-            organization_id=organization_id,
             keyword=keyword,
             crop_type=crop_type,
             soil_type=soil_type,
-            irrigation_type=irrigation_type,
-            active_only=active_only
+            irrigation_type=irrigation_type
         )
         
         # 转换为响应格式（包含WKT）
@@ -191,8 +186,7 @@ async def update_field_by_id(
             area_m2=field_update.area_m2,
             crop_type=field_update.crop_type,
             soil_type=field_update.soil_type,
-            irrigation_type=field_update.irrigation_type,
-            is_active=field_update.is_active
+            irrigation_type=field_update.irrigation_type
         )
         
         if not db_field:
@@ -221,36 +215,33 @@ async def update_field_by_id(
 @router.delete("/{field_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_field_by_id(
     field_id: str,
-    soft_delete: Optional[bool] = Query(True, description="是否使用软删除，默认为True"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    删除地块
-    
-    只能删除当前用户拥有或其组织拥有的地块。
-    默认使用软删除（标记为不活跃），可通过参数hard=true进行硬删除。
+    删除地块（硬删除）
+
+    只能删除当前用户拥有的地块。
     """
     try:
-        print(f"[API] 用户 {current_user.username} 请求删除地块: {field_id}, 软删除: {soft_delete}")
-        
-        # 删除地块
+        print(f"[API] 用户 {current_user.username} 请求删除地块: {field_id}")
+
+        # 删除地块（必须提供 owner_id）
         success = delete_field(
             db=db,
             field_id=field_id,
-            owner_id=current_user.userid,
-            soft_delete=soft_delete
+            owner_id=current_user.userid
         )
-        
+
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="地块不存在或无权访问"
             )
-        
+
         print(f"[API] 地块删除成功: {field_id}")
         return
-        
+
     except HTTPException:
         # 重新抛出HTTP异常
         raise
@@ -262,80 +253,32 @@ async def delete_field_by_id(
         )
 
 
-@router.post("/{field_id}/restore", response_model=FieldResponse)
-async def restore_field_by_id(
-    field_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    恢复已软删除的地块
-    
-    只能恢复当前用户拥有或其组织拥有的地块。
-    """
-    try:
-        print(f"[API] 用户 {current_user.username} 请求恢复地块: {field_id}")
-        
-        # 恢复地块
-        db_field = restore_field(
-            db=db,
-            field_id=field_id,
-            owner_id=current_user.userid
-        )
-        
-        if not db_field:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="地块不存在或无权访问"
-            )
-        
-        # 转换为响应格式
-        field_response = get_field_with_wkt(db, field_id)
-        
-        print(f"[API] 地块恢复成功: {field_response['name']}")
-        return field_response
-        
-    except HTTPException:
-        # 重新抛出HTTP异常
-        raise
-    except Exception as e:
-        print(f"[API] 恢复地块失败: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"恢复地块失败: {str(e)}"
-        )
-
-
 @router.post("/point-query", response_model=List[FieldResponse])
 async def find_fields_by_point(
     point: PointQuery,
     owner_id: Optional[str] = Query(None, description="所有者ID，不提供则返回当前用户的地块"),
-    organization_id: Optional[str] = Query(None, description="组织ID"),
-    active_only: Optional[bool] = Query(True, description="是否只获取活跃地块"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     查找包含指定点的地块
-    
+
     根据经纬度查找包含该点的所有地块。
     如果未提供owner_id，则查找当前用户的地块。
     """
     try:
         print(f"[API] 用户 {current_user.username} 请求点查询: ({point.longitude}, {point.latitude})")
-        
+
         # 如果未提供owner_id，则使用当前用户ID
         if not owner_id:
             owner_id = current_user.userid
-        
+
         # 查找包含指定点的地块
         fields = find_fields_containing_point(
             db=db,
             longitude=point.longitude,
             latitude=point.latitude,
-            owner_id=owner_id,
-            organization_id=organization_id,
-            active_only=active_only
+            owner_id=owner_id
         )
         
         # 转换为响应格式（包含WKT）

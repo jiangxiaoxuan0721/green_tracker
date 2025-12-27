@@ -11,7 +11,6 @@ class FieldCreate(BaseModel):
     crop_type: Optional[str] = Field(None, description="作物类型")
     soil_type: Optional[str] = Field(None, description="土壤类型")
     irrigation_type: Optional[str] = Field(None, description="灌溉方式")
-    organization_id: Optional[str] = Field(None, description="所属组织ID")
 
     class Config:
         schema_extra = {
@@ -35,7 +34,6 @@ class FieldUpdate(BaseModel):
     crop_type: Optional[str] = Field(None, description="作物类型")
     soil_type: Optional[str] = Field(None, description="土壤类型")
     irrigation_type: Optional[str] = Field(None, description="灌溉方式")
-    is_active: Optional[bool] = Field(None, description="是否有效")
 
     class Config:
         schema_extra = {
@@ -57,8 +55,6 @@ class FieldResponse(BaseModel):
     soil_type: Optional[str] = None
     irrigation_type: Optional[str] = None
     owner_id: Optional[str] = None
-    organization_id: Optional[str] = None
-    is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -81,8 +77,6 @@ class PointQuery(BaseModel):
 
 class FieldListParams(BaseModel):
     owner_id: Optional[str] = Field(None, description="所有者ID")
-    organization_id: Optional[str] = Field(None, description="组织ID")
-    active_only: Optional[bool] = Field(True, description="是否只获取活跃地块")
     keyword: Optional[str] = Field(None, description="搜索关键词")
     crop_type: Optional[str] = Field(None, description="作物类型")
     soil_type: Optional[str] = Field(None, description="土壤类型")

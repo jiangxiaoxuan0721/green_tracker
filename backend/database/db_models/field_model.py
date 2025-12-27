@@ -1,21 +1,15 @@
-import uuid
-from typing import TYPE_CHECKING
-from sqlalchemy import Column, String, DateTime, Boolean, Text, Float
+from sqlalchemy import Column, DateTime, Boolean, Text, Float
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
 from database.main_db import Base
 from geoalchemy2 import Geometry
 HAS_POSTGIS = True
 
-# 仅在类型检查时导入，避免循环导入
-if TYPE_CHECKING:
-    from typing import Optional
-
 class Field(Base):
     __tablename__ = "field"
     
-    # 主键
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4())
+    # 主键 - 在数据库端自动生成 UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
     
     # 基本信息
     name = Column(Text, nullable=False)  # 地块名称
@@ -34,13 +28,9 @@ class Field(Base):
     soil_type = Column(Text, nullable=True)  # 土壤类型
     irrigation_type = Column(Text, nullable=True)  # 灌溉方式
     
-    # 管理属性（为多用户/多组织扩展预留）
+    # 管理属性
     owner_id = Column(UUID(as_uuid=True), nullable=True)  # 地块负责人
-    organization_id = Column(UUID(as_uuid=True), nullable=True)  # 所属组织
-    
-    # 状态字段
-    is_active = Column(Boolean, default=True, nullable=False)  # 是否有效
-    
+
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
