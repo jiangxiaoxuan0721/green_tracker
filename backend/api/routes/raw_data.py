@@ -4,7 +4,6 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from database.main_db import get_db
@@ -19,55 +18,14 @@ from database.db_services.raw_data_service import (
     delete_raw_data
 )
 from database.db_services.user_service import get_user_by_id
+from api.schemas.raw_data import (
+    RawDataRequest,
+    RawDataTagRequest,
+    ProcessingStatusRequest,
+    AIStatusRequest
+)
 
 router = APIRouter(prefix="/api/raw-data", tags=["原始数据"])
-
-
-class RawDataRequest(BaseModel):
-    """原始数据请求模型"""
-    session_id: str = Field(..., description="采集会话ID")
-    data_type: str = Field(..., description="数据类型")
-    data_value: str = Field(..., description="数据值")
-    device_id: Optional[str] = Field(None, description="设备ID")
-    device_display_name: Optional[str] = Field(None, description="设备前端显示名称")
-    field_id: Optional[str] = Field(None, description="地块ID")
-    field_display_name: Optional[str] = Field(None, description="地块前端显示名称")
-    data_subtype: Optional[str] = Field(None, description="数据子类型")
-    data_unit: Optional[str] = Field(None, description="数据单位")
-    data_format: Optional[str] = Field(None, description="数据格式")
-    bucket_name: Optional[str] = Field(None, description="MinIO bucket名称")
-    object_key: Optional[str] = Field(None, description="MinIO对象路径")
-    location_geom: Optional[str] = Field(None, description="位置几何信息")
-    altitude_m: Optional[float] = Field(None, description="采集高度")
-    heading: Optional[float] = Field(None, description="朝向")
-    sensor_meta: Optional[Dict[str, Any]] = Field(None, description="传感器元数据")
-    file_meta: Optional[Dict[str, Any]] = Field(None, description="文件元数据")
-    acquisition_meta: Optional[Dict[str, Any]] = Field(None, description="采集元数据")
-    quality_score: Optional[float] = Field(None, description="质量评分")
-    quality_flags: Optional[List[str]] = Field(None, description="质量标记")
-    checksum: Optional[str] = Field(None, description="文件校验值")
-    is_valid: Optional[bool] = Field(True, description="是否有效")
-    validation_notes: Optional[str] = Field(None, description="验证备注")
-    capture_time: Optional[datetime] = Field(None, description="采集时间")
-
-
-class RawDataTagRequest(BaseModel):
-    """原始数据标签请求模型"""
-    raw_data_id: str = Field(..., description="原始数据ID")
-    tag_category: str = Field(..., description="标签类别")
-    tag_value: str = Field(..., description="标签值")
-    confidence: Optional[float] = Field(None, description="置信度")
-    source: Optional[str] = Field("manual", description="标签来源")
-
-
-class ProcessingStatusRequest(BaseModel):
-    """处理状态更新请求模型"""
-    processing_status: str = Field(..., description="处理状态")
-
-
-class AIStatusRequest(BaseModel):
-    """AI状态更新请求模型"""
-    ai_status: str = Field(..., description="AI分析状态")
 
 
 def get_current_user_id(db, user_id: str) -> str:

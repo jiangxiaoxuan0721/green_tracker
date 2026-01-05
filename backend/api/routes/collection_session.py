@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
 from datetime import datetime
 
 from database.main_db import get_db
@@ -17,6 +16,12 @@ from database.db_services.collection_session_service import (
     get_latest_collection_session_by_field,
     get_collection_sessions_by_status,
     get_collection_sessions_with_field_info
+)
+from api.schemas.collection_session import (
+    CollectionSessionCreate,
+    CollectionSessionUpdate,
+    CollectionSessionResponse,
+    CollectionSessionWithFieldResponse
 )
 
 # 创建路由器
@@ -45,61 +50,6 @@ def convert_session_to_dict(session, include_user_info=False):
         result["creator_name"] = session.creator_name
     
     return result
-
-# Pydantic 模型定义
-class CollectionSessionBase(BaseModel):
-    field_id: str = Field(..., description="农田ID")
-    start_time: datetime = Field(..., description="任务开始时间")
-    mission_type: str = Field(..., description="任务类型（巡检/定点/路径/应急）")
-    end_time: Optional[datetime] = Field(None, description="任务结束时间")
-    mission_name: Optional[str] = Field(None, description="任务名称")
-    description: Optional[str] = Field(None, description="任务说明")
-    weather_snapshot: Optional[Dict[str, Any]] = Field(None, description="采集时的环境快照")
-    status: str = Field("planned", description="任务状态")
-
-class CollectionSessionCreate(CollectionSessionBase):
-    pass
-
-class CollectionSessionUpdate(BaseModel):
-    end_time: Optional[datetime] = Field(None, description="任务结束时间")
-    mission_name: Optional[str] = Field(None, description="任务名称")
-    description: Optional[str] = Field(None, description="任务说明")
-    weather_snapshot: Optional[Dict[str, Any]] = Field(None, description="采集时的环境快照")
-    status: Optional[str] = Field(None, description="任务状态")
-
-class CollectionSessionResponse(BaseModel):
-    id: str
-    field_id: str
-    creator_id: Optional[str]
-    creator_name: Optional[str] = None
-    start_time: datetime
-    end_time: Optional[datetime]
-    mission_type: str
-    mission_name: Optional[str]
-    description: Optional[str]
-    weather_snapshot: Optional[Dict[str, Any]]
-    status: str
-    created_at: datetime
-    updated_at: Optional[datetime]
-
-    class Config:
-        from_attributes = True
-
-class CollectionSessionWithFieldResponse(BaseModel):
-    id: str
-    field_id: str
-    creator_id: Optional[str]
-    field_name: str
-    creator_name: Optional[str]
-    start_time: Optional[str]
-    end_time: Optional[str]
-    mission_type: str
-    mission_name: Optional[str]
-    description: Optional[str]
-    weather_snapshot: Optional[Dict[str, Any]]
-    status: str
-    created_at: Optional[str]
-    updated_at: Optional[str]
 
 # API 路由定义
 @router.post("/", response_model=CollectionSessionWithFieldResponse, summary="创建采集任务")
