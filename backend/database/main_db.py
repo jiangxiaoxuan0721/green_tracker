@@ -3,9 +3,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-# 加载环境变量
-load_dotenv()
+# 加载环境变量 - 从项目根目录加载.env文件
+# 获取项目根目录路径
+project_root = Path(__file__).parent.parent.parent
+load_dotenv(os.path.join(project_root, '.env'))
 
 # 数据库连接配置
 DB_HOST = os.getenv("DB_HOST", "localhost")

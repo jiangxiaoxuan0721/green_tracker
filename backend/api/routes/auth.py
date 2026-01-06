@@ -10,8 +10,12 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+# 加载环境变量 - 从项目根目录加载.env文件
+# 获取项目根目录路径
+project_root = Path(__file__).parent.parent.parent.parent
+load_dotenv(os.path.join(project_root, '.env'))
 
 # 密码加密上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

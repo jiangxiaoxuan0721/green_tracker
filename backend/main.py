@@ -3,8 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 
-# 加载环境变量
-load_dotenv()
+# 加载环境变量 - 从项目根目录加载.env文件
+# 获取项目根目录路径
+import os
+from pathlib import Path
+project_root = Path(__file__).parent.parent
+load_dotenv(os.path.join(project_root, '.env'))
 
 # 创建FastAPI应用实例
 app = FastAPI(
