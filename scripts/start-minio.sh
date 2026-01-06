@@ -13,14 +13,20 @@ MINIO_DATA_DIR="$HOME/minio-data"
 API_PORT=9000
 CONSOLE_PORT=9001
 
+# 获取项目根目录路径
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+ENV_FILE="$PROJECT_DIR/.env"
+
 # 从.env文件读取MinIO配置
-if [ -f ".env" ]; then
-    source .env
+if [ -f "$ENV_FILE" ]; then
+    source "$ENV_FILE"
     MINIO_USER=${MINIO_ACCESS_KEY:-"minioadmin"}
     MINIO_PASSWORD=${MINIO_SECRET_KEY:-"minioadmin123"}
 else
     echo "错误：未找到.env文件，请先创建.env文件并配置MinIO参数"
     echo "参考.env.example文件创建.env文件"
+    echo "期望的.env文件路径: $ENV_FILE"
     exit 1
 fi
 
@@ -58,36 +64,36 @@ echo -e "${GREEN}密码: $MINIO_PASSWORD${NC}"
 
 # 更新.env文件中的MinIO配置
 echo "更新.env文件中的MinIO配置..."
-if grep -q "MINIO_ENDPOINT=" .env; then
-    sed -i "s/MINIO_ENDPOINT=.*/MINIO_ENDPOINT=localhost/" .env
+if grep -q "MINIO_ENDPOINT=" "$ENV_FILE"; then
+    sed -i "s/MINIO_ENDPOINT=.*/MINIO_ENDPOINT=localhost/" "$ENV_FILE"
 else
-    echo "" >> .env
-    echo "# MinIO配置" >> .env
-    echo "MINIO_ENDPOINT=localhost" >> .env
+    echo "" >> "$ENV_FILE"
+    echo "# MinIO配置" >> "$ENV_FILE"
+    echo "MINIO_ENDPOINT=localhost" >> "$ENV_FILE"
 fi
 
-if grep -q "MINIO_PORT=" .env; then
-    sed -i "s/MINIO_PORT=.*/MINIO_PORT=$API_PORT/" .env
+if grep -q "MINIO_PORT=" "$ENV_FILE"; then
+    sed -i "s/MINIO_PORT=.*/MINIO_PORT=$API_PORT/" "$ENV_FILE"
 else
-    echo "MINIO_PORT=$API_PORT" >> .env
+    echo "MINIO_PORT=$API_PORT" >> "$ENV_FILE"
 fi
 
-if grep -q "MINIO_ACCESS_KEY=" .env; then
-    sed -i "s/MINIO_ACCESS_KEY=.*/MINIO_ACCESS_KEY=$MINIO_USER/" .env
+if grep -q "MINIO_ACCESS_KEY=" "$ENV_FILE"; then
+    sed -i "s/MINIO_ACCESS_KEY=.*/MINIO_ACCESS_KEY=$MINIO_USER/" "$ENV_FILE"
 else
-    echo "MINIO_ACCESS_KEY=$MINIO_USER" >> .env
+    echo "MINIO_ACCESS_KEY=$MINIO_USER" >> "$ENV_FILE"
 fi
 
-if grep -q "MINIO_SECRET_KEY=" .env; then
-    sed -i "s/MINIO_SECRET_KEY=.*/MINIO_SECRET_KEY=$MINIO_PASSWORD/" .env
+if grep -q "MINIO_SECRET_KEY=" "$ENV_FILE"; then
+    sed -i "s/MINIO_SECRET_KEY=.*/MINIO_SECRET_KEY=$MINIO_PASSWORD/" "$ENV_FILE"
 else
-    echo "MINIO_SECRET_KEY=$MINIO_PASSWORD" >> .env
+    echo "MINIO_SECRET_KEY=$MINIO_PASSWORD" >> "$ENV_FILE"
 fi
 
-if grep -q "MINIO_BUCKET_NAME=" .env; then
-    sed -i "s/MINIO_BUCKET_NAME=.*/MINIO_BUCKET_NAME=green-tracker-assets/" .env
+if grep -q "MINIO_BUCKET_NAME=" "$ENV_FILE"; then
+    sed -i "s/MINIO_BUCKET_NAME=.*/MINIO_BUCKET_NAME=green-tracker-assets/" "$ENV_FILE"
 else
-    echo "MINIO_BUCKET_NAME=green-tracker-assets" >> .env
+    echo "MINIO_BUCKET_NAME=green-tracker-assets" >> "$ENV_FILE"
 fi
 
 echo -e "${GREEN}MinIO配置已更新到.env文件！${NC}"

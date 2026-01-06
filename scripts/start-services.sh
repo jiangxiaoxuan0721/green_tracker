@@ -20,11 +20,15 @@ cd "$PROJECT_DIR"
 
 # 启动PostgreSQL
 echo -e "${GREEN}正在启动PostgreSQL...${NC}"
-"$SCRIPT_DIR/manage-postgres.sh" start
+"$SCRIPT_DIR/postgres-docker.sh" start
 
 # 等待PostgreSQL启动
 echo "等待PostgreSQL启动完成..."
-sleep 3
+sleep 5
+
+# 初始化数据库（如果需要）
+echo -e "${GREEN}检查数据库初始化状态...${NC}"
+"$SCRIPT_DIR/init-db.sh"
 
 # 启动MinIO
 echo -e "${GREEN}正在启动MinIO...${NC}"
@@ -42,7 +46,7 @@ echo -e "${GREEN}===================================${NC}"
 
 # PostgreSQL状态
 echo "PostgreSQL状态："
-sudo systemctl status postgresql --no-pager -l --lines=2
+"$SCRIPT_DIR/postgres-docker.sh" status
 
 echo ""
 # MinIO状态
@@ -52,9 +56,14 @@ if [ "$(docker ps -q -f name=minio)" ]; then
     echo "API: http://localhost:9000"
     echo "控制台: http://localhost:9001"
     
+    # 获取项目根目录路径
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+    ENV_FILE="$PROJECT_DIR/.env"
+    
     # 从环境变量读取用户名和密码（如果存在）
-    if [ -f ".env" ]; then
-        source .env
+    if [ -f "$ENV_FILE" ]; then
+        source "$ENV_FILE"
         echo "用户名: ${MINIO_ACCESS_KEY:-"minioadmin"}"
         echo "密码: [已隐藏，请查看.env文件中的MINIO_SECRET_KEY]"
     else
