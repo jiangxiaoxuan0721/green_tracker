@@ -1,21 +1,41 @@
 import { useNavigate, Outlet } from 'react-router-dom'
 import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../../hooks/auth/useAuth'
+import { useAuth } from '@/hooks/auth/useAuth'
 import './Dashboard.css'
 import './AdditionalStyles.css'
 
 const Dashboard = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated } = useAuth()
-  
+  const { isAuthenticated, loading } = useAuth()
+
   // 检查用户是否已登录
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!loading && !isAuthenticated) {
       navigate('/login')
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, loading, navigate])
+
+  // 如果正在验证身份，显示加载状态
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <div className="dashboard-content">
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+            fontSize: '1.2rem',
+            color: '#666'
+          }}>
+            正在验证身份...
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   // 菜单项数据
   const menuItems = [

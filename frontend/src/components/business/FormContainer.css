@@ -1,0 +1,17 @@
+.modal-content form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-error-message {
+  background-color: var(--error-light);
+  color: var(--error-color);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--error-color);
+}

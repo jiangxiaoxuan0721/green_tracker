@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext, createContext, ReactNode } from 'react';
-import { authService } from '../../services/authService';
+import { authService } from '@/services/authService';
 
 // 定义用户类型
 interface User {

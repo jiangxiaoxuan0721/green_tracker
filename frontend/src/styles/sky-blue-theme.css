@@ -48,10 +48,18 @@
   /* 状态颜色 - 天空蓝主题版本 */
   --success-color: #52c41a;
   --success-color-rgb: 82, 196, 26;
+  --success-light: rgba(82, 196, 26, 0.8);
+  --success-bg: rgba(82, 196, 26, 0.15);
   --warning-color: #faad14;
   --warning-color-rgb: 250, 173, 20;
+  --warning-light: rgba(250, 173, 20, 0.8);
+  --warning-bg: rgba(250, 173, 20, 0.15);
   --error-color: #ff4d4f;
   --error-color-rgb: 255, 77, 79;
+  --error-light: rgba(255, 77, 79, 0.8);
+  --error-bg: rgba(255, 77, 79, 0.15);
   --info-color: #1890ff;
   --info-color-rgb: 24, 144, 255;
+  --info-light: rgba(24, 144, 255, 0.8);
+  --info-bg: rgba(24, 144, 255, 0.15);
 }

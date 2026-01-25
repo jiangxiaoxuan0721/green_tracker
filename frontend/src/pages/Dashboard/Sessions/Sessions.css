@@ -1,4 +1,4 @@
-/* 任务管理页面样式 */
+哦用/* 任务管理页面样式 */
 
 /* 过滤器容器 */
 .filter-container {
@@ -105,7 +105,7 @@
 .status-badge {
   display: inline-block;
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 500;
   text-align: center;
@@ -145,6 +145,10 @@
   height: 32px;
   font-size: 0.85rem;
   padding: var(--spacing-xs) var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .danger-btn {
@@ -156,6 +160,13 @@
   font-size: 0.9rem;
   cursor: pointer;
   transition: var(--transition-normal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .danger-btn:hover {
@@ -167,6 +178,13 @@
   background-color: var(--warning-color);
   color: white;
   transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .warning-btn:hover {
@@ -176,6 +194,13 @@
 
 .secondary-btn, .primary-btn {
   transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .secondary-btn:hover, .primary-btn:hover {
@@ -208,82 +233,6 @@
   font-style: italic;
 }
 
-/* 模态框样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: var(--bg-component);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-default);
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  border: 1px solid var(--border-primary);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-primary);
-  background-color: var(--bg-component);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-primary);
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: var(--radius-full);
-  transition: var(--transition-fast);
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
-  background-color: var(--bg-subtle-hover);
-}
-
-.modal-body {
-  padding: 1rem;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-sm);
-  padding: 1rem;
-  border-top: 1px solid var(--border-primary);
-  background-color: var(--bg-component);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-}
-
 /* 详情页面样式 */
 .detail-item {
   display: flex;
@@ -302,6 +251,38 @@
   color: var(--text-secondary);
   word-break: break-word;
   flex: 1;
+}
+
+/* Session详情样式 */
+.session-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  color: var(--text-secondary);
+  flex: 1;
+  word-break: break-word;
 }
 
 /* 表单样式 */
@@ -425,12 +406,6 @@
 /* 表格行悬停效果 */
 .data-table tbody tr:hover {
   background-color: var(--bg-subtle-hover);
-}
-
-/* 模态框内容区域增强对比度 */
-.modal-body {
-  padding: 1.5rem;
-  background-color: var(--bg-component);
 }
 
 /* 表单组标签增强对比度 */

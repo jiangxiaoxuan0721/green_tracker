@@ -1,140 +1,96 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '../../../hooks/auth/useAuth'
-import { fieldService } from '../../../services/fieldService'
-import '../Dashboard.css'
-import '../AdditionalStyles.css'
-import './Fields.css'
+import { useCallback } from 'react'
+import { useDataList, useModal } from '@/hooks/common'
+import { useAuth } from '@/hooks/auth/useAuth'
+import { fieldService } from '@/services/fieldService'
+import { Button, Card } from '@/components/ui'
+import { ItemCard } from '@/components/business'
 import FieldForm from './components/FieldForm'
 import FieldDetail from './components/FieldDetail'
-import ItemCard from '../../../components/common/ItemCard'
+import './Fields.css'
 
 const Fields = () => {
   const { user } = useAuth()
-  const [fields, setFields] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [showForm, setShowForm] = useState(false)
-  const [showDetail, setShowDetail] = useState(false)
-  const [selectedField, setSelectedField] = useState(null)
-  const [formMode, setFormMode] = useState('create')
-  const [refreshKey, setRefreshKey] = useState(0)
 
-  // 加载地块数据
-  useEffect(() => {
-    const fetchFields = async () => {
-      try {
-        setLoading(true)
-        // 获取当前用户的地块
-        const fieldsData = await fieldService.getFields({ owner_id: user?.id })
-        setFields(fieldsData)
-        setError(null)
-      } catch (err) {
-        setError(err.message || '获取地块数据失败')
-        console.error('获取地块数据失败:', err)
-      } finally {
-        setLoading(false)
-      }
+  const fetchFields = useCallback(async () => {
+    if (!user?.id) return []
+    return await fieldService.getFields({ owner_id: user?.id })
+  }, [user?.id])
+
+  const {
+    data: fields,
+    loading,
+    initialLoading,
+    error,
+    refresh
+  } = useDataList(
+    fetchFields,
+    {
+      autoFetch: true,
+      pageSize: 100
     }
+  )
 
-    if (user) {
-      fetchFields()
-    }
-  }, [user, refreshKey])
+  const { isOpen: isFormOpen, modalData: formField, openModal: openForm, closeModal: closeForm } = useModal()
+  const { isOpen: isDetailOpen, modalData: detailField, openModal: openDetail, closeModal: closeDetail } = useModal()
 
-  // 处理创建地块
-  const handleCreateField = () => {
-    setSelectedField(null)
-    setFormMode('create')
-    setShowForm(true)
+  const handleCreate = () => {
+    openForm(null)
   }
 
-  // 处理编辑地块
-  const handleEditField = (field) => {
-    setSelectedField(field)
-    setFormMode('edit')
-    setShowForm(true)
+  const handleEdit = (field) => {
+    openForm(field)
   }
 
-  // 处理查看详情
-  const handleViewDetail = (field) => {
-    setSelectedField(field)
-    setShowDetail(true)
+  const handleView = (field) => {
+    openDetail(field)
   }
 
-  // 处理删除地块
-  const handleDeleteField = async (fieldId) => {
+  const handleDelete = async (field) => {
     if (!window.confirm('确定要删除这个地块吗？')) {
       return
     }
-
     try {
-      await fieldService.deleteField(fieldId)
-      // 刷新列表
-      setRefreshKey(prev => prev + 1)
+      await fieldService.deleteField(field.id)
+      refresh()
     } catch (err) {
-      setError(err.message || '删除地块失败')
       console.error('删除地块失败:', err)
     }
   }
 
-  // 处理表单关闭
-  const handleFormClose = () => {
-    setShowForm(false)
-    setSelectedField(null)
-  }
-
-  // 处理表单提交成功
   const handleFormSuccess = () => {
-    setShowForm(false)
-    setSelectedField(null)
-    // 刷新列表
-    setRefreshKey(prev => prev + 1)
+    closeForm()
+    refresh()
   }
 
-  // 处理详情关闭
-  const handleDetailClose = () => {
-    setShowDetail(false)
-    setSelectedField(null)
-  }
-
-  // 渲染加载状态
-  if (loading) {
-    return (
-      <div className="dashboard-fields">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>正在加载地块数据...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // 渲染错误状态
-  if (error) {
-    return (
-      <div className="dashboard-fields">
-        <div className="error-container">
-          <h3>加载失败</h3>
-          <p>{error}</p>
-          <button className="primary-btn" onClick={() => setRefreshKey(prev => prev + 1)}>
-            重试
-          </button>
-        </div>
-      </div>
-    )
+  const handleDetailEdit = (field) => {
+    closeDetail()
+    openForm(field)
   }
 
   return (
     <div className="dashboard-fields">
       <div className="dashboard-header">
         <h1>地块管理</h1>
-        <button className="primary-btn" onClick={handleCreateField}>
+        <Button variant="primary" onClick={handleCreate}>
           添加地块
-        </button>
+        </Button>
       </div>
-      
-      {fields.length === 0 ? (
-        <div className="empty-state">
+
+      {initialLoading && (
+        <Card className="loading-container">
+          <p>正在加载地块数据...</p>
+        </Card>
+      )}
+
+      {error && (
+        <Card className="error-card">
+          <p>{error}</p>
+          <Button variant="outline" onClick={refresh}>重试</Button>
+        </Card>
+      )}
+
+      {!initialLoading && !error && fields.length === 0 && (
+        <Card className="empty-state">
           <div className="empty-icon">🌱</div>
           <h3>还没有地块</h3>
           <p>点击右上角的"添加地块"按钮开始管理您的农田</p>
@@ -146,50 +102,55 @@ const Fields = () => {
               <li>跟踪每个地块的面积和位置</li>
             </ul>
           </div>
-        </div>
-      ) : (
+        </Card>
+      )}
+
+      {!initialLoading && !error && fields.length > 0 && (
         <div className="fields-grid">
           {fields.map(field => (
             <ItemCard
               key={field.id}
               item={field}
-              itemType="field"
-              isActive={field.is_active}
-              onViewDetail={handleViewDetail}
-              onEdit={handleEditField}
-              onDelete={handleDeleteField}
-              getSubtitle={(item) => item.area_m2 ? `${item.area_m2.toFixed(2)} 平方米` : '未知面积'}
-              getPrimaryInfo={(item) => [
-                { label: '作物', value: item.crop_type || '未设置' },
-                { label: '土壤类型', value: item.soil_type || '未设置' }
-              ]}
-              getSecondaryInfo={(item) => [
-                { label: '创建时间', value: new Date(item.created_at).toLocaleString() }
-              ]}
+              type="field"
+              onView={handleView}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              customInfo={(item) => (
+                <>
+                  <div className="item-info-row">
+                    <span>面积</span>
+                    <span>{item.area_m2 ? `${item.area_m2.toFixed(2)} 平方米` : '未知'}</span>
+                  </div>
+                  <div className="item-info-row">
+                    <span>作物</span>
+                    <span>{item.crop_type || '未设置'}</span>
+                  </div>
+                  <div className="item-info-row">
+                    <span>土壤类型</span>
+                    <span>{item.soil_type || '未设置'}</span>
+                  </div>
+                </>
+              )}
             />
           ))}
         </div>
       )}
 
-      {/* 地块表单弹窗 */}
-      {showForm && (
+      {isFormOpen && (
         <FieldForm
-          mode={formMode}
-          field={selectedField}
-          onClose={handleFormClose}
+          isOpen={isFormOpen}
+          mode={formField ? 'edit' : 'create'}
+          field={formField}
+          onClose={closeForm}
           onSuccess={handleFormSuccess}
         />
       )}
 
-      {/* 地块详情弹窗 */}
-      {showDetail && selectedField && (
+      {isDetailOpen && detailField && (
         <FieldDetail
-          field={selectedField}
-          onClose={handleDetailClose}
-          onEdit={() => {
-            setShowDetail(false)
-            handleEditField(selectedField)
-          }}
+          field={detailField}
+          onClose={closeDetail}
+          onEdit={() => handleDetailEdit(detailField)}
         />
       )}
     </div>

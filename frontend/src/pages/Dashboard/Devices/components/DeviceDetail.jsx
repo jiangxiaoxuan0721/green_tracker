@@ -1,6 +1,13 @@
+import { useEffect } from 'react'
 import './DeviceDetail.css'
 
 const DeviceDetail = ({ device, onClose, onEdit }) => {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [])
   // 获取平台层级的显示名称
   const getPlatformLevelText = (platformLevel) => {
     const platformMap = {

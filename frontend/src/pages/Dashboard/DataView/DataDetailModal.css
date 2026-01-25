@@ -1,42 +1,70 @@
-/* 数据详情样式 - 与任务详情保持一致 */
+/* 数据详情样式 - 与标准 Modal 保持一致 */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   z-index: 1000;
+  animation: modalFadeIn var(--transition-fast);
+  padding: var(--spacing-md);
+  overflow-y: auto;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-content {
   background-color: var(--bg-component);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-default);
-  width: 90%;
-  max-width: 700px;
+  box-shadow: var(--shadow-default), 0 0 0 1px var(--border-medium);
+  width: 100%;
+  max-width: 1000px;
   max-height: 90vh;
-  overflow-y: auto;
-  border: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn var(--transition-normal);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-primary);
-  background-color: var(--bg-component);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-medium);
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: var(--text-primary);
+  font-size: 1.5rem;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .close-btn {
@@ -61,8 +89,13 @@
 }
 
 .modal-body {
-  padding: 1.5rem;
-  background-color: var(--bg-component);
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+  flex: 1;
+  color: var(--text-primary);
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .detail-item {
@@ -85,13 +118,15 @@
 }
 
 .modal-footer {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--border-medium);
   display: flex;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-  padding: 1rem;
-  border-top: 1px solid var(--border-primary);
-  background-color: var(--bg-component);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  background-color: var(--bg-subtle);
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .modal-footer button {

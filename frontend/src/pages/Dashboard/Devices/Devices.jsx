@@ -1,104 +1,38 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '../../../hooks/auth/useAuth'
-import { deviceService } from '../../../services/deviceService'
-import '../Dashboard.css'
-import '../AdditionalStyles.css'
-import './Devices.css'
+import { useCallback } from 'react'
+import { useDataList, useModal } from '@/hooks/common'
+import { useAuth } from '@/hooks/auth/useAuth'
+import { deviceService } from '@/services/deviceService'
+import { Button, Card } from '@/components/ui'
+import { ItemCard } from '@/components/business'
 import DeviceForm from './components/DeviceForm'
 import DeviceDetail from './components/DeviceDetail'
-import ItemCard from '../../../components/common/ItemCard'
+import './Devices.css'
 
 const Devices = () => {
   const { user } = useAuth()
-  const [devices, setDevices] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [showForm, setShowForm] = useState(false)
-  const [showDetail, setShowDetail] = useState(false)
-  const [selectedDevice, setSelectedDevice] = useState(null)
-  const [formMode, setFormMode] = useState('create')
-  const [refreshKey, setRefreshKey] = useState(0)
 
-  // 加载设备数据
-  useEffect(() => {
-    const fetchDevices = async () => {
-      try {
-        setLoading(true)
-        // 获取当前用户的设备
-        const devicesData = await deviceService.getDevices({ owner_id: user?.id })
-        setDevices(devicesData)
-        setError(null)
-      } catch (err) {
-        setError(err.message || '获取设备数据失败')
-        console.error('获取设备数据失败:', err)
-      } finally {
-        setLoading(false)
-      }
+  const fetchDevices = useCallback(async () => {
+    if (!user?.id) return []
+    return await deviceService.getDevices({ owner_id: user?.id })
+  }, [user?.id])
+
+  const {
+    data: devices,
+    loading,
+    initialLoading,
+    error,
+    refresh
+  } = useDataList(
+    fetchDevices,
+    {
+      autoFetch: true,
+      pageSize: 100
     }
+  )
 
-    if (user) {
-      fetchDevices()
-    }
-  }, [user, refreshKey])
+  const { isOpen: isFormOpen, modalData: formDevice, openModal: openForm, closeModal: closeForm } = useModal()
+  const { isOpen: isDetailOpen, modalData: detailDevice, openModal: openDetail, closeModal: closeDetail } = useModal()
 
-  // 处理创建设备
-  const handleCreateDevice = () => {
-    setSelectedDevice(null)
-    setFormMode('create')
-    setShowForm(true)
-  }
-
-  // 处理编辑设备
-  const handleEditDevice = (device) => {
-    setSelectedDevice(device)
-    setFormMode('edit')
-    setShowForm(true)
-  }
-
-  // 处理查看详情
-  const handleViewDetail = (device) => {
-    console.log('查看设备详情:', device)
-    setSelectedDevice(device)
-    setShowDetail(true)
-  }
-
-  // 处理删除设备
-  const handleDeleteDevice = async (deviceId) => {
-    if (!window.confirm('确定要删除这个设备吗？')) {
-      return
-    }
-
-    try {
-      await deviceService.deleteDevice(deviceId)
-      // 刷新列表
-      setRefreshKey(prev => prev + 1)
-    } catch (err) {
-      setError(err.message || '删除设备失败')
-      console.error('删除设备失败:', err)
-    }
-  }
-
-  // 处理表单关闭
-  const handleFormClose = () => {
-    setShowForm(false)
-    setSelectedDevice(null)
-  }
-
-  // 处理表单提交成功
-  const handleFormSuccess = () => {
-    setShowForm(false)
-    setSelectedDevice(null)
-    // 刷新列表
-    setRefreshKey(prev => prev + 1)
-  }
-
-  // 处理详情关闭
-  const handleDetailClose = () => {
-    setShowDetail(false)
-    setSelectedDevice(null)
-  }
-
-  // 获取平台层级的显示名称
   const getPlatformLevelText = (platformLevel) => {
     const platformMap = {
       '天': '天基',
@@ -109,7 +43,6 @@ const Devices = () => {
     return platformMap[platformLevel] || platformLevel
   }
 
-  // 获取设备类型的显示名称
   const getDeviceTypeText = (deviceType) => {
     const typeMap = {
       'satellite': '卫星',
@@ -121,44 +54,64 @@ const Devices = () => {
     return typeMap[deviceType] || deviceType
   }
 
-  // 渲染加载状态
-  if (loading) {
-    return (
-      <div className="dashboard-devices">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>正在加载设备数据...</p>
-        </div>
-      </div>
-    )
+  const handleCreate = () => {
+    openForm(null)
   }
 
-  // 渲染错误状态
-  if (error) {
-    return (
-      <div className="dashboard-devices">
-        <div className="error-container">
-          <h3>加载失败</h3>
-          <p>{error}</p>
-          <button className="primary-btn" onClick={() => setRefreshKey(prev => prev + 1)}>
-            重试
-          </button>
-        </div>
-      </div>
-    )
+  const handleEdit = (device) => {
+    openForm(device)
+  }
+
+  const handleView = (device) => {
+    openDetail(device)
+  }
+
+  const handleDelete = async (device) => {
+    if (!window.confirm('确定要删除这个设备吗？')) {
+      return
+    }
+    try {
+      await deviceService.deleteDevice(device.id)
+      refresh()
+    } catch (err) {
+      console.error('删除设备失败:', err)
+    }
+  }
+
+  const handleFormSuccess = () => {
+    closeForm()
+    refresh()
+  }
+
+  const handleDetailEdit = (device) => {
+    closeDetail()
+    openForm(device)
   }
 
   return (
     <div className="dashboard-devices">
       <div className="dashboard-header">
         <h1>设备管理</h1>
-        <button className="primary-btn" onClick={handleCreateDevice}>
+        <Button variant="primary" onClick={handleCreate}>
           添加设备
-        </button>
+        </Button>
       </div>
-      
-      {devices.length === 0 ? (
-        <div className="empty-state">
+
+      {initialLoading && (
+        <Card className="loading-container">
+          <p>正在加载设备数据...</p>
+        </Card>
+      )}
+
+      {error && (
+        <Card className="error-card">
+          <p>{error}</p>
+          <Button variant="outline" onClick={refresh}>重试</Button>
+        </Card>
+      )}
+
+      {!initialLoading && !error && devices.length === 0 && (
+        <Card className="empty-state">
           <div className="empty-icon">📡</div>
           <h3>还没有设备</h3>
           <p>点击右上角的"添加设备"按钮开始管理您的监测设备</p>
@@ -170,57 +123,67 @@ const Devices = () => {
               <li>按平台层级（天/空/地/具身）组织设备</li>
             </ul>
           </div>
-        </div>
-      ) : (
+        </Card>
+      )}
+
+      {!initialLoading && !error && devices.length > 0 && (
         <div className="devices-grid">
           {devices.map(device => (
             <ItemCard
               key={device.id}
               item={device}
-              itemType="device"
-              isActive={device.is_active}
-              onViewDetail={handleViewDetail}
-              onEdit={handleEditDevice}
-              onDelete={handleDeleteDevice}
-              getSubtitle={(item) => item.manufacturer}
-              getPrimaryInfo={(item) => [
-                { label: '类型', value: getDeviceTypeText(item.device_type) },
-                { label: '平台层级', value: getPlatformLevelText(item.platform_level) },
-                ...(item.sensors && Object.keys(item.sensors).length > 0 
-                  ? [{ label: '传感器', value: Object.keys(item.sensors).join(', ') }] 
-                  : []),
-                ...(item.actuators && Object.keys(item.actuators).length > 0 
-                  ? [{ label: '执行机构', value: Object.keys(item.actuators).join(', ') }] 
-                  : [])
-              ]}
-              getSecondaryInfo={(item) => [
-                { label: '创建时间', value: new Date(item.created_at).toLocaleString() }
-              ]}
+              type="device"
+              onView={handleView}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              customInfo={(item) => (
+                <>
+                  <div className="item-info-row">
+                    <span>类型</span>
+                    <span>{getDeviceTypeText(item.device_type)}</span>
+                  </div>
+                  <div className="item-info-row">
+                    <span>平台层级</span>
+                    <span>{getPlatformLevelText(item.platform_level)}</span>
+                  </div>
+                  <div className="item-info-row">
+                    <span>制造商</span>
+                    <span>{item.manufacturer || '-'}</span>
+                  </div>
+                  {item.sensors && Object.keys(item.sensors).length > 0 && (
+                    <div className="item-info-row">
+                      <span>传感器</span>
+                      <span>{Object.keys(item.sensors).join(', ')}</span>
+                    </div>
+                  )}
+                  {item.actuators && Object.keys(item.actuators).length > 0 && (
+                    <div className="item-info-row">
+                      <span>执行机构</span>
+                      <span>{Object.keys(item.actuators).join(', ')}</span>
+                    </div>
+                  )}
+                </>
+              )}
             />
           ))}
         </div>
       )}
 
-      {/* 设备表单弹窗 */}
-      {showForm && (
+      {isFormOpen && (
         <DeviceForm
-          mode={formMode}
-          device={selectedDevice}
-          onClose={handleFormClose}
+          isOpen={isFormOpen}
+          mode={formDevice ? 'edit' : 'create'}
+          device={formDevice}
+          onClose={closeForm}
           onSuccess={handleFormSuccess}
         />
       )}
 
-      {/* 设备详情弹窗 */}
-      {showDetail && selectedDevice && (
+      {isDetailOpen && detailDevice && (
         <DeviceDetail
-          device={selectedDevice}
-          onClose={handleDetailClose}
-          onEdit={() => {
-            console.log('从详情界面转到编辑界面')
-            setShowDetail(false)
-            handleEditDevice(selectedDevice)
-          }}
+          device={detailDevice}
+          onClose={closeDetail}
+          onEdit={() => handleDetailEdit(detailDevice)}
         />
       )}
     </div>

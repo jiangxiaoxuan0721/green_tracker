@@ -1,0 +1,10 @@
+/* 地块表单样式 */
+
+.form-error-message {
+  background-color: var(--error-light);
+  color: var(--error-color);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid var(--error-color);
+}

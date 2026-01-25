@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { fieldService } from '../../../../services/fieldService'
-import { Modal } from '../../components'
+import { fieldService } from '@/services/fieldService'
+import { FormContainer } from '@/components/business'
+import { Input, Select, Textarea } from '@/components/ui'
 
-const FieldForm = ({ mode, field, onClose, onSuccess }) => {
+const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -15,7 +16,6 @@ const FieldForm = ({ mode, field, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // 初始化表单数据
   useEffect(() => {
     if (mode === 'edit' && field) {
       setFormData({
@@ -30,25 +30,19 @@ const FieldForm = ({ mode, field, onClose, onSuccess }) => {
     }
   }, [mode, field])
 
-  // 处理输入变化
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  // 处理表单提交
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    // 简单验证
+
     if (!formData.name.trim()) {
       setError('地块名称不能为空')
       return
     }
-    
+
     if (!formData.location_wkt.trim()) {
       setError('地块位置信息不能为空')
       return
@@ -57,8 +51,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess }) => {
     try {
       setLoading(true)
       setError('')
-      
-      // 准备提交数据
+
       const submitData = {
         name: formData.name,
         description: formData.description || undefined,
@@ -74,149 +67,121 @@ const FieldForm = ({ mode, field, onClose, onSuccess }) => {
       } else {
         await fieldService.updateField(field.id, submitData)
       }
-      
+
       onSuccess()
     } catch (err) {
       setError(err.message || `${mode === 'create' ? '创建' : '更新'}地块失败`)
-      console.error(`${mode === 'create' ? '创建' : '更新'}地块失败:`, err)
     } finally {
       setLoading(false)
     }
   }
 
+  const cropTypeOptions = [
+    { value: '水稻', label: '水稻' },
+    { value: '小麦', label: '小麦' },
+    { value: '玉米', label: '玉米' },
+    { value: '大豆', label: '大豆' },
+    { value: '棉花', label: '棉花' },
+    { value: '蔬菜', label: '蔬菜' },
+    { value: '水果', label: '水果' },
+    { value: '其他', label: '其他' }
+  ]
+
+  const soilTypeOptions = [
+    { value: '沙土', label: '沙土' },
+    { value: '壤土', label: '壤土' },
+    { value: '黏土', label: '黏土' },
+    { value: '砂壤土', label: '砂壤土' },
+    { value: '其他', label: '其他' }
+  ]
+
+  const irrigationTypeOptions = [
+    { value: '喷灌', label: '喷灌' },
+    { value: '滴灌', label: '滴灌' },
+    { value: '漫灌', label: '漫灌' },
+    { value: '无', label: '无' }
+  ]
+
   return (
-    <Modal
-      isOpen={true}
+    <FormContainer
+      isOpen={isOpen}
       onClose={onClose}
       title={mode === 'create' ? '创建地块' : '编辑地块'}
+      onSubmit={handleSubmit}
+      loading={loading}
       size="medium"
-      footer={
-        <>
-          <button type="button" className="secondary-btn" onClick={onClose}>
-            取消
-          </button>
-          <button 
-            type="submit" 
-            className="primary-btn" 
-            disabled={loading}
-            onClick={handleSubmit}
-          >
-            {loading ? '处理中...' : (mode === 'create' ? '创建' : '更新')}
-          </button>
-        </>
-      }
+      cancelText="取消"
+      submitText="提交"
     >
-      {error && <div className="error-message">{error}</div>}
-      
-      <form onSubmit={handleSubmit} className="field-form">
-        <div className="form-group">
-          <label htmlFor="name">地块名称 *</label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="description">描述</label>
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows={3}
-          />
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="location_wkt">位置信息 (WKT格式) *</label>
-          <textarea
-            id="location_wkt"
-            name="location_wkt"
-            value={formData.location_wkt}
-            onChange={handleChange}
-            rows={4}
-            placeholder="POLYGON((经度1 纬度1, 经度2 纬度2, ...))"
-            required
-          />
-          <small className="form-help">
-            请输入Well-Known Text (WKT)格式的地理信息，例如：POLYGON((116.3 39.9, 116.4 39.9, 116.4 40.0, 116.3 40.0, 116.3 39.9))
-          </small>
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="area_m2">面积 (平方米)</label>
-          <input
-            type="number"
-            id="area_m2"
-            name="area_m2"
-            value={formData.area_m2}
-            onChange={handleChange}
-            step="0.01"
-            min="0"
-          />
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="crop_type">作物类型</label>
-          <select
-            id="crop_type"
-            name="crop_type"
-            value={formData.crop_type}
-            onChange={handleChange}
-          >
-            <option value="">请选择</option>
-            <option value="水稻">水稻</option>
-            <option value="小麦">小麦</option>
-            <option value="玉米">玉米</option>
-            <option value="大豆">大豆</option>
-            <option value="棉花">棉花</option>
-            <option value="蔬菜">蔬菜</option>
-            <option value="水果">水果</option>
-            <option value="其他">其他</option>
-          </select>
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="soil_type">土壤类型</label>
-          <select
-            id="soil_type"
-            name="soil_type"
-            value={formData.soil_type}
-            onChange={handleChange}
-          >
-            <option value="">请选择</option>
-            <option value="沙土">沙土</option>
-            <option value="壤土">壤土</option>
-            <option value="黏土">黏土</option>
-            <option value="砂壤土">砂壤土</option>
-            <option value="其他">其他</option>
-          </select>
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="irrigation_type">灌溉方式</label>
-          <select
-            id="irrigation_type"
-            name="irrigation_type"
-            value={formData.irrigation_type}
-            onChange={handleChange}
-          >
-            <option value="">请选择</option>
-            <option value="自动灌溉">自动灌溉</option>
-            <option value="手动灌溉">手动灌溉</option>
-            <option value="滴灌">滴灌</option>
-            <option value="喷灌">喷灌</option>
-            <option value="漫灌">漫灌</option>
-            <option value="无">无</option>
-          </select>
-        </div>
-      </form>
-    </Modal>
+      {error && <div className="form-error-message">{error}</div>}
+
+      <Input
+        label="地块名称 *"
+        id="name"
+        name="name"
+        value={formData.name}
+        onChange={handleChange}
+        required
+      />
+
+      <Textarea
+        label="描述"
+        id="description"
+        name="description"
+        value={formData.description}
+        onChange={handleChange}
+        rows={3}
+      />
+
+      <Textarea
+        label="位置信息 (WKT格式) *"
+        id="location_wkt"
+        name="location_wkt"
+        value={formData.location_wkt}
+        onChange={handleChange}
+        rows={4}
+        placeholder="POLYGON((经度1 纬度1, 经度2 纬度2, ...))"
+        required
+      />
+
+      <Input
+        label="面积 (平方米)"
+        id="area_m2"
+        name="area_m2"
+        type="number"
+        value={formData.area_m2}
+        onChange={handleChange}
+        step="0.01"
+        min="0"
+      />
+
+      <Select
+        label="作物类型"
+        id="crop_type"
+        name="crop_type"
+        value={formData.crop_type}
+        onChange={handleChange}
+        options={cropTypeOptions}
+      />
+
+      <Select
+        label="土壤类型"
+        id="soil_type"
+        name="soil_type"
+        value={formData.soil_type}
+        onChange={handleChange}
+        options={soilTypeOptions}
+      />
+
+      <Select
+        label="灌溉类型"
+        id="irrigation_type"
+        name="irrigation_type"
+        value={formData.irrigation_type}
+        onChange={handleChange}
+        options={irrigationTypeOptions}
+      />
+    </FormContainer>
   )
 }
 

@@ -29,9 +29,8 @@
   font-weight: 300;
 }
 
-.contact-info {
+.contact-info-card {
   margin-bottom: var(--spacing-xxl);
-  text-align: left;
 }
 
 .info-table {
@@ -66,69 +65,20 @@
   margin-top: var(--spacing-xl);
 }
 
-.form-group {
-  margin-bottom: var(--spacing-xl);
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: var(--spacing-sm);
-  font-weight: 400;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  letter-spacing: 0.01em;
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
+.form-error {
   padding: var(--spacing-md);
-  border: 1px solid var(--border-medium);
-  font-size: 1rem;
-  font-family: inherit;
-  background-color: var(--bg-input);
-  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+  background-color: rgba(var(--error-color-rgb), 0.1);
+  color: var(--error-color);
   border-radius: var(--radius-sm);
-  transition: var(--transition-normal);
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--border-focus);
-  background-color: var(--bg-input-focus);
-  box-shadow: var(--shadow-glow);
-}
-
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-  color: var(--text-subtle);
-}
-
-.submit-btn {
-  background-color: var(--btn-default-bg);
-  color: var(--btn-text);
-  border: 1px solid var(--border-primary);
-  padding: var(--spacing-md) var(--spacing-xxl);
-  font-size: 0.95rem;
-  font-weight: 400;
-  cursor: pointer;
-  transition: var(--transition-normal);
-  letter-spacing: 0.02em;
-  margin-top: var(--spacing-md);
-  border-radius: var(--radius-sm);
-}
-
-.submit-btn:hover {
-  background-color: var(--btn-hover-bg);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--primary-dark);
-  border-color: var(--border-light);
+  border-left: 4px solid var(--error-color);
+  font-size: 0.9rem;
 }
 
 .form-success {
   padding: var(--spacing-xxl);
   text-align: center;
+  color: var(--text-primary);
 }
 
 .form-success h3 {
@@ -146,40 +96,30 @@
   font-weight: 300;
 }
 
-.form-error {
-  padding: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
-  background-color: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border-radius: var(--radius-sm);
-  border-left: 4px solid #ef4444;
-  font-size: 0.9rem;
-}
-
 @media (max-width: 768px) {
   .contact-container {
     padding: var(--spacing-xl) var(--spacing-md);
   }
-  
+
   .contact-content h1 {
     font-size: 2rem;
   }
-  
+
   .contact-content p {
     font-size: 1rem;
     margin-bottom: var(--spacing-xl);
   }
-  
+
   .submit-btn {
     width: 100%;
     padding: var(--spacing-md);
   }
-  
+
   .info-table th {
     width: 60px;
     font-size: 0.85rem;
   }
-  
+
   .info-table td {
     font-size: 0.85rem;
   }

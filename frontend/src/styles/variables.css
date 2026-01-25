@@ -19,8 +19,8 @@
   --bg-component: #1a2347;
   --bg-input: rgba(10, 20, 40, 0.6);
   --bg-input-focus: rgba(10, 20, 40, 0.8);
-  --bg-subtle: rgba(26, 26, 46, 0.6);
-  --bg-subtle-hover: rgba(26, 26, 46, 0.4);
+  --bg-subtle: rgba(30, 35, 55, 0.8);
+  --bg-subtle-hover: rgba(40, 45, 65, 0.6);
   
   /* 文本颜色 */
   --text-primary: rgba(255, 255, 255, 0.95);

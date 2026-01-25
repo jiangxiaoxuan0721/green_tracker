@@ -11,7 +11,7 @@
 .dashboard-data-analyze,
 .dashboard-fields,
 .dashboard-devices {
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
   max-width: 100%;
 }
 
@@ -25,8 +25,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-xl);
-  margin: var(--spacing-xl) 0;
+  padding: var(--spacing-md);
+  margin: var(--spacing-sm) 0;
   background-color: var(--bg-light);
   border-radius: var(--radius-lg);
   border: 2px dashed var(--border-primary);

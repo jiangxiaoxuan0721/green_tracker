@@ -15,6 +15,17 @@ export default defineConfig(({ mode }) => {
   console.log('[Vite配置] 环境变量加载结果:')
   console.log('- VITE_API_BASE_URL:', env.VITE_API_BASE_URL)
   console.log('- PORT:', env.PORT)
+  console.log('- VITE_ALLOWED_HOSTS:', env.VITE_ALLOWED_HOSTS)
+  
+  // 从环境变量中解析允许的主机列表
+  const allowedHosts = env.VITE_ALLOWED_HOSTS 
+    ? env.VITE_ALLOWED_HOSTS.split(',').map(host => host.trim())
+    : [
+        'localhost',
+        '127.0.0.1',
+      ]
+  
+  console.log('[Vite配置] 允许的主机列表:', allowedHosts)
   
   return {
     plugins: [react()],
@@ -30,6 +41,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0', // 允许外部访问
       port: 3010, // 前端服务器端口
+      allowedHosts: allowedHosts,
       proxy: {
         '/api': {
           target: env.VITE_API_BASE_URL || 'http://localhost:6130',

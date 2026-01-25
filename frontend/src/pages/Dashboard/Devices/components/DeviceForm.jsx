@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { deviceService } from '../../../../services/deviceService'
-import { Modal } from '../../components'
+import { deviceService } from '@/services/deviceService'
+import { Select, Input, Textarea, Checkbox } from '@/components/ui'
+import { FormContainer } from '@/components/business'
+import './DeviceForm.css'
 
-const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
+const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
   const [formData, setFormData] = useState({
     device_type: '',
     platform_level: '',
@@ -15,7 +17,6 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // 设备类型选项
   const deviceTypeOptions = [
     { value: 'satellite', label: '卫星' },
     { value: 'uav', label: '无人机' },
@@ -24,7 +25,6 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
     { value: 'sensor', label: '传感器' }
   ]
 
-  // 平台层级选项
   const platformLevelOptions = [
     { value: '天', label: '天基' },
     { value: '空', label: '空基' },
@@ -32,7 +32,6 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
     { value: '具身', label: '具身智能' }
   ]
 
-  // 传感器选项
   const sensorOptions = [
     { key: 'RGB', label: 'RGB相机' },
     { key: 'multispectral', label: '多光谱' },
@@ -45,7 +44,6 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
     { key: 'humidity', label: '空气湿度' }
   ]
 
-  // 执行机构选项
   const actuatorOptions = [
     { key: 'flight', label: '飞行控制' },
     { key: 'wheels', label: '轮式移动' },
@@ -55,7 +53,6 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
     { key: 'irrigation', label: '灌溉控制' }
   ]
 
-  // 初始化表单数据
   useEffect(() => {
     if (mode === 'edit' && device) {
       setFormData({
@@ -70,16 +67,11 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
     }
   }, [mode, device])
 
-  // 处理输入变化
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  // 处理传感器复选框变化
   const handleSensorChange = (sensorKey) => {
     setFormData(prev => ({
       ...prev,
@@ -90,7 +82,6 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
     }))
   }
 
-  // 处理执行机构复选框变化
   const handleActuatorChange = (actuatorKey) => {
     setFormData(prev => ({
       ...prev,
@@ -101,33 +92,28 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
     }))
   }
 
-  // 处理表单提交
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    // 简单验证
+
     if (!formData.device_type.trim()) {
       setError('设备类型不能为空')
       return
     }
-    
+
     if (!formData.platform_level.trim()) {
       setError('平台层级不能为空')
       return
     }
-    
+
     try {
       setLoading(true)
       setError('')
-      
-      // 准备提交数据
+
       const submitData = {
         ...formData,
-        // 移除空值
         model: formData.model || undefined,
         manufacturer: formData.manufacturer || undefined,
         description: formData.description || undefined,
-        // 只包含启用的传感器和执行机构
         sensors: Object.fromEntries(
           Object.entries(formData.sensors).filter(([_, enabled]) => enabled)
         ),
@@ -135,173 +121,120 @@ const DeviceForm = ({ mode, device, onClose, onSuccess }) => {
           Object.entries(formData.actuators).filter(([_, enabled]) => enabled)
         )
       }
-      
-      console.log('[DeviceForm] 准备提交的数据:', submitData);
 
       if (mode === 'create') {
         await deviceService.createDevice(submitData)
       } else {
         await deviceService.updateDevice(device.id, submitData)
       }
-      
+
       onSuccess()
     } catch (err) {
       setError(err.message || `${mode === 'create' ? '创建' : '更新'}设备失败`)
-      console.error(`${mode === 'create' ? '创建' : '更新'}设备失败:`, err)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Modal
-      isOpen={true}
-      title={`${mode === 'create' ? '添加' : '编辑'}设备`}
+    <FormContainer
+      isOpen={isOpen}
       onClose={onClose}
-      className="device-form-modal"
+      title={`${mode === 'create' ? '添加' : '编辑'}设备`}
+      onSubmit={handleSubmit}
+      loading={loading}
+      size="medium"
+      cancelText="取消"
+      submitText={mode === 'create' ? '添加' : '更新'}
     >
-      <form className="device-form" onSubmit={handleSubmit}>
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-        
-        <div className="form-group">
-          <label htmlFor="device_type">设备类型 *</label>
-          <select
-            id="device_type"
-            name="device_type"
-            value={formData.device_type}
-            onChange={handleChange}
-            required
-          >
-            <option value="">请选择设备类型</option>
-            {deviceTypeOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+      {error && (
+        <div className="form-error-message">
+          {error}
         </div>
-        
-        <div className="form-group">
-          <label htmlFor="platform_level">平台层级 *</label>
-          <select
-            id="platform_level"
-            name="platform_level"
-            value={formData.platform_level}
-            onChange={handleChange}
-            required
-          >
-            <option value="">请选择平台层级</option>
-            {platformLevelOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+      )}
+
+      <Select
+        label="设备类型 *"
+        id="device_type"
+        name="device_type"
+        value={formData.device_type}
+        onChange={handleChange}
+        options={deviceTypeOptions}
+        required
+      />
+
+      <Select
+        label="平台层级 *"
+        id="platform_level"
+        name="platform_level"
+        value={formData.platform_level}
+        onChange={handleChange}
+        options={platformLevelOptions}
+        required
+      />
+
+      <Input
+        label="设备型号"
+        id="model"
+        name="model"
+        value={formData.model}
+        onChange={handleChange}
+        placeholder="例如：DJI M300"
+      />
+
+      <Input
+        label="制造商"
+        id="manufacturer"
+        name="manufacturer"
+        value={formData.manufacturer}
+        onChange={handleChange}
+        placeholder="例如：大疆"
+      />
+
+      <Textarea
+        label="设备说明"
+        id="description"
+        name="description"
+        value={formData.description}
+        onChange={handleChange}
+        rows={3}
+        placeholder="设备的详细描述或用途"
+      />
+
+      <div className="checkbox-section">
+        <label className="section-title">传感器配置</label>
+        <div className="checkbox-grid">
+          {sensorOptions.map(option => (
+            <Checkbox
+              key={option.key}
+              id={`sensor-${option.key}`}
+              checked={!!formData.sensors[option.key]}
+              onChange={() => handleSensorChange(option.key)}
+              label={option.label}
+              className="checkbox-card"
+            />
+          ))}
         </div>
-        
-        <div className="form-group">
-          <label htmlFor="model">设备型号</label>
-          <input
-            id="model"
-            name="model"
-            type="text"
-            value={formData.model}
-            onChange={handleChange}
-            placeholder="例如：DJI M300"
-          />
+        <div className="form-help">选择设备具备的传感器类型</div>
+      </div>
+
+      <div className="checkbox-section">
+        <label className="section-title">执行机构配置</label>
+        <div className="checkbox-grid">
+          {actuatorOptions.map(option => (
+            <Checkbox
+              key={option.key}
+              id={`actuator-${option.key}`}
+              checked={!!formData.actuators[option.key]}
+              onChange={() => handleActuatorChange(option.key)}
+              label={option.label}
+              className="checkbox-card"
+            />
+          ))}
         </div>
-        
-        <div className="form-group">
-          <label htmlFor="manufacturer">制造商</label>
-          <input
-            id="manufacturer"
-            name="manufacturer"
-            type="text"
-            value={formData.manufacturer}
-            onChange={handleChange}
-            placeholder="例如：大疆"
-          />
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="description">设备说明</label>
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows={3}
-            placeholder="设备的详细描述或用途"
-          />
-        </div>
-        
-        <div className="form-group">
-          <label className="section-title">传感器配置</label>
-          <div className="checkbox-grid">
-            {sensorOptions.map(option => (
-              <div key={option.key} className="checkbox-card">
-                <input
-                  type="checkbox"
-                  id={`sensor-${option.key}`}
-                  checked={!!formData.sensors[option.key]}
-                  onChange={() => handleSensorChange(option.key)}
-                  className="checkbox-input"
-                />
-                <label htmlFor={`sensor-${option.key}`} className="checkbox-label">
-                  <span className="checkmark"></span>
-                  <span className="sensor-name">{option.label}</span>
-                </label>
-              </div>
-            ))}
-          </div>
-          <div className="form-help">选择设备具备的传感器类型</div>
-        </div>
-        
-        <div className="form-group">
-          <label className="section-title">执行机构配置</label>
-          <div className="checkbox-grid">
-            {actuatorOptions.map(option => (
-              <div key={option.key} className="checkbox-card">
-                <input
-                  type="checkbox"
-                  id={`actuator-${option.key}`}
-                  checked={!!formData.actuators[option.key]}
-                  onChange={() => handleActuatorChange(option.key)}
-                  className="checkbox-input"
-                />
-                <label htmlFor={`actuator-${option.key}`} className="checkbox-label">
-                  <span className="checkmark"></span>
-                  <span className="actuator-name">{option.label}</span>
-                </label>
-              </div>
-            ))}
-          </div>
-          <div className="form-help">选择设备具备的执行机构类型</div>
-        </div>
-        
-        <div className="form-actions">
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={onClose}
-            disabled={loading}
-          >
-            取消
-          </button>
-          <button
-            type="submit"
-            className="primary-btn"
-            disabled={loading}
-          >
-            {loading ? '保存中...' : mode === 'create' ? '添加' : '更新'}
-          </button>
-        </div>
-      </form>
-    </Modal>
+        <div className="form-help">选择设备具备的执行机构类型</div>
+      </div>
+    </FormContainer>
   )
 }
 

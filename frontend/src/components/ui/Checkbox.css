@@ -1,0 +1,67 @@
+.checkbox-wrapper {
+  display: inline-block;
+}
+
+.checkbox-input {
+  display: none;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  user-select: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-normal);
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.checkbox-label:hover {
+  background-color: var(--bg-subtle);
+  border-color: var(--border-light);
+}
+
+.checkbox-input:checked + .checkbox-label {
+  background-color: var(--primary-darkest);
+  border-color: var(--primary-medium);
+}
+
+.checkmark {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-normal);
+  background-color: var(--bg-component);
+}
+
+.checkbox-input:checked + .checkbox-label .checkmark {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.checkmark::after {
+  content: '✓';
+  color: white;
+  font-size: 0.875rem;
+  opacity: 0;
+  transform: scale(0);
+  transition: var(--transition-fast);
+}
+
+.checkbox-input:checked + .checkbox-label .checkmark::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checkbox-text {
+  font-size: 0.875rem;
+  font-weight: 400;
+}

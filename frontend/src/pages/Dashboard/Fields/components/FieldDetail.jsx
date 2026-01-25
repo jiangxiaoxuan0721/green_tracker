@@ -1,7 +1,13 @@
-
+import { useEffect } from 'react'
 import './FieldDetail.css'
 
 const FieldDetail = ({ field, onClose, onEdit }) => {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [])
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString()
   }

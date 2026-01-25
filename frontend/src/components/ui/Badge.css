@@ -1,0 +1,90 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* 变体 */
+.badge-default {
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.badge-primary {
+  background: var(--primary-color);
+  color: var(--btn-text);
+}
+
+.badge-success {
+  background: var(--success-color);
+  color: white;
+}
+
+.badge-warning {
+  background: var(--warning-color);
+  color: white;
+}
+
+.badge-danger {
+  background: var(--error-color);
+  color: white;
+}
+
+.badge-info {
+  background: var(--info-color);
+  color: white;
+}
+
+/* 状态变体 */
+.badge-online {
+  background: var(--success-color);
+  color: white;
+}
+
+.badge-offline {
+  background: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.badge-pending {
+  background: var(--warning-color);
+  color: white;
+}
+
+.badge-processing {
+  background: var(--info-color);
+  color: white;
+}
+
+.badge-completed {
+  background: var(--success-color);
+  color: white;
+}
+
+.badge-failed {
+  background: var(--error-color);
+  color: white;
+}
+
+/* 尺寸 */
+.badge-small {
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.badge-medium {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.875rem;
+}
+
+.badge-large {
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+}

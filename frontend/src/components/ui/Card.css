@@ -1,0 +1,60 @@
+.card {
+  background-color: var(--bg-component);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-default);
+  border: 1px solid var(--border-medium);
+  overflow: hidden;
+  transition: var(--transition-normal);
+  min-width: 380px;
+  max-width: 1200px;
+  width: 100%;
+}
+
+.card-hoverable {
+  transition: var(--transition-normal);
+}
+
+.card-hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--border-light);
+}
+
+.card-clickable {
+  cursor: pointer;
+}
+
+.card-clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--border-light);
+}
+
+.card-header {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.card-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.card-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.card-content {
+  padding: var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.card-footer {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-top: 1px solid var(--border-medium);
+  background-color: var(--bg-subtle);
+}

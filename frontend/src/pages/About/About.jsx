@@ -1,5 +1,5 @@
 import './About.css'
-import Navbar from '../../components/Navbar'
+import Navbar from '@/components/Navbar'
 const About = () => {
   return (
     <><Navbar />

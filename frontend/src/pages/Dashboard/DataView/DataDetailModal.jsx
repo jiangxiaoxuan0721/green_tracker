@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { rawDataService } from '../../../services/rawDataService'
+import { rawDataService } from '@/services/rawDataService'
 import './DataDetailModal.css'
 
 const DataDetailModal = ({ isOpen, onClose, rawDataId, userId }) => {

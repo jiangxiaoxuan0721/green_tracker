@@ -474,7 +474,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .dashboard-header h1 {
@@ -567,20 +567,22 @@
   flex-direction: column;
   max-height: 90vh;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .modal-small {
-  width: 90%;
+  width: 100%;
   max-width: 400px;
 }
 
 .modal-medium {
-  width: 90%;
+  width: 100%;
   max-width: 600px;
 }
 
 .modal-large {
-  width: 90%;
+  width: 100%;
   max-width: 800px;
 }
 
