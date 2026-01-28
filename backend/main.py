@@ -48,7 +48,8 @@ from api import (
     device_router,
     feedback_router,
     field_router,
-    raw_data_router
+    raw_data_router,
+    admin_database_router
 )
 
 # 注册认证路由
@@ -68,6 +69,9 @@ app.include_router(collection_session_router) # /api/collection-sessions
 
 # 注册原始数据路由
 app.include_router(raw_data_router) # /api/raw-data
+
+# 注册数据库管理路由（管理员专用）
+app.include_router(admin_database_router) # /api/admin/database
 
 # 健康检查端点
 @app.get("/health") # /health

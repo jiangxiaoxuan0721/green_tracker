@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.db_models.feedback_model import Feedback
+from database.db_models.meta_model import Feedback
 import uuid
 from typing import Optional
 

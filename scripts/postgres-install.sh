@@ -73,6 +73,12 @@ fi
 # 创建数据库用户和数据库
 echo -e "${GREEN}创建数据库用户和数据库...${NC}"
 sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" || echo "用户可能已存在"
+
+# 授予用户创建数据库的权限（重要：允许创建用户独立数据库）
+echo -e "${GREEN}授予 $DB_USER 用户创建数据库的权限...${NC}"
+sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB;"
+sudo -u postgres psql -c "ALTER USER $DB_USER CREATEUSER;"
+
 sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" || echo "数据库可能已存在"
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
 

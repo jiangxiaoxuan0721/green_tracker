@@ -1,7 +1,7 @@
 import uuid
 from sqlalchemy import and_, or_, func, text
 from sqlalchemy.orm import Session
-from database.db_models.field_model import Field
+from database.db_models.user_models import Field
 from typing import Optional, List
 
 # 尝试导入GeoAlchemy2函数

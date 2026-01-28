@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from database.main_db import get_db
+from database.main_db import get_meta_db
 from database.db_services import create_feedback, get_all_feedback
 from api.schemas.feedback import FeedbackCreate, FeedbackResponse
 from typing import List
@@ -9,15 +9,15 @@ router = APIRouter(prefix="/api/feedback", tags=["feedback"])
 
 
 @router.post("/", response_model=FeedbackResponse)
-async def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_db)):
+async def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_meta_db)):
     """
     提交用户反馈
     """
     try:
         db_feedback = create_feedback(
-            db=db, 
-            name=str(feedback.name), 
-            email=str(feedback.email), 
+            db=db,
+            name=str(feedback.name),
+            email=str(feedback.email),
             subject=str(feedback.subject),
             content=str(feedback.content)
         )
@@ -30,7 +30,7 @@ async def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_db
 
 
 @router.get("/", response_model=List[FeedbackResponse])
-async def get_feedback(db: Session = Depends(get_db)):
+async def get_feedback(db: Session = Depends(get_meta_db)):
     """
     获取所有反馈信息
     """

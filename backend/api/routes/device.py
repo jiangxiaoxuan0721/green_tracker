@@ -10,9 +10,9 @@ from api.schemas.device import (
     DeviceCreate, DeviceUpdate, DeviceResponse, DeviceListParams
 )
 from typing import List, Optional
-from database.db_models.user_model import User
+from database.db_models.meta_model import User
 
-# 从auth模块导入get_current_user函数
+# 从auth模块导入get_current用户函数
 from api.routes.auth import get_current_user
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])

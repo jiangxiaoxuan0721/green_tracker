@@ -1,8 +1,8 @@
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
-from database.db_models.collection_session_model import CollectionSession
-from database.db_models.field_model import Field
-from database.db_models.user_model import User
+from database.db_models.user_models import CollectionSession
+from database.db_models.user_models import Field
+from database.db_models.meta_model import User
 import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime

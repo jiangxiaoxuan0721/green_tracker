@@ -5,8 +5,7 @@
 
 from sqlalchemy import and_, or_, func, desc, asc
 from sqlalchemy.orm import Session
-from database.db_models.raw_data_model import RawData, RawDataTag
-from database.db_models.collection_session_model import CollectionSession
+from database.db_models.user_models import RawData, RawDataTag, CollectionSession
 import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime

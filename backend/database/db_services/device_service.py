@@ -1,6 +1,6 @@
 from sqlalchemy import and_, or_, text
 from sqlalchemy.orm import Session
-from database.db_models.device_model import Device
+from database.db_models.user_models import Device
 from typing import Optional, List, Dict, Any
 
 def create_device(db: Session, device_type: str, platform_level: str, 

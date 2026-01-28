@@ -1,16 +1,17 @@
 from sqlalchemy import Column
 from sqlalchemy.orm import Session
-from database.db_models.user_model import User
+from database.db_models.meta_model import User
 import uuid
 from typing import Optional
 from database.db_services.user_raw_data_service import init_user_raw_data_tables, remove_user_raw_data_tables
+from database.main_db import get_meta_db
 
 def create_user(db: Session, username: str, email: str, password_hash: str) -> User:
     """
     创建新用户
     
     Args:
-        db: 数据库会话
+        db: 元数据库会话
         username: 用户名
         email: 邮箱
         password_hash: 加密后的密码哈希
@@ -62,7 +63,7 @@ def verify_user(db: Session, username: str, password: str) -> Optional[User]:
     验证用户登录
     
     Args:
-        db: 数据库会话
+        db: 元数据库会话
         username: 用户名
         password: 原始密码
     
@@ -97,7 +98,7 @@ def get_user_by_id(db: Session, userid: str) -> Optional[User]:
     根据用户ID获取用户信息
     
     Args:
-        db: 数据库会话
+        db: 元数据库会话
         userid: 用户ID
     
     Returns:
@@ -110,7 +111,7 @@ def get_user_by_username(db: Session, username: str) -> Optional[User]:
     根据用户名获取用户信息
     
     Args:
-        db: 数据库会话
+        db: 元数据库会话
         username: 用户名
     
     Returns:
@@ -123,7 +124,7 @@ def update_user_email(db: Session, userid: str, new_email: str) -> Optional[User
     更新用户邮箱
     
     Args:
-        db: 数据库会话
+        db: 元数据库会话
         userid: 用户ID
         new_email: 新邮箱地址
     
@@ -146,7 +147,7 @@ def delete_user(db: Session, userid: str) -> bool:
     删除用户及其所有相关数据
     
     Args:
-        db: 数据库会话
+        db: 元数据库会话
         userid: 用户ID
     
     Returns:

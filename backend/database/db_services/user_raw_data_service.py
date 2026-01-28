@@ -12,7 +12,7 @@ from database.db_builder.user_raw_data_table import (
     create_user_indexes,
     drop_user_tables
 )
-from database.db_models.user_model import User
+from database.db_models.meta_model import User
 
 
 def init_user_raw_data_tables(userid: str) -> bool:

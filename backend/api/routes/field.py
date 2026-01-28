@@ -11,7 +11,7 @@ from api.schemas.field import (
     FieldCreate, FieldUpdate, FieldResponse, PointQuery, FieldListParams
 )
 from typing import List, Optional
-from database.db_models.user_model import User
+from database.db_models.meta_model import User
 
 # 从auth模块导入get_current_user函数
 from api.routes.auth import get_current_user

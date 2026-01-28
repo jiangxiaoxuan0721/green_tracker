@@ -10,7 +10,8 @@ from api.routes import (
     device_router,
     feedback_router,
     field_router,
-    raw_data_router
+    raw_data_router,
+    admin_database_router
 )
 
 # 导出所有 Schemas
@@ -57,6 +58,7 @@ __all__ = [
     "feedback_router",
     "field_router",
     "raw_data_router",
+    "admin_database_router",
     # Schemas - Auth
     "UserRegister",
     "UserLogin",

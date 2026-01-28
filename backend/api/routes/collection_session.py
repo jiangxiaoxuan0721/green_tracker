@@ -5,7 +5,7 @@ from datetime import datetime
 
 from database.main_db import get_db
 from api.routes.auth import get_current_user
-from database.db_models.user_model import User
+from database.db_models.meta_model import User
 from database.db_services.collection_session_service import (
     create_collection_session,
     get_collection_session_by_id,
