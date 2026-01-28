@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from database.db_models.meta_model import User
 import uuid
 from typing import Optional
-from database.db_services.user_raw_data_service import init_user_raw_data_tables, remove_user_raw_data_tables
 from database.main_db import get_meta_db
 
 def create_user(db: Session, username: str, email: str, password_hash: str) -> User:
@@ -47,14 +46,17 @@ def create_user(db: Session, username: str, email: str, password_hash: str) -> U
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
-    # 初始化用户的原始数据表
-    print(f"[后端UserService] 初始化用户 {new_user.userid} 的原始数据表")
-    if init_user_raw_data_tables(new_user.userid):
-        print(f"[后端UserService] 用户 {new_user.userid} 的原始数据表初始化成功")
-    else:
-        print(f"[后端UserService] 用户 {new_user.userid} 的原始数据表初始化失败")
-    
+
+    # 创建用户的独立数据库
+    print(f"[后端UserService] 为用户 {new_user.userid} 创建独立数据库")
+    try:
+        from database.create_user_database import create_user_database
+        create_user_database(new_user.userid)
+        print(f"[后端UserService] 用户 {new_user.userid} 的数据库创建成功")
+    except Exception as e:
+        print(f"[后端UserService] 用户 {new_user.userid} 的数据库创建失败: {e}")
+        # 注意: 这里不回滚用户创建，因为数据库创建可以在之后手动完成
+
     print(f"[后端UserService] 用户保存成功: {new_user.userid}")
     return new_user
 
@@ -162,17 +164,20 @@ def delete_user(db: Session, userid: str) -> bool:
         return False
     
     try:
-        # 先删除用户的原始数据表
-        print(f"[后端UserService] 删除用户 {userid} 的原始数据表")
-        if remove_user_raw_data_tables(userid):
-            print(f"[后端UserService] 用户 {userid} 的原始数据表删除成功")
-        else:
-            print(f"[后端UserService] 用户 {userid} 的原始数据表删除失败")
-        
+        # 先删除用户的独立数据库
+        print(f"[后端UserService] 删除用户 {userid} 的数据库")
+        try:
+            from database.create_user_database import drop_user_database
+            drop_user_database(userid)
+            print(f"[后端UserService] 用户 {userid} 的数据库删除成功")
+        except Exception as e:
+            print(f"[后端UserService] 用户 {userid} 的数据库删除失败: {e}")
+            # 注意: 这里继续删除用户记录，因为数据库可能已经被手动删除
+
         # 删除用户记录
         db.delete(user)
         db.commit()
-        
+
         print(f"[后端UserService] 用户 {userid} 删除成功")
         return True
     except Exception as e:

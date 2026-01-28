@@ -2,7 +2,6 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from database.db_models.user_models import CollectionSession
 from database.db_models.user_models import Field
-from database.db_models.meta_model import User
 import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -91,37 +90,34 @@ def get_collection_session_by_id(db: Session, session_id: str) -> Optional[Colle
 
 def get_collection_session_with_details(db: Session, session_id: str) -> Optional[Dict[str, Any]]:
     """
-    根据ID获取采集任务详情，包含创建者和农田名称
-    
+    根据ID获取采集任务详情，包含农田名称
+
     Args:
         db: 数据库会话
         session_id: 采集任务ID
-    
+
     Returns:
         Optional[Dict[str, Any]]: 包含采集任务详情的字典，如果不存在则返回None
     """
-    # 执行连接查询
-    query = db.query(CollectionSession, Field, User).outerjoin(
+    # 执行连接查询（只连接 Field 表，User 表在元数据库中）
+    query = db.query(CollectionSession, Field).outerjoin(
         Field, CollectionSession.field_id == Field.id
-    ).outerjoin(
-        User, CollectionSession.creator_id == User.userid
     ).filter(
         CollectionSession.id == uuid.UUID(session_id) if isinstance(session_id, str) else session_id
     )
-    
+
     result = query.first()
     if not result:
         return None
-    
-    session, field, user = result
-    
-    # 构建返回字典
+
+    session, field = result
+
+    # 构建返回字典（不包含用户信息，因为 User 表在元数据库中）
     session_dict = {
         "id": str(session.id),
         "field_id": str(session.field_id),
         "field_name": field.name if field else "未知农田",
         "creator_id": str(session.creator_id) if session.creator_id else None,
-        "creator_name": user.username if user else "未知用户",
         "start_time": session.start_time.isoformat() if session.start_time else None,
         "end_time": session.end_time.isoformat() if session.end_time else None,
         "mission_type": session.mission_type,
@@ -132,7 +128,7 @@ def get_collection_session_with_details(db: Session, session_id: str) -> Optiona
         "created_at": session.created_at.isoformat() if session.created_at else None,
         "updated_at": session.updated_at.isoformat() if session.updated_at else None
     }
-    
+
     return session_dict
 
 def get_collection_sessions_by_field(
@@ -304,8 +300,8 @@ def get_collection_sessions_by_status(
     ).order_by(desc(CollectionSession.start_time)).offset(offset).limit(limit).all()
 
 def get_collection_sessions_with_field_info(
-    db: Session, 
-    limit: int = 100, 
+    db: Session,
+    limit: int = 100,
     offset: int = 0,
     field_id: Optional[str] = None,
     start_date: Optional[datetime] = None,
@@ -315,8 +311,8 @@ def get_collection_sessions_with_field_info(
     creator_id: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
-    获取采集任务列表，包含关联的农田和创建者信息
-    
+    获取采集任务列表，包含关联的农田信息
+
     Args:
         db: 数据库会话
         limit: 返回记录数限制
@@ -327,54 +323,51 @@ def get_collection_sessions_with_field_info(
         mission_types: 任务类型过滤列表（可选）
         status: 状态过滤（可选）
         creator_id: 创建者ID过滤（可选）
-    
+
     Returns:
-        List[Dict[str, Any]]: 包含采集任务、农田和创建者信息的字典列表
+        List[Dict[str, Any]]: 包含采集任务和农田信息的字典列表
     """
-    # 构建查询
-    query = db.query(CollectionSession, Field, User).outerjoin(
+    # 构建查询（只连接 Field 表，User 表在元数据库中）
+    query = db.query(CollectionSession, Field).outerjoin(
         Field, CollectionSession.field_id == Field.id
-    ).outerjoin(
-        User, CollectionSession.creator_id == User.userid
     )
-    
+
     # 添加过滤条件
     if field_id:
         query = query.filter(
             CollectionSession.field_id == uuid.UUID(field_id) if isinstance(field_id, str) else field_id
         )
-    
+
     if start_date:
         query = query.filter(CollectionSession.start_time >= start_date)
-    
+
     if end_date:
         query = query.filter(CollectionSession.start_time <= end_date)
-    
+
     if mission_types:
         query = query.filter(CollectionSession.mission_type.in_(mission_types))
-    
+
     if status:
         query = query.filter(CollectionSession.status == status)
-    
+
     # 添加创建者过滤条件，确保用户只能看到自己的任务
     if creator_id:
         query = query.filter(CollectionSession.creator_id == creator_id)
-    
+
     # 按时间倒序排列
     query = query.order_by(desc(CollectionSession.start_time))
-    
+
     # 执行查询
     results = query.offset(offset).limit(limit).all()
-    
+
     # 转换为字典列表
     sessions_with_fields = []
-    for session, field, user in results:
+    for session, field in results:
         session_dict = {
             "id": str(session.id),
             "field_id": str(session.field_id),
             "creator_id": str(session.creator_id) if session.creator_id else None,
             "field_name": field.name if field else "未知农田",
-            "creator_name": user.username if user else "未知用户",
             "start_time": session.start_time.isoformat() if session.start_time else None,
             "end_time": session.end_time.isoformat() if session.end_time else None,
             "mission_type": session.mission_type,
@@ -386,5 +379,5 @@ def get_collection_sessions_with_field_info(
             "updated_at": session.updated_at.isoformat() if session.updated_at else None
         }
         sessions_with_fields.append(session_dict)
-    
+
     return sessions_with_fields

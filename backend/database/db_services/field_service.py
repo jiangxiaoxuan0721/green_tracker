@@ -14,7 +14,7 @@ except ImportError:
 def create_field(db: Session, name: str, description: Optional[str] = None,
                 location_geom: str = "", area_m2: Optional[float] = None,
                 crop_type: Optional[str] = None, soil_type: Optional[str] = None,
-                irrigation_type: Optional[str] = None, owner_id: Optional[str] = None) -> Field:
+                irrigation_type: Optional[str] = None) -> Field:
     """
     创建新地块
 
@@ -27,12 +27,11 @@ def create_field(db: Session, name: str, description: Optional[str] = None,
         crop_type: 作物类型（可选）
         soil_type: 土壤类型（可选）
         irrigation_type: 灌溉方式（可选）
-        owner_id: 地块负责人ID（可选）
 
     Returns:
         Field: 创建的地块对象
     """
-    print(f"[后端FieldService] 开始创建地块: 名称={name}, 所有者ID={owner_id}, PostGIS支持={HAS_POSTGIS}")
+    print(f"[后端FieldService] 开始创建地块: 名称={name}, PostGIS支持={HAS_POSTGIS}")
 
     # 处理几何数据
     geometry_obj = location_geom
@@ -41,9 +40,6 @@ def create_field(db: Session, name: str, description: Optional[str] = None,
         needs_geom_conversion = True
     else:
         needs_geom_conversion = False
-
-    # 转换 owner_id 为 UUID 对象（如果是字符串）
-    owner_uuid = uuid.UUID(owner_id) if owner_id else None
 
     # 创建新地块
     print("[后端FieldService] 创建新地块对象")
@@ -55,12 +51,11 @@ def create_field(db: Session, name: str, description: Optional[str] = None,
         area_m2=area_m2,
         crop_type=crop_type,
         soil_type=soil_type,
-        irrigation_type=irrigation_type,
-        owner_id=owner_uuid
+        irrigation_type=irrigation_type
     )
-    
+
     print(f"[后端FieldService] 地块对象创建成功, id={new_field.id}")
-    
+
     # 保存到数据库
     print("[后端FieldService] 保存地块到数据库")
     try:
@@ -68,27 +63,27 @@ def create_field(db: Session, name: str, description: Optional[str] = None,
         db.commit()
     except Exception as e:
         print(f"[后端FieldService] 保存地块时出错: {str(e)}")
-        print(f"[后端FieldService] 地块数据: name={name}, owner_id={owner_id}")
+        print(f"[后端FieldService] 地块数据: name={name}")
         db.rollback()
         raise
-    
+
     # 如果需要转换几何数据（PostGIS且WKT字符串）
     if HAS_POSTGIS and 'needs_geom_conversion' in locals() and needs_geom_conversion:
         print("[后端FieldService] 转换几何数据")
         db.execute(
-            text("UPDATE field SET location_geom = ST_GeomFromText(:wkt, 4326) WHERE id = :field_id"),
+            text("UPDATE fields SET location_geom = ST_GeomFromText(:wkt, 4326) WHERE id = :field_id"),
             {"wkt": location_geom, "field_id": new_field.id}
         )
         db.commit()
-    
+
     # 如果未提供面积但提供了位置几何，则计算面积
     if not area_m2:
         print("[后端FieldService] 计算地块面积")
         calculate_and_update_area(db, new_field.id) # type: ignore
-    
+
     # 刷新对象以获取更新后的值
     db.refresh(new_field)
-    
+
     print(f"[后端FieldService] 地块保存成功: {new_field.id}")
     return new_field
 
@@ -114,7 +109,7 @@ def calculate_and_update_area(db: Session, field_id) -> Optional[float]:
             # 直接使用原始SQL查询，避免ORM缓存问题
             result = db.execute(
                 text("""
-                    UPDATE field
+                    UPDATE fields
                     SET area_m2 = ST_Area(location_geom::geography)
                     WHERE id = :field_id
                     RETURNING area_m2
@@ -168,7 +163,6 @@ def get_field_with_wkt(db: Session, field_id: str) -> Optional[dict]:
         result = db.query(
             Field.id, Field.name, Field.description, Field.area_m2,
             Field.crop_type, Field.soil_type, Field.irrigation_type,
-            Field.owner_id,
             Field.created_at, Field.updated_at,
             func.ST_AsText(Field.location_geom).label('location_wkt')
         ).filter(Field.id == field_uuid).first()
@@ -177,7 +171,6 @@ def get_field_with_wkt(db: Session, field_id: str) -> Optional[dict]:
         result = db.query(
             Field.id, Field.name, Field.description, Field.area_m2,
             Field.crop_type, Field.soil_type, Field.irrigation_type,
-            Field.owner_id,
             Field.created_at, Field.updated_at,
             Field.location_geom.label('location_wkt')
         ).filter(Field.id == field_uuid).first()
@@ -191,78 +184,11 @@ def get_field_with_wkt(db: Session, field_id: str) -> Optional[dict]:
             'crop_type': result.crop_type,
             'soil_type': result.soil_type,
             'irrigation_type': result.irrigation_type,
-            'owner_id': str(result.owner_id) if result.owner_id else None,
             'created_at': result.created_at,
             'updated_at': result.updated_at,
             'location_wkt': result.location_wkt
         }
     return None
-
-def get_fields_by_owner(db: Session, owner_id: str) -> List[Field]:
-    """
-    根据所有者ID获取地块列表
-
-    Args:
-        db: 数据库会话
-        owner_id: 所有者ID
-
-    Returns:
-        List[Field]: 地块列表
-    """
-    owner_uuid = uuid.UUID(owner_id)
-    return db.query(Field).filter(Field.owner_id == owner_uuid).all()
-
-def get_fields_by_owner_with_wkt(db: Session, owner_id: str, active_only: bool = True) -> List[dict]:
-    """
-    根据所有者ID获取地块列表，包含WKT格式的几何数据
-
-    Args:
-        db: 数据库会话
-        owner_id: 所有者ID
-        active_only: 是否只获取活跃地块，默认为True
-
-    Returns:
-        List[dict]: 包含地块信息的字典列表，几何数据以WKT格式提供
-    """
-    owner_uuid = uuid.UUID(owner_id)
-    if HAS_POSTGIS:
-        # 使用PostGIS函数获取WKT
-        query = db.query(
-            Field.id, Field.name, Field.description, Field.area_m2,
-            Field.crop_type, Field.soil_type, Field.irrigation_type,
-            Field.owner_id,
-            Field.created_at, Field.updated_at,
-            func.ST_AsText(Field.location_geom).label('location_wkt')
-        ).filter(Field.owner_id == owner_uuid)
-    else:
-        # 直接返回文本字段
-        query = db.query(
-            Field.id, Field.name, Field.description, Field.area_m2,
-            Field.crop_type, Field.soil_type, Field.irrigation_type,
-            Field.owner_id,
-            Field.created_at, Field.updated_at,
-            Field.location_geom.label('location_wkt')
-        ).filter(Field.owner_id == owner_uuid)
-
-    results = query.all()
-
-    fields = []
-    for result in results:
-        fields.append({
-            'id': str(result.id),
-            'name': result.name,
-            'description': result.description,
-            'area_m2': result.area_m2,
-            'crop_type': result.crop_type,
-            'soil_type': result.soil_type,
-            'irrigation_type': result.irrigation_type,
-            'owner_id': str(result.owner_id) if result.owner_id else None,
-            'created_at': result.created_at,
-            'updated_at': result.updated_at,
-            'location_wkt': result.location_wkt
-        })
-
-    return fields
 
 def get_all_fields(db: Session) -> List[Field]:
     """
@@ -276,7 +202,67 @@ def get_all_fields(db: Session) -> List[Field]:
     """
     return db.query(Field).all()
 
-def search_fields(db: Session, owner_id: Optional[str] = None,
+def get_all_fields_with_wkt(db: Session, active_only: bool = True) -> List[dict]:
+    """
+    获取所有地块，包含WKT格式的几何数据
+
+    Args:
+        db: 数据库会话
+        active_only: 是否只获取活跃地块，默认为True
+
+    Returns:
+        List[dict]: 包含地块信息的字典列表，几何数据以WKT格式提供
+    """
+    query = db.query(Field)
+
+    if active_only:
+        query = query.filter(Field.is_active == True)
+
+    if HAS_POSTGIS:
+        # 使用PostGIS函数获取WKT
+        results = query.all()
+
+        fields = []
+        for field in results:
+            location_wkt = db.execute(
+                text("SELECT ST_AsText(location_geom) FROM fields WHERE id = :field_id"),
+                {"field_id": field.id}
+            ).scalar()
+
+            fields.append({
+                'id': str(field.id),
+                'name': field.name,
+                'description': field.description,
+                'area_m2': field.area_m2,
+                'crop_type': field.crop_type,
+                'soil_type': field.soil_type,
+                'irrigation_type': field.irrigation_type,
+                'created_at': field.created_at,
+                'updated_at': field.updated_at,
+                'location_wkt': location_wkt
+            })
+    else:
+        # 直接返回文本字段
+        results = query.all()
+
+        fields = []
+        for field in results:
+            fields.append({
+                'id': str(field.id),
+                'name': field.name,
+                'description': field.description,
+                'area_m2': field.area_m2,
+                'crop_type': field.crop_type,
+                'soil_type': field.soil_type,
+                'irrigation_type': field.irrigation_type,
+                'created_at': field.created_at,
+                'updated_at': field.updated_at,
+                'location_wkt': str(field.location_geom) if field.location_geom else None
+            })
+
+    return fields
+
+def search_fields(db: Session,
                  keyword: Optional[str] = None, crop_type: Optional[str] = None,
                  soil_type: Optional[str] = None, irrigation_type: Optional[str] = None) -> List[Field]:
     """
@@ -284,7 +270,6 @@ def search_fields(db: Session, owner_id: Optional[str] = None,
 
     Args:
         db: 数据库会话
-        owner_id: 所有者ID（可选）
         keyword: 关键词（搜索名称和描述）
         crop_type: 作物类型（可选）
         soil_type: 土壤类型（可选）
@@ -295,30 +280,25 @@ def search_fields(db: Session, owner_id: Optional[str] = None,
     """
     query = db.query(Field)
 
-    if owner_id:
-        owner_uuid = uuid.UUID(owner_id)
-        query = query.filter(Field.owner_id == owner_uuid)
-    
     if keyword:
         search_filter = or_(
             Field.name.ilike(f"%{keyword}%"),
             Field.description.ilike(f"%{keyword}%")
         )
         query = query.filter(search_filter)
-    
+
     if crop_type:
         query = query.filter(Field.crop_type == crop_type)
-    
+
     if soil_type:
         query = query.filter(Field.soil_type == soil_type)
-    
+
     if irrigation_type:
         query = query.filter(Field.irrigation_type == irrigation_type)
-    
+
     return query.all()
 
-def find_fields_containing_point(db: Session, longitude: float, latitude: float,
-                              owner_id: Optional[str] = None) -> List[Field]:
+def find_fields_containing_point(db: Session, longitude: float, latitude: float) -> List[Field]:
     """
     查找包含指定点的地块
 
@@ -326,7 +306,6 @@ def find_fields_containing_point(db: Session, longitude: float, latitude: float,
         db: 数据库会话
         longitude: 经度
         latitude: 纬度
-        owner_id: 所有者ID（可选）
 
     Returns:
         List[Field]: 包含该点的地块列表
@@ -340,13 +319,9 @@ def find_fields_containing_point(db: Session, longitude: float, latitude: float,
 
     query = db.query(Field).filter(func.ST_Contains(Field.location_geom, point))
 
-    if owner_id:
-        owner_uuid = uuid.UUID(owner_id)
-        query = query.filter(Field.owner_id == owner_uuid)
-
     return query.all()
 
-def update_field(db: Session, field_id: str, owner_id: Optional[str] = None,
+def update_field(db: Session, field_id: str,
                 name: Optional[str] = None, description: Optional[str] = None,
                 location_geom: Optional[str] = None, area_m2: Optional[float] = None,
                 crop_type: Optional[str] = None, soil_type: Optional[str] = None,
@@ -357,7 +332,6 @@ def update_field(db: Session, field_id: str, owner_id: Optional[str] = None,
     Args:
         db: 数据库会话
         field_id: 地块ID
-        owner_id: 所有者ID（用于验证权限，可选）
         name: 新名称（可选）
         description: 新描述（可选）
         location_geom: 新位置几何（可选，WKT格式）
@@ -367,24 +341,17 @@ def update_field(db: Session, field_id: str, owner_id: Optional[str] = None,
         irrigation_type: 新灌溉方式（可选）
 
     Returns:
-        Field: 更新后的地块对象，不存在或无权限返回None
+        Field: 更新后的地块对象，不存在返回None
     """
     print(f"[后端FieldService] 开始更新地块: ID={field_id}, PostGIS支持={HAS_POSTGIS}")
 
     # 转换field_id为UUID对象
     field_uuid = uuid.UUID(field_id)
 
-    # 构建查询条件
-    conditions = [Field.id == field_uuid]
-
-    if owner_id:
-        owner_uuid = uuid.UUID(owner_id)
-        conditions.append(Field.owner_id == owner_uuid)
-
     # 查找地块
-    field = db.query(Field).filter(and_(*conditions)).first()
+    field = db.query(Field).filter(Field.id == field_uuid).first()
     if not field:
-        print("[后端FieldService] 地块不存在或无权限访问")
+        print("[后端FieldService] 地块不存在")
         return None
 
     # 准备更新数据
@@ -424,7 +391,7 @@ def update_field(db: Session, field_id: str, owner_id: Optional[str] = None,
     # 执行更新
     if update_data:
         print(f"[后端FieldService] 更新字段: {list(update_data.keys())}")
-        db.query(Field).filter(and_(*conditions)).update(update_data)
+        db.query(Field).filter(Field.id == field_uuid).update(update_data)
         db.commit()
         # 刷新对象以获取更新后的值
         db.refresh(field)
@@ -433,7 +400,7 @@ def update_field(db: Session, field_id: str, owner_id: Optional[str] = None,
     if HAS_POSTGIS and 'needs_geom_update' in locals() and needs_geom_update: # type: ignore
         print("[后端FieldService] 更新几何数据")
         db.execute(
-            text("UPDATE field SET location_geom = ST_GeomFromText(:wkt, 4326) WHERE id = :field_id"),
+            text("UPDATE fields SET location_geom = ST_GeomFromText(:wkt, 4326) WHERE id = :field_id"),
             {"wkt": location_geom, "field_id": field_id}
         )
         db.commit()
@@ -449,33 +416,26 @@ def update_field(db: Session, field_id: str, owner_id: Optional[str] = None,
     print(f"[后端FieldService] 地块更新成功: {field.id}")
     return field
 
-def delete_field(db: Session, field_id: str, owner_id: str) -> bool:
+def delete_field(db: Session, field_id: str) -> bool:
     """
     删除地块（硬删除）
 
     Args:
         db: 数据库会话
         field_id: 地块ID
-        owner_id: 所有者ID（必须提供，用于验证权限）
 
     Returns:
         bool: 删除是否成功
     """
-    print(f"[后端FieldService] 开始删除地块: ID={field_id}, 所有者ID={owner_id}")
+    print(f"[后端FieldService] 开始删除地块: ID={field_id}")
 
-    # 构建查询条件（必须包含 owner_id）
+    # 构建查询条件
     conditions = [Field.id == uuid.UUID(field_id)]
-
-    if owner_id:
-        conditions.append(Field.owner_id == uuid.UUID(owner_id))
-    else:
-        print("[后端FieldService] 警告：删除操作未提供 owner_id，可能存在安全风险")
-        return False
 
     # 查找地块
     field = db.query(Field).filter(and_(*conditions)).first()
     if not field:
-        print("[后端FieldService] 地块不存在或无权限访问")
+        print("[后端FieldService] 地块不存在")
         return False
 
     # 硬删除：从数据库中删除

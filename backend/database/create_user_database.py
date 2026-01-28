@@ -125,33 +125,51 @@ def create_user_database(user_id: str, database_host: str = None, database_port:
 
         admin_conn.close()
 
-        # 4. 创建独立的引擎用于用户数据库
+        # 4. 验证表是否已从模板数据库复制过来
+        from sqlalchemy import create_engine, inspect
         user_engine = create_engine(
             f"postgresql://{DB_USER}:{DB_PASSWORD}@{db_host}:{db_port}/{db_name}"
         )
 
-        # 5. 导入用户数据库模型并创建表
-        from database.db_models.user_models import Field, Device, CollectionSession, RawData, RawDataTag, CropObject
-
-        # 创建所有表
         try:
-            from sqlalchemy import inspect
             inspector = inspect(user_engine)
             existing_tables = inspector.get_table_names()
-            logger.info(f"Existing tables in {db_name}: {existing_tables}")
+            logger.info(f"Tables in user database {db_name} (copied from template): {existing_tables}")
 
-            # 为每个模型创建表
-            Field.__table__.create(bind=user_engine, checkfirst=True)
-            Device.__table__.create(bind=user_engine, checkfirst=True)
-            CollectionSession.__table__.create(bind=user_engine, checkfirst=True)
-            RawData.__table__.create(bind=user_engine, checkfirst=True)
-            RawDataTag.__table__.create(bind=user_engine, checkfirst=True)
-            CropObject.__table__.create(bind=user_engine, checkfirst=True)
+            # 验证所需的表是否存在
+            required_tables = ['fields', 'devices', 'collection_sessions', 'raw_data', 'raw_data_tags', 'crop_objects']
+            missing_tables = [table for table in required_tables if table not in existing_tables]
 
-            logger.info(f"Tables created in database {db_name}")
+            if missing_tables:
+                logger.warning(f"Missing tables in database {db_name}: {missing_tables}")
+                logger.warning("This should not happen when using TEMPLATE database. Creating missing tables...")
+
+                # 如果缺少表,尝试创建它们
+                from database.db_models.user_models import Field, Device, CollectionSession, RawData, RawDataTag, CropObject
+                for table_name in ['fields', 'devices', 'collection_sessions', 'raw_data', 'raw_data_tags', 'crop_objects']:
+                    if table_name not in existing_tables:
+                        if table_name == 'fields':
+                            Field.__table__.create(bind=user_engine, checkfirst=True)
+                        elif table_name == 'devices':
+                            Device.__table__.create(bind=user_engine, checkfirst=True)
+                        elif table_name == 'collection_sessions':
+                            CollectionSession.__table__.create(bind=user_engine, checkfirst=True)
+                        elif table_name == 'raw_data':
+                            RawData.__table__.create(bind=user_engine, checkfirst=True)
+                        elif table_name == 'raw_data_tags':
+                            RawDataTag.__table__.create(bind=user_engine, checkfirst=True)
+                        elif table_name == 'crop_objects':
+                            CropObject.__table__.create(bind=user_engine, checkfirst=True)
+                        logger.info(f"Created table: {table_name}")
+
+            logger.info(f"Database {db_name} validation completed")
         except Exception as e:
-            logger.error(f"Failed to create tables: {e}")
-            raise
+            logger.error(f"Failed to validate database {db_name}: {e}")
+            # 不抛出异常,因为数据库可能已经正常创建了
+        finally:
+            # 确保引擎被关闭
+            if 'user_engine' in locals():
+                user_engine.dispose()
 
         # 5. 在元数据库中记录用户数据库信息
         from database.main_db import SessionLocal

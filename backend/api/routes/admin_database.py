@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 import logging
-
+from database.main_db import get_db
 from database.main_db import get_meta_db
 from database.user_db_manager import db_manager
 from database.create_user_database import (

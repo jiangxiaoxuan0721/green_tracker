@@ -244,3 +244,16 @@ def get_user_db(user_id: str) -> Session:
         SQLAlchemy Session 对象
     """
     return db_manager.get_db(user_id)
+
+
+def get_current_user_db(current_user):
+    """
+    获取当前用户的数据库会话（用于 FastAPI 依赖注入）
+
+    Args:
+        current_user: 当前用户对象
+
+    Returns:
+        Session: SQLAlchemy Session 对象
+    """
+    return get_user_db(str(current_user.userid))
