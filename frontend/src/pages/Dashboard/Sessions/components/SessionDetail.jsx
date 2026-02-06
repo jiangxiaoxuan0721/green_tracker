@@ -51,10 +51,6 @@ const SessionDetail = ({ session, onClose, onEdit }) => {
         </div>
         <div className="modal-body">
           <div className="detail-item">
-            <span className="label">任务ID:</span>
-            <span className="value">{session.id}</span>
-          </div>
-          <div className="detail-item">
             <span className="label">任务名称:</span>
             <span className="value">{session.mission_name || '-'}</span>
           </div>
@@ -104,10 +100,6 @@ const SessionDetail = ({ session, onClose, onEdit }) => {
             <span className="label">描述:</span>
             <span className="value">{session.description || '无'}</span>
           </div>
-          <div className="detail-item">
-            <span className="label">所有者ID:</span>
-            <span className="value">{session.owner_id}</span>
-          </div>
           {session.organization_id && (
             <div className="detail-item">
               <span className="label">组织ID:</span>
@@ -136,7 +128,7 @@ const SessionDetail = ({ session, onClose, onEdit }) => {
               完成任务
             </button>
           )}
-          <button className="primary-btn" onClick={() => onEdit(session.id)}>
+          <button className="primary-btn" onClick={() => onEdit(session)}>
             编辑
           </button>
           <button className="secondary-btn" onClick={onClose}>

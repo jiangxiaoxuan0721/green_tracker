@@ -36,7 +36,8 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    console.log('[FieldForm] handleSubmit 被调用')
+    console.log('[FieldForm] 表单数据:', formData)
 
     if (!formData.name.trim()) {
       setError('地块名称不能为空')
@@ -51,6 +52,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
     try {
       setLoading(true)
       setError('')
+      console.log('[FieldForm] 开始调用 API...')
 
       const submitData = {
         name: formData.name,
@@ -61,15 +63,23 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
         soil_type: formData.soil_type || undefined,
         irrigation_type: formData.irrigation_type || undefined
       }
+      console.log('[FieldForm] 提交数据:', submitData)
 
       if (mode === 'create') {
+        console.log('[FieldForm] 调用 createField...')
         await fieldService.createField(submitData)
+        console.log('[FieldForm] createField 成功')
       } else {
+        console.log('[FieldForm] 调用 updateField...')
         await fieldService.updateField(field.id, submitData)
+        console.log('[FieldForm] updateField 成功')
       }
 
+      console.log('[FieldForm] 调用 onSuccess...')
       onSuccess()
+      console.log('[FieldForm] handleSubmit 完成')
     } catch (err) {
+      console.error('[FieldForm] 错误:', err)
       setError(err.message || `${mode === 'create' ? '创建' : '更新'}地块失败`)
     } finally {
       setLoading(false)
@@ -116,7 +126,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
       {error && <div className="form-error-message">{error}</div>}
 
       <Input
-        label="地块名称 *"
+        label="地块名称"
         id="name"
         name="name"
         value={formData.name}
@@ -134,7 +144,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
       />
 
       <Textarea
-        label="位置信息 (WKT格式) *"
+        label="位置信息 (WKT格式)"
         id="location_wkt"
         name="location_wkt"
         value={formData.location_wkt}

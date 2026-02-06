@@ -33,7 +33,6 @@ def convert_session_to_dict(session, include_user_info=False):
     result = {
         "id": str(session.id),
         "field_id": str(session.field_id),
-        "creator_id": str(session.creator_id) if session.creator_id is not None else None,
         "start_time": session.start_time,
         "end_time": session.end_time,
         "mission_type": session.mission_type,
@@ -44,11 +43,7 @@ def convert_session_to_dict(session, include_user_info=False):
         "created_at": session.created_at,
         "updated_at": session.updated_at
     }
-    
-    # 如果需要包含用户信息，则添加创建者名称
-    if include_user_info and hasattr(session, 'creator_name'):
-        result["creator_name"] = session.creator_name
-    
+
     return result
 
 # API 路由定义
@@ -68,14 +63,10 @@ async def create_session(
     db = get_user_db(str(current_user.userid))
 
     try:
-        # 自动设置创建者ID为当前登录用户的ID
-        creator_id = current_user.userid
-
         # 创建采集任务
         new_session = create_collection_session(
             db=db,
             field_id=session_data.field_id,
-            creator_id=creator_id,  # 使用当前登录用户的ID
             start_time=session_data.start_time,
             mission_type=session_data.mission_type,
             end_time=session_data.end_time,
@@ -122,10 +113,6 @@ async def get_session(
         if not session:
             raise HTTPException(status_code=404, detail="采集任务不存在")
 
-        # 验证用户是否有权限访问此采集任务（只能查看自己的任务）
-        if session.get("creator_id") and session.get("creator_id") != current_user.userid:
-            raise HTTPException(status_code=403, detail="无权访问此采集任务")
-
         return CollectionSessionWithFieldResponse(**session)
     finally:
         db.close()
@@ -170,7 +157,7 @@ async def get_sessions_by_field(
         if mission_types:
             mission_type_list = [t.strip() for t in mission_types.split(",")]
 
-        # 使用带有农田和创建者信息的查询
+        # 使用带有农田信息的查询
         sessions_with_info = get_collection_sessions_with_field_info(
             db=db,
             limit=limit,
@@ -179,8 +166,7 @@ async def get_sessions_by_field(
             start_date=start_datetime,
             end_date=end_datetime,
             mission_types=mission_type_list,
-            status=status,
-            creator_id=current_user.userid
+            status=status
         )
 
         return [CollectionSessionWithFieldResponse(**session_dict) for session_dict in sessions_with_info]
@@ -227,9 +213,6 @@ async def get_sessions_with_field(
         if mission_types:
             mission_type_list = [t.strip() for t in mission_types.split(",")]
 
-        # 添加创建者ID过滤，确保用户只能看到自己的任务
-        creator_id = current_user.userid
-
         sessions_with_fields = get_collection_sessions_with_field_info(
             db=db,
             limit=limit,
@@ -238,8 +221,7 @@ async def get_sessions_with_field(
             start_date=start_datetime,
             end_date=end_datetime,
             mission_types=mission_type_list,
-            status=status,
-            creator_id=creator_id
+            status=status
         )
 
         return [CollectionSessionWithFieldResponse(**session_dict) for session_dict in sessions_with_fields]
@@ -265,10 +247,6 @@ async def update_session(
         session_with_details = get_collection_session_with_details(db, session_id)
         if not session_with_details:
             raise HTTPException(status_code=404, detail="采集任务不存在")
-
-        # 验证用户是否有权限更新此采集任务（只能更新自己的任务）
-        if session_with_details.get("creator_id") and session_with_details.get("creator_id") != current_user.userid:
-            raise HTTPException(status_code=403, detail="无权更新此采集任务")
 
         updated_session = update_collection_session(
             db=db,
@@ -309,10 +287,6 @@ async def delete_session(
         if not session_with_details:
             raise HTTPException(status_code=404, detail="采集任务不存在")
 
-        # 验证用户是否有权限删除此采集任务（只能删除自己的任务）
-        if session_with_details.get("creator_id") and session_with_details.get("creator_id") != current_user.userid:
-            raise HTTPException(status_code=403, detail="无权删除此采集任务")
-
         success = delete_collection_session(db, session_id)
 
         if not success:
@@ -338,17 +312,13 @@ async def get_latest_session_by_field(
 
     try:
         # 先获取最新的采集任务
-        session = get_latest_collection_session_by_field(db, field_id, mission_type, current_user.userid)
+        session = get_latest_collection_session_by_field(db, field_id, mission_type)
 
         if not session:
             raise HTTPException(status_code=404, detail="未找到符合条件的采集任务")
 
         # 然后获取带有详细信息的采集任务
         session_with_details = get_collection_session_with_details(db, str(session.id))
-
-        # 验证用户是否有权限访问此采集任务（只能查看自己的任务）
-        if session_with_details.get("creator_id") and session_with_details.get("creator_id") != current_user.userid:
-            raise HTTPException(status_code=403, detail="无权访问此采集任务")
 
         return CollectionSessionWithFieldResponse(**session_with_details)
     finally:
@@ -370,13 +340,12 @@ async def get_sessions_by_status(
     db = get_user_db(str(current_user.userid))
 
     try:
-        # 使用带有农田和创建者信息的查询
+        # 使用带有农田信息的查询
         sessions_with_info = get_collection_sessions_with_field_info(
             db=db,
             limit=limit,
             offset=offset,
-            status=status,
-            creator_id=current_user.userid
+            status=status
         )
 
         return [CollectionSessionWithFieldResponse(**session_dict) for session_dict in sessions_with_info]

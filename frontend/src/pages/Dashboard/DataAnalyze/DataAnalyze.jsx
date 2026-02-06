@@ -25,7 +25,7 @@ const DataAnalyze = () => {
   useEffect(() => {
     const fetchFields = async () => {
       try {
-        const fieldsData = await fieldService.getFields({ owner_id: user?.id })
+        const fieldsData = await fieldService.getFields()
         setFields(fieldsData.data || [])
         // 默认选择所有地块
         if (fieldsData.data && fieldsData.data.length > 0) {
@@ -35,7 +35,7 @@ const DataAnalyze = () => {
         console.error('获取地块列表失败:', err)
       }
     }
-    
+
     if (user?.id) {
       fetchFields()
     }
@@ -45,7 +45,7 @@ const DataAnalyze = () => {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const devicesData = await deviceService.getDevices({ owner_id: user?.id })
+        const devicesData = await deviceService.getDevices()
         setDevices(devicesData.data || [])
         // 默认选择所有设备
         if (devicesData.data && devicesData.data.length > 0) {
@@ -55,7 +55,7 @@ const DataAnalyze = () => {
         console.error('获取设备列表失败:', err)
       }
     }
-    
+
     if (user?.id) {
       fetchDevices()
     }

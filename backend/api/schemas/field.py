@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -58,8 +58,25 @@ class FieldResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
+    @field_validator('location_wkt', mode='before')
+    @classmethod
+    def convert_geometry_to_wkt(cls, v):
+        """将几何对象转换为 WKT 字符串"""
+        if v is None:
+            return None
+        # 如果是 WKBElement 或其他几何对象，转换为 WKT 字符串
+        if hasattr(v, 'desc'):
+            # GeoAlchemy2 WKBElement 对象
+            try:
+                from geoalchemy2.functions import ST_AsText
+                return str(ST_AsText(v))
+            except:
+                return str(v)
+        # 如果已经是字符串，直接返回
+        return str(v)
+
     class Config:
-        from_attributes = True
+        from_attributes = False
 
 
 class PointQuery(BaseModel):

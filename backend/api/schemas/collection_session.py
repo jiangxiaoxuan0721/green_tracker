@@ -52,8 +52,6 @@ class CollectionSessionResponse(BaseModel):
     """采集会话响应模型"""
     id: str
     field_id: str
-    creator_id: Optional[str]
-    creator_name: Optional[str] = None
     start_time: datetime
     end_time: Optional[datetime]
     mission_type: str
@@ -72,9 +70,7 @@ class CollectionSessionWithFieldResponse(BaseModel):
     """包含农田信息的采集会话响应模型"""
     id: str
     field_id: str
-    creator_id: Optional[str]
     field_name: str
-    creator_name: Optional[str]
     start_time: Optional[str]
     end_time: Optional[str]
     mission_type: str

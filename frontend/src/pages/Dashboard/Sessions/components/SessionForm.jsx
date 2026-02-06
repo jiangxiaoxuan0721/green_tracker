@@ -30,12 +30,19 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
     fetchFields()
 
     if (mode === 'edit' && session) {
+      const formatDateTimeForInput = (dateTimeStr) => {
+        if (!dateTimeStr) return ''
+        const date = new Date(dateTimeStr)
+        date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+        return date.toISOString().slice(0, 16)
+      }
+
       setFormData({
         mission_name: session.mission_name || '',
         field_id: session.field_id || '',
         mission_type: session.mission_type || '',
-        start_time: session.start_time || '',
-        end_time: session.end_time || '',
+        start_time: formatDateTimeForInput(session.start_time),
+        end_time: formatDateTimeForInput(session.end_time),
         description: session.description || ''
       })
     }
@@ -47,8 +54,6 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-
     if (!formData.mission_name.trim()) {
       setError('任务名称不能为空')
       return
@@ -68,24 +73,33 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
       setLoading(true)
       setError('')
 
-      const submitData = {
-        mission_name: formData.mission_name,
-        field_id: formData.field_id,
-        mission_type: formData.mission_type,
-        description: formData.description || undefined
-      }
-
-      if (formData.start_time) {
-        submitData.start_time = new Date(formData.start_time).toISOString()
-      }
-
-      if (formData.end_time) {
-        submitData.end_time = new Date(formData.end_time).toISOString()
-      }
-
       if (mode === 'create') {
+        const submitData = {
+          mission_name: formData.mission_name,
+          field_id: formData.field_id,
+          mission_type: formData.mission_type,
+          description: formData.description || undefined
+        }
+
+        if (formData.start_time) {
+          submitData.start_time = new Date(formData.start_time).toISOString()
+        }
+
+        if (formData.end_time) {
+          submitData.end_time = new Date(formData.end_time).toISOString()
+        }
+
         await collectionSessionService.createSession(submitData)
       } else {
+        const submitData = {
+          mission_name: formData.mission_name,
+          description: formData.description || undefined
+        }
+
+        if (formData.end_time) {
+          submitData.end_time = new Date(formData.end_time).toISOString()
+        }
+
         await collectionSessionService.updateSession(session.id, submitData)
       }
 
@@ -124,7 +138,7 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
       {error && <div className="form-error-message">{error}</div>}
 
       <Input
-        label="任务名称 *"
+        label="任务名称"
         id="mission_name"
         name="mission_name"
         value={formData.mission_name}
@@ -133,23 +147,25 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
       />
 
       <Select
-        label="农田 *"
+        label="农田"
         id="field_id"
         name="field_id"
         value={formData.field_id}
         onChange={handleChange}
         options={fieldOptions}
         required
+        disabled={mode === 'edit'}
       />
 
       <Select
-        label="任务类型 *"
+        label="任务类型"
         id="mission_type"
         name="mission_type"
         value={formData.mission_type}
         onChange={handleChange}
         options={missionTypeOptions}
         required
+        disabled={mode === 'edit'}
       />
 
       <Input
@@ -159,6 +175,7 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
         type="datetime-local"
         value={formData.start_time}
         onChange={handleChange}
+        disabled={mode === 'edit'}
       />
 
       <Input

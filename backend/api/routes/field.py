@@ -6,6 +6,7 @@ from database.db_services.field_service import (
     create_field, get_field_by_id, get_all_fields,
     search_fields, update_field, delete_field,
     get_field_with_wkt, get_all_fields_with_wkt,
+    search_fields_with_wkt,
     find_fields_containing_point
 )
 from api.schemas.field import (
@@ -91,24 +92,18 @@ async def get_fields(
         # 获取用户的数据库会话
         db = get_user_db(str(current_user.userid))
 
-        # 使用搜索功能，支持多条件过滤
-        fields = search_fields(
+        # 使用带WKT的搜索功能，支持多条件过滤
+        fields = search_fields_with_wkt(
             db=db,
             keyword=keyword or None,
             crop_type=crop_type or None,
             soil_type=soil_type or None,
-            irrigation_type=irrigation_type or None
+            irrigation_type=irrigation_type or None,
+            active_only=True
         )
 
-        # 转换为响应格式（包含WKT）
-        fields_with_wkt = []
-        for field in fields:
-            field_wkt = get_field_with_wkt(db, str(field.id))
-            if field_wkt:
-                fields_with_wkt.append(field_wkt)
-
-        print(f"[API] 返回 {len(fields_with_wkt)} 个地块")
-        return fields_with_wkt
+        print(f"[API] 返回 {len(fields)} 个地块")
+        return fields
 
     except Exception as e:
         print(f"[API] 获取地块列表失败: {str(e)}")
@@ -285,22 +280,15 @@ async def find_fields_by_point(
         # 获取用户的数据库会话
         db = get_user_db(str(current_user.userid))
 
-        # 查找包含指定点的地块
+        # 查找包含指定点的地块（已包含WKT）
         fields = find_fields_containing_point(
             db=db,
             longitude=point.longitude,
             latitude=point.latitude
         )
 
-        # 转换为响应格式（包含WKT）
-        fields_with_wkt = []
-        for field in fields:
-            field_wkt = get_field_with_wkt(db, str(field.id))
-            if field_wkt:
-                fields_with_wkt.append(field_wkt)
-
-        print(f"[API] 点查询返回 {len(fields_with_wkt)} 个地块")
-        return fields_with_wkt
+        print(f"[API] 点查询返回 {len(fields)} 个地块")
+        return fields
 
     except Exception as e:
         print(f"[API] 点查询失败: {str(e)}")

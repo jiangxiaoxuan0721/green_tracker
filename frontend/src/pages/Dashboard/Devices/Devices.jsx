@@ -13,7 +13,7 @@ const Devices = () => {
 
   const fetchDevices = useCallback(async () => {
     if (!user?.id) return []
-    return await deviceService.getDevices({ owner_id: user?.id })
+    return await deviceService.getDevices()
   }, [user?.id])
 
   const {
@@ -145,6 +145,10 @@ const Devices = () => {
                   <div className="item-info-row">
                     <span>平台层级</span>
                     <span>{getPlatformLevelText(item.platform_level)}</span>
+                  </div>
+                  <div className="item-info-row">
+                    <span>型号</span>
+                    <span>{item.model || '-'}</span>
                   </div>
                   <div className="item-info-row">
                     <span>制造商</span>

@@ -30,7 +30,7 @@ async def create_new_device(
     """
     db = None
     try:
-        print(f"[API] 用户 {current_user.username} 请求创建设备: {device.model}")
+        print(f"[API] 用户 {current_user.username} 请求创建设备: {device.name}")
 
         # 获取用户的数据库会话
         db = get_user_db(str(current_user.userid))
@@ -38,6 +38,7 @@ async def create_new_device(
         # 创建设备
         db_device = create_device(
             db=db,
+            name=device.name,
             device_type=device.device_type,
             platform_level=device.platform_level,
             model=device.model,
@@ -179,6 +180,7 @@ async def update_device_by_id(
         db_device = update_device(
             db=db,
             device_id=device_id,
+            name=device_update.name,
             device_type=device_update.device_type,
             platform_level=device_update.platform_level,
             model=device_update.model,

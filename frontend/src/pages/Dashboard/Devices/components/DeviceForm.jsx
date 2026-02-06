@@ -6,6 +6,7 @@ import './DeviceForm.css'
 
 const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
   const [formData, setFormData] = useState({
+    name: '',
     device_type: '',
     platform_level: '',
     model: '',
@@ -56,6 +57,7 @@ const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
   useEffect(() => {
     if (mode === 'edit' && device) {
       setFormData({
+        name: device.name || '',
         device_type: device.device_type || '',
         platform_level: device.platform_level || '',
         model: device.model || '',
@@ -93,7 +95,10 @@ const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    if (!formData.name.trim()) {
+      setError('设备名称不能为空')
+      return
+    }
 
     if (!formData.device_type.trim()) {
       setError('设备类型不能为空')
@@ -153,8 +158,18 @@ const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
         </div>
       )}
 
+      <Input
+        label="设备名称"
+        id="name"
+        name="name"
+        value={formData.name}
+        onChange={handleChange}
+        required
+        placeholder="例如：多光谱巡检无人机01"
+      />
+
       <Select
-        label="设备类型 *"
+        label="设备类型"
         id="device_type"
         name="device_type"
         value={formData.device_type}
@@ -164,7 +179,7 @@ const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
       />
 
       <Select
-        label="平台层级 *"
+        label="平台层级"
         id="platform_level"
         name="platform_level"
         value={formData.platform_level}

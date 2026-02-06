@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database.db_models.user_models import Device
 from typing import Optional, List, Dict, Any
 
-def create_device(db: Session, device_type: str, platform_level: str,
+def create_device(db: Session, name: str, device_type: str, platform_level: str,
                  model: str = "", manufacturer: str = "",
                  sensors: Optional[Dict[str, Any]] = None,
                  actuators: Optional[Dict[str, Any]] = None,
@@ -13,6 +13,7 @@ def create_device(db: Session, device_type: str, platform_level: str,
 
     Args:
         db: 数据库会话
+        name: 设备名称
         device_type: 设备类型 (satellite/uav/ugv/robot/sensor)
         platform_level: 平台层级 (天/空/地/具身)
         model: 设备型号（可选）
@@ -24,11 +25,12 @@ def create_device(db: Session, device_type: str, platform_level: str,
     Returns:
         Device: 创建的设备对象
     """
-    print(f"[后端DeviceService] 开始创建设备: 类型={device_type}, 平台={platform_level}")
+    print(f"[后端DeviceService] 开始创建设备: 名称={name}, 类型={device_type}, 平台={platform_level}")
 
     # 创建新设备
     print("[后端DeviceService] 创建新设备对象")
     new_device = Device(
+        name=name,
         device_type=device_type,
         platform_level=platform_level,
         model=model,
@@ -175,7 +177,7 @@ def search_devices(db: Session, device_type: str = "",
 
 
 def update_device(db: Session, device_id: str,
-                device_type: str = "", platform_level: str = "",
+                name: str = None, device_type: str = "", platform_level: str = "",
                 model: str = "", manufacturer: str = "",
                 sensors: Optional[Dict[str, Any]] = None,
                 actuators: Optional[Dict[str, Any]] = None,
@@ -186,6 +188,7 @@ def update_device(db: Session, device_id: str,
     Args:
         db: 数据库会话
         device_id: 设备ID
+        name: 新设备名称（可选）
         device_type: 新设备类型（可选）
         platform_level: 新平台层级（可选）
         model: 新型号（可选）
@@ -212,6 +215,8 @@ def update_device(db: Session, device_id: str,
     # 准备更新数据
     update_data = {}
 
+    if name is not None:
+        update_data["name"] = name
     if device_type is not None:
         update_data["device_type"] = device_type
     if platform_level is not None:

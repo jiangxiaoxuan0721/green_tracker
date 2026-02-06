@@ -3,6 +3,7 @@ import api from './api';
 // 定义设备接口类型
 export interface Device {
   id: string;
+  name: string;
   device_type: string;
   platform_level: string;
   model?: string;
@@ -17,6 +18,7 @@ export interface Device {
 }
 
 export interface DeviceCreate {
+  name: string;
   device_type: string;
   platform_level: string;
   model?: string;
@@ -27,6 +29,7 @@ export interface DeviceCreate {
 }
 
 export interface DeviceUpdate {
+  name?: string;
   device_type?: string;
   platform_level?: string;
   model?: string;

@@ -233,6 +233,61 @@ async def delete_database(
         )
 
 
+@router.post("/recreate/{user_id}")
+async def recreate_database(
+    user_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    为用户重新创建数据库（如果数据库已存在，先删除再创建）
+
+    Args:
+        user_id: 用户ID
+
+    Returns:
+        创建结果
+    """
+    # 检查用户是否存在
+    user = db.query(User).filter(User.userid == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} not found"
+        )
+
+    try:
+        # 先删除现有数据库（如果存在）
+        user_db = db.query(UserDatabase).filter(
+            UserDatabase.user_id == user_id,
+            UserDatabase.is_active == True
+        ).first()
+
+        if user_db:
+            logger.info(f"Database exists for user {user_id}, dropping it...")
+            try:
+                drop_user_database(user_id)
+            except Exception as e:
+                logger.warning(f"Failed to drop existing database: {e}")
+                # 标记为不活跃，继续创建新的
+                user_db.is_active = False
+                db.commit()
+
+        # 创建新数据库
+        result = create_user_database(user_id=user_id)
+        logger.info(f"Database recreated successfully for user {user_id}")
+
+        return {
+            "message": f"Database for user {user_id} recreated successfully",
+            "database": result
+        }
+    except Exception as e:
+        logger.error(f"Failed to recreate database for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to recreate database: {str(e)}"
+        )
+
+
 @router.get("/stats", response_model=DatabaseStats)
 async def get_database_stats():
     """

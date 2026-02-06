@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+import logging
 
 # 加载环境变量 - 从项目根目录加载.env文件
 # 获取项目根目录路径
@@ -9,6 +10,8 @@ import os
 from pathlib import Path
 project_root = Path(__file__).parent.parent
 load_dotenv(os.path.join(project_root, '.env'))
+
+logger = logging.getLogger(__name__)
 
 # 创建FastAPI应用实例
 app = FastAPI(
@@ -30,14 +33,35 @@ app.add_middleware(
     allow_headers=cors_headers,
 )
 
+# 启动时初始化数据库
+@app.on_event("startup")
+async def startup_event():
+    """启动时初始化数据库"""
+    try:
+        from database.database_initializer import DatabaseInitializer
+
+        logger.info("Initializing meta database...")
+        DatabaseInitializer.init_meta_database()
+        logger.info("Meta database initialized successfully")
+
+        logger.info("Initializing template database...")
+        DatabaseInitializer.init_template_database()
+        logger.info("Template database initialized successfully")
+
+        logger.info("Database initialization completed")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        # 不抛出异常，让服务继续启动
+        logger.warning("Continuing with application startup...")
+
 # 添加请求日志中间件
 @app.middleware("http")
 async def log_requests(request, call_next):
     print(f"[后端Main] 收到请求: {request.method} {request.url}")
     # 注意: 不要在这里记录敏感的请求数据，如密码
-    
+
     response = await call_next(request)
-    
+
     print(f"[后端Main] 响应状态码: {response.status_code}")
     return response
 

@@ -1,4 +1,5 @@
-.modal-content form {
+/* FormContainer 样式 - 确保表单内容在 Modal body 中正确显示 */
+.form-body {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
@@ -6,6 +7,15 @@
   padding: 0;
   width: 100%;
   box-sizing: border-box;
+}
+
+.form-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  border-top: 1px solid var(--border-primary);
 }
 
 .form-error-message {

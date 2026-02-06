@@ -21,10 +21,6 @@ const FieldDetail = ({ field, onClose, onEdit }) => {
         </div>
         <div className="modal-body">
           <div className="detail-item">
-            <span className="label">地块ID:</span>
-            <span className="value">{field.id}</span>
-          </div>
-          <div className="detail-item">
             <span className="label">地块名称:</span>
             <span className="value">{field.name}</span>
           </div>
@@ -47,10 +43,6 @@ const FieldDetail = ({ field, onClose, onEdit }) => {
           <div className="detail-item">
             <span className="label">灌溉方式:</span>
             <span className="value">{field.irrigation_type || '未设置'}</span>
-          </div>
-          <div className="detail-item">
-            <span className="label">所有者ID:</span>
-            <span className="value">{field.owner_id}</span>
           </div>
           {field.organization_id && (
             <div className="detail-item">

@@ -92,7 +92,6 @@ class CollectionSession(UserBase):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="任务ID")
     field_id = Column(String(36), ForeignKey('fields.id', ondelete='CASCADE'), nullable=False, index=True, comment="所属地块")
     device_id = Column(String(36), ForeignKey('devices.id', ondelete='SET NULL'), nullable=True, index=True, comment="使用设备")
-    creator_id = Column(String(36), nullable=True, index=True, comment="任务创建者")
     start_time = Column(DateTime, nullable=False, index=True, comment="任务开始时间")
     end_time = Column(DateTime, nullable=True, comment="任务结束时间")
     mission_type = Column(Text, nullable=False, index=True, comment="任务类型：巡检/定点/路径/应急")
@@ -113,7 +112,6 @@ class CollectionSession(UserBase):
         Index('idx_session_device', 'device_id'),
         Index('idx_session_time', 'start_time', 'end_time'),
         Index('idx_session_type', 'mission_type'),
-        Index('idx_session_creator', 'creator_id'),
         Index('idx_session_status', 'status'),
         Index('idx_session_field_status', 'field_id', 'status'),
         Index('idx_session_field_time', 'field_id', 'start_time'),

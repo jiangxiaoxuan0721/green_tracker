@@ -13,7 +13,7 @@ const Fields = () => {
 
   const fetchFields = useCallback(async () => {
     if (!user?.id) return []
-    return await fieldService.getFields({ owner_id: user?.id })
+    return await fieldService.getFields()
   }, [user?.id])
 
   const {

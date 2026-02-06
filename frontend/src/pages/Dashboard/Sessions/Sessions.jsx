@@ -24,6 +24,7 @@ const Sessions = () => {
 
   const { isOpen: isCreateOpen, openModal: openCreate, closeModal: closeCreate } = useModal()
   const { isOpen: isDetailOpen, modalData: selectedSession, openModal: openDetail, closeModal: closeDetail } = useModal()
+  const { isOpen: isEditOpen, modalData: editSession, openModal: openEdit, closeModal: closeEdit } = useModal()
 
   // 防抖函数
   const debounce = (func, wait) => {
@@ -120,9 +121,30 @@ const Sessions = () => {
     }
   }
 
-  const handleEditSession = (sessionId) => {
-    // 编辑功能暂未实现
-    console.log('编辑任务:', sessionId)
+  const handleEditSession = async (sessionOrId) => {
+    if (typeof sessionOrId === 'object') {
+      openEdit(sessionOrId)
+    } else {
+      try {
+        const session = await collectionSessionService.getSessionById(sessionOrId)
+        openEdit(session)
+      } catch (err) {
+        console.error('获取任务详情失败:', err)
+      }
+    }
+  }
+
+  const handleUpdateSessionAfterEdit = async () => {
+    try {
+      await fetchSessions(currentPage, filters)
+      closeEdit()
+      if (selectedSession) {
+        const updatedSession = await collectionSessionService.getSessionById(selectedSession.id)
+        openDetail(updatedSession)
+      }
+    } catch (err) {
+      console.error('刷新任务列表失败:', err)
+    }
   }
 
   const handleDeleteSession = async (sessionId) => {
@@ -293,7 +315,17 @@ const Sessions = () => {
         <SessionDetail
           session={selectedSession}
           onClose={closeDetail}
-          onEdit={handleUpdateSessionStatus}
+          onEdit={handleEditSession}
+        />
+      )}
+
+      {isEditOpen && editSession && (
+        <SessionForm
+          mode="edit"
+          session={editSession}
+          isOpen={true}
+          onClose={closeEdit}
+          onSuccess={handleUpdateSessionAfterEdit}
         />
       )}
     </div>

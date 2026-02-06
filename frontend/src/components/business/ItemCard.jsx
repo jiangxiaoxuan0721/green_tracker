@@ -12,7 +12,7 @@ const ItemCard = ({
   className = ''
 }) => {
   const getTitle = () => {
-    if (type === 'device') return item.model || item.manufacturer || '未命名设备'
+    if (type === 'device') return item.name || item.model || item.manufacturer || '未命名设备'
     if (type === 'field') return item.field_name || item.name || '未命名地块'
     return item.name || '未命名'
   }
@@ -38,10 +38,6 @@ const ItemCard = ({
       return (
         <>
           <div className="item-info-row">
-            <span>设备ID:</span>
-            <span>{item.device_id || item.id}</span>
-          </div>
-          <div className="item-info-row">
             <span>平台层级:</span>
             <span>{item.platform_tier || '-'}</span>
           </div>
@@ -52,10 +48,6 @@ const ItemCard = ({
     if (type === 'field') {
       return (
         <>
-          <div className="item-info-row">
-            <span>地块ID:</span>
-            <span>{item.field_id || item.id}</span>
-          </div>
           <div className="item-info-row">
             <span>面积:</span>
             <span>{item.area ? `${item.area} 亩` : '-'}</span>

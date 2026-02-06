@@ -29,22 +29,22 @@ const DataView = () => {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const devicesData = await deviceService.getDevices({ owner_id: user?.id })
+        const devicesData = await deviceService.getDevices()
         setDevices(devicesData.data || devicesData || [])
       } catch (err) {
         console.error('获取设备列表失败:', err)
       }
     }
-    
+
     const fetchFields = async () => {
       try {
-        const fieldsData = await fieldService.getFields({ owner_id: user?.id })
+        const fieldsData = await fieldService.getFields()
         setFields(fieldsData.data || fieldsData || [])
       } catch (err) {
         console.error('获取地块列表失败:', err)
       }
     }
-    
+
     if (user?.id) {
       fetchDevices()
       fetchFields()

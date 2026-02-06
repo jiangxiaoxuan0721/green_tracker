@@ -5,6 +5,7 @@ from uuid import UUID
 
 
 class DeviceCreate(BaseModel):
+    name: str = Field(..., description="设备名称")
     device_type: str = Field(..., description="设备类型 (satellite/uav/ugv/robot/sensor)")
     platform_level: str = Field(..., description="平台层级 (天/空/地/具身)")
     model: Optional[str] = Field(None, description="设备型号")
@@ -16,6 +17,7 @@ class DeviceCreate(BaseModel):
     class Config:
         schema_extra = {
             "example": {
+                "name": "多光谱巡检无人机01",
                 "device_type": "uav",
                 "platform_level": "空",
                 "model": "DJI M300",
@@ -28,6 +30,7 @@ class DeviceCreate(BaseModel):
 
 
 class DeviceUpdate(BaseModel):
+    name: Optional[str] = Field(None, description="设备名称")
     device_type: Optional[str] = Field(None, description="设备类型")
     platform_level: Optional[str] = Field(None, description="平台层级")
     model: Optional[str] = Field(None, description="设备型号")
@@ -40,6 +43,7 @@ class DeviceUpdate(BaseModel):
     class Config:
         schema_extra = {
             "example": {
+                "name": "更新后的设备名称",
                 "description": "更新后的设备说明",
                 "sensors": {"RGB": True, "multispectral": True, "thermal": True}
             }
@@ -48,6 +52,7 @@ class DeviceUpdate(BaseModel):
 
 class DeviceResponse(BaseModel):
     id: Union[str, UUID]
+    name: str
     device_type: str
     platform_level: str
     model: Optional[str] = None

@@ -44,8 +44,8 @@ const DeviceDetail = ({ device, onClose, onEdit }) => {
         </div>
         <div className="modal-body">
           <div className="detail-item">
-            <span className="label">设备ID:</span>
-            <span className="value">{device.id}</span>
+            <span className="label">设备名称:</span>
+            <span className="value">{device.name}</span>
           </div>
           <div className="detail-item">
             <span className="label">设备类型:</span>
