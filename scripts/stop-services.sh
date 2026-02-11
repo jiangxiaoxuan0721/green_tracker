@@ -11,21 +11,37 @@ echo -e "${RED}===================================${NC}"
 echo -e "${RED}  停止所有服务${NC}"
 echo -e "${RED}===================================${NC}"
 
-# 获取脚本所在目录
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # 停止MinIO
 echo -e "${RED}正在停止MinIO...${NC}"
 if [ "$(docker ps -q -f name=minio)" ]; then
     docker stop minio
     docker rm minio
-    echo -e "${RED}MinIO已停止${NC}"
+    echo -e "${RED}✓ MinIO已停止${NC}"
 else
-    echo "MinIO容器未运行"
+    echo "  MinIO容器未运行"
 fi
 
-# 停止PostgreSQL
-echo -e "${RED}正在停止PostgreSQL...${NC}"
-"$SCRIPT_DIR/manage-postgres.sh" stop
+# 停止后端服务
+echo -e "${RED}正在停止后端服务...${NC}"
+if pkill -f "uvicorn.*main:app"; then
+    echo -e "${RED}✓ 后端服务已停止${NC}"
+else
+    echo "  后端服务未运行"
+fi
 
+# 停止PostgreSQL（可选）
+echo ""
+echo -e "${YELLOW}是否要停止PostgreSQL服务? [y/N]${NC}"
+read -r response
+if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    if sudo systemctl stop postgresql 2>/dev/null; then
+        echo -e "${RED}✓ PostgreSQL服务已停止${NC}"
+    else
+        echo -e "${RED}✗ PostgreSQL服务停止失败${NC}"
+    fi
+else
+    echo "  PostgreSQL服务保持运行"
+fi
+
+echo ""
 echo -e "${RED}所有服务已停止${NC}"

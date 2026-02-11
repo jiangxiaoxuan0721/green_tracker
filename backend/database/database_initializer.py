@@ -20,7 +20,11 @@ DB_USER = os.getenv("DB_USER", "green_tracker")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_SUPERUSER = os.getenv("DB_SUPERUSER", "postgres")
 DB_SUPERPASSWORD = os.getenv("DB_SUPERPASSWORD", "")
-USE_UNIX_SOCKET = os.getenv("USE_UNIX_SOCKET", "false").lower() == "true"
+
+# 数据库名称配置
+META_DB_NAME = os.getenv("META_DB_NAME", "green_tracker_meta")
+TEMPLATE_DB_NAME = os.getenv("TEMPLATE_DB_NAME", "green_tracker_template")
+USER_DB_PREFIX = os.getenv("USER_DB_PREFIX", "green_tracker_user_")
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +44,18 @@ class DatabaseInitializer:
         Raises:
             Exception: 连接失败时抛出异常
         """
-        # 方式1: 使用超级用户 + TCP
+        # 方式1: 使用普通用户 + TCP（因为 green_tracker 用户有 CREATE DATABASE 权限）
+        try:
+            conn = psycopg2.connect(
+                f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres",
+                connect_timeout=3
+            )
+            logger.info("Connected using green_tracker user via TCP")
+            return conn
+        except Exception as e:
+            logger.warning(f"green_tracker user connection failed: {e}")
+
+        # 方式2: 使用超级用户 + TCP
         try:
             conn = psycopg2.connect(
                 f"postgresql://{DB_SUPERUSER}:{DB_SUPERPASSWORD}@{DB_HOST}:{DB_PORT}/postgres",
@@ -51,22 +66,13 @@ class DatabaseInitializer:
         except Exception as e:
             logger.warning(f"Superuser connection failed: {e}")
 
-        # 方式2: 使用普通用户 + TCP
-        try:
-            conn = psycopg2.connect(
-                f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres",
-                connect_timeout=3
-            )
-            logger.info("Connected using green_tracker user via TCP")
-            return conn
-        except Exception as e:
-            logger.error(f"Failed to connect to database: {e}")
-            raise Exception(f"无法连接到数据库: {e}")
+        logger.error(f"Failed to connect to database")
+        raise Exception(f"无法连接到数据库")
 
     @staticmethod
     def init_meta_database():
         """
-        初始化元数据库（green_tracker）
+        初始化元数据库（green_tracker_meta）
         包含用户管理、用户数据库映射、Schema版本等元数据表
 
         Returns:
@@ -84,23 +90,23 @@ class DatabaseInitializer:
             conn.autocommit = True
 
             with conn.cursor() as cursor:
-                # 2. 检查并创建主数据库
-                cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{DB_USER}'")
+                # 2. 检查并创建元数据库
+                cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{META_DB_NAME}'")
                 exists = cursor.fetchone()
 
                 if not exists:
-                    logger.info(f"Creating database {DB_USER}...")
-                    cursor.execute(f'CREATE DATABASE "{DB_USER}" OWNER {DB_USER}')
-                    logger.info(f"Database {DB_USER} created successfully")
+                    logger.info(f"Creating database {META_DB_NAME}...")
+                    cursor.execute(f'CREATE DATABASE "{META_DB_NAME}" OWNER {DB_USER}')
+                    logger.info(f"Database {META_DB_NAME} created successfully")
                 else:
-                    logger.info(f"Database {DB_USER} already exists")
+                    logger.info(f"Database {META_DB_NAME} already exists")
 
                 # 3. 授予权限
-                cursor.execute(f'GRANT ALL PRIVILEGES ON DATABASE "{DB_USER}" TO {DB_USER}')
+                cursor.execute(f'GRANT ALL PRIVILEGES ON DATABASE "{META_DB_NAME}" TO {DB_USER}')
 
             conn.close()
 
-            # 4. 连接到主数据库创建表结构
+            # 4. 连接到元数据库创建表结构
             from database.main_db import Base, SessionLocal
             from database.db_models.meta_model import User, UserDatabase, SchemaVersion
 
@@ -133,7 +139,7 @@ class DatabaseInitializer:
 
                             # 使用原生 SQL 添加缺失的字段
                             conn = psycopg2.connect(
-                                f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_USER}"
+                                f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{META_DB_NAME}"
                             )
                             conn.autocommit = True
                             with conn.cursor() as cursor:
@@ -170,7 +176,7 @@ class DatabaseInitializer:
 
             return {
                 "status": "success",
-                "database": DB_USER,
+                "database": META_DB_NAME,
                 "message": "Meta database initialized successfully"
             }
 
@@ -195,7 +201,6 @@ class DatabaseInitializer:
         """
         logger.info("Initializing template database...")
 
-        template_db_name = "green_tracker_template"
         conn = None
 
         try:
@@ -205,48 +210,33 @@ class DatabaseInitializer:
 
             with conn.cursor() as cursor:
                 # 2. 检查模板数据库是否存在
-                cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{template_db_name}'")
+                cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{TEMPLATE_DB_NAME}'")
                 exists = cursor.fetchone()
 
                 # 3. 如果存在，先删除
                 if exists:
-                    logger.info(f"Template database {template_db_name} exists, dropping it...")
-                    cursor.execute(f'DROP DATABASE IF EXISTS "{template_db_name}"')
+                    logger.info(f"Template database {TEMPLATE_DB_NAME} exists, dropping it...")
+                    cursor.execute(f'DROP DATABASE IF EXISTS "{TEMPLATE_DB_NAME}"')
 
                 # 4. 创建新的模板数据库
-                logger.info(f"Creating template database {template_db_name}...")
-                cursor.execute(f'CREATE DATABASE "{template_db_name}" OWNER {DB_USER}')
-                logger.info(f"Template database {template_db_name} created successfully")
+                logger.info(f"Creating template database {TEMPLATE_DB_NAME}...")
+                cursor.execute(f'CREATE DATABASE "{TEMPLATE_DB_NAME}" OWNER {DB_USER}')
+                logger.info(f"Template database {TEMPLATE_DB_NAME} created successfully")
 
                 # 5. 授予权限
-                cursor.execute(f'GRANT ALL PRIVILEGES ON DATABASE "{template_db_name}" TO {DB_USER}')
+                cursor.execute(f'GRANT ALL PRIVILEGES ON DATABASE "{TEMPLATE_DB_NAME}" TO {DB_USER}')
 
             conn.close()
 
             # 6. 连接到模板数据库创建表结构
-            from sqlalchemy import create_engine
-            from database.db_models.user_models import (
-                Field, Device, CollectionSession,
-                RawData, RawDataTag, CropObject
-            )
+            from sqlalchemy import create_engine, text
 
             # 创建引擎
             template_engine = create_engine(
-                f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{template_db_name}"
+                f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{TEMPLATE_DB_NAME}"
             )
 
-            # 创建所有表
-            Field.__table__.create(bind=template_engine, checkfirst=True)
-            Device.__table__.create(bind=template_engine, checkfirst=True)
-            CollectionSession.__table__.create(bind=template_engine, checkfirst=True)
-            RawData.__table__.create(bind=template_engine, checkfirst=True)
-            RawDataTag.__table__.create(bind=template_engine, checkfirst=True)
-            CropObject.__table__.create(bind=template_engine, checkfirst=True)
-
-            logger.info("Template tables created successfully")
-
-            # 7. 启用 PostGIS 扩展
-            from sqlalchemy import text
+            # 7. 先启用 PostGIS 扩展（必须在创建表之前）
             with template_engine.connect() as conn:
                 conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
                 conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
@@ -255,11 +245,42 @@ class DatabaseInitializer:
                 conn.commit()
                 logger.info("PostGIS extensions enabled in template database")
 
+            # 8. 使用 SQLAlchemy 创建所有表（但不检查索引是否存在）
+            from database.db_models.user_models import (
+                Field, Device, CollectionSession,
+                RawData, RawDataTag, CropObject
+            )
+            from sqlalchemy import inspect
+
+            # 检查已存在的表
+            inspector = inspect(template_engine)
+            existing_tables = inspector.get_table_names()
+
+            # 逐个创建表，如果创建失败（如索引已存在），跳过并继续
+            for table_class, table_name in [
+                (Field, 'fields'),
+                (Device, 'devices'),
+                (CollectionSession, 'collection_sessions'),
+                (RawData, 'raw_data'),
+                (RawDataTag, 'raw_data_tags'),
+                (CropObject, 'crop_objects')
+            ]:
+                if table_name not in existing_tables:
+                    try:
+                        table_class.__table__.create(bind=template_engine, checkfirst=True)
+                        logger.info(f"Created table: {table_name}")
+                    except Exception as e:
+                        logger.warning(f"Failed to create table {table_name}: {e}")
+                else:
+                    logger.info(f"Table {table_name} already exists, skipping")
+
+            logger.info("Template tables created successfully")
+
             template_engine.dispose()
 
             return {
                 "status": "success",
-                "database": template_db_name,
+                "database": TEMPLATE_DB_NAME,
                 "message": "Template database initialized successfully"
             }
 
@@ -275,7 +296,7 @@ class DatabaseInitializer:
         验证数据库是否正常工作
 
         Args:
-            db_name: 数据库名称（可选，默认验证主数据库）
+            db_name: 数据库名称（可选，默认验证元数据库）
 
         Returns:
             dict: 验证结果
@@ -283,12 +304,12 @@ class DatabaseInitializer:
         Raises:
             Exception: 验证失败时抛出异常
         """
-        logger.info(f"Verifying database: {db_name or DB_USER}")
+        logger.info(f"Verifying database: {db_name or META_DB_NAME}")
 
         try:
             # 连接到数据库
             conn = psycopg2.connect(
-                f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{db_name or DB_USER}",
+                f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{db_name or META_DB_NAME}",
                 connect_timeout=5
             )
 
@@ -312,7 +333,7 @@ class DatabaseInitializer:
 
             return {
                 "status": "success",
-                "database": db_name or DB_USER,
+                "database": db_name or META_DB_NAME,
                 "extensions": extensions,
                 "tables": tables,
                 "message": "Database verified successfully"

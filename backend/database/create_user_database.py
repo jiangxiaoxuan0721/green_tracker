@@ -21,16 +21,14 @@ load_dotenv(os.path.join(project_root, '.env'))
 # 数据库配置
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
-DB_USER = os.getenv("DB_USER", "postgres")
+DB_USER = os.getenv("DB_USER", "green_tracker")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_SUPERUSER = os.getenv("DB_SUPERUSER", "postgres")
 DB_SUPERPASSWORD = os.getenv("DB_SUPERPASSWORD", "")
 
-# 是否使用Unix Socket连接（Peer认证，不需要密码）
-USE_UNIX_SOCKET = os.getenv("USE_UNIX_SOCKET", "false").lower() == "true"
-
-# 模板数据库名称
-TEMPLATE_DB_NAME = "green_tracker_template"
+# 数据库名称配置
+TEMPLATE_DB_NAME = os.getenv("TEMPLATE_DB_NAME", "green_tracker_template")
+USER_DB_PREFIX = os.getenv("USER_DB_PREFIX", "green_tracker_user_")
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +41,9 @@ def generate_user_database_name(user_id: str) -> str:
         user_id: 用户ID
 
     Returns:
-        数据库名称，格式：green_tracker_user_{user_id}
+        数据库名称，格式：{USER_DB_PREFIX}{user_id}
     """
-    return f"green_tracker_user_{user_id}"
+    return f"{USER_DB_PREFIX}{user_id}"
 
 
 def create_user_database(user_id: str, database_host: str = None, database_port: int = None) -> dict:

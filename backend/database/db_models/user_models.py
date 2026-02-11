@@ -35,7 +35,8 @@ class Field(UserBase):
 
     __table_args__ = (
         Index('idx_fields_name', 'name'),
-        Index('idx_fields_location', 'location_geom', postgresql_using='gist'),
+        # PostGIS 会为 geometry 列自动创建 gist 索引，不需要手动创建
+        # Index('idx_fields_location', 'location_geom', postgresql_using='gist'),
         Index('idx_fields_crop_type', 'crop_type'),
         Index('idx_fields_soil_type', 'soil_type'),
         Index('idx_fields_active', 'is_active'),
@@ -173,7 +174,8 @@ class RawData(UserBase):
         Index('idx_raw_data_capture_time', 'capture_time'),
         Index('idx_raw_data_processing_status', 'processing_status'),
         Index('idx_raw_data_ai_status', 'ai_status'),
-        Index('idx_raw_data_location_geom', 'location_geom', postgresql_using='gist'),
+        # PostGIS 会为 geometry 列自动创建 gist 索引，不需要手动创建
+        # Index('idx_raw_data_location_geom', 'location_geom', postgresql_using='gist'),
         Index('uniq_raw_data_object', 'session_id', 'bucket_name', 'object_key'),
         Index('idx_raw_data_session_type', 'session_id', 'data_type'),
         Index('idx_raw_data_device_field_time', 'device_id', 'field_id', 'capture_time'),
@@ -245,7 +247,6 @@ class CropObject(UserBase):
         Index('idx_crop_objects_first_seen', 'first_seen_at'),
         Index('idx_crop_objects_last_seen', 'last_seen_at'),
         Index('idx_crop_objects_active', 'is_active'),
-        Index('idx_crop_objects_geometry', 'geometry', postgresql_using='gist'),
         {'comment': '作物对象表'}
     )
 

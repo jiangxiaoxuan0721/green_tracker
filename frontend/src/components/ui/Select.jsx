@@ -34,7 +34,13 @@ const Select = ({
         className={`select-field ${error ? 'select-error' : ''}`}
         {...props}
       >
-        {!required && <option value="">{placeholder}</option>}
+        {required ? (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        ) : (
+          <option value="">{placeholder}</option>
+        )}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

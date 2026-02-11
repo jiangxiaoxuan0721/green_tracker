@@ -18,17 +18,25 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 # 切换到项目根目录
 cd "$PROJECT_DIR"
 
-# 启动PostgreSQL
-echo -e "${GREEN}正在启动PostgreSQL...${NC}"
-"$SCRIPT_DIR/postgres-docker.sh" start
-
-# 等待PostgreSQL启动
-echo "等待PostgreSQL启动完成..."
-sleep 5
+# 检查PostgreSQL服务状态
+echo -e "${GREEN}检查PostgreSQL服务状态...${NC}"
+if systemctl is-active --quiet postgresql; then
+    echo -e "${GREEN}✓ PostgreSQL服务正在运行${NC}"
+else
+    echo -e "${GREEN}启动PostgreSQL服务...${NC}"
+    sudo systemctl start postgresql
+    sleep 2
+    if systemctl is-active --quiet postgresql; then
+        echo -e "${GREEN}✓ PostgreSQL服务启动成功${NC}"
+    else
+        echo -e "${GREEN}✗ PostgreSQL服务启动失败${NC}"
+        exit 1
+    fi
+fi
 
 # 初始化数据库（如果需要）
 echo -e "${GREEN}检查数据库初始化状态...${NC}"
-"$SCRIPT_DIR/init-db.sh"
+"$SCRIPT_DIR/init_all.sh"
 
 # 启动MinIO
 echo -e "${GREEN}正在启动MinIO...${NC}"
@@ -46,32 +54,35 @@ echo -e "${GREEN}===================================${NC}"
 
 # PostgreSQL状态
 echo "PostgreSQL状态："
-"$SCRIPT_DIR/postgres-docker.sh" status
+if systemctl is-active --quiet postgresql; then
+    echo -e "${GREEN}✓ PostgreSQL服务正在运行${NC}"
+    PGPASSWORD=green_tracker psql -h localhost -p 5433 -U green_tracker -d green_tracker -c "SELECT current_database();" 2>/dev/null | grep green_tracker && echo "  数据库连接正常" || echo "  警告: 数据库连接失败"
+else
+    echo -e "${RED}✗ PostgreSQL服务未运行${NC}"
+fi
 
 echo ""
 # MinIO状态
 echo "MinIO状态："
 if [ "$(docker ps -q -f name=minio)" ]; then
-    echo -e "${GREEN}MinIO容器正在运行${NC}"
-    echo "API: http://localhost:9000"
-    echo "控制台: http://localhost:9001"
-    
+    echo -e "${GREEN}✓ MinIO容器正在运行${NC}"
+    echo "  API: http://localhost:9000"
+    echo "  控制台: http://localhost:9001"
+
     # 获取项目根目录路径
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
     ENV_FILE="$PROJECT_DIR/.env"
-    
+
     # 从环境变量读取用户名和密码（如果存在）
     if [ -f "$ENV_FILE" ]; then
         source "$ENV_FILE"
-        echo "用户名: ${MINIO_ACCESS_KEY:-"minioadmin"}"
-        echo "密码: [已隐藏，请查看.env文件中的MINIO_SECRET_KEY]"
+        echo "  用户名: ${MINIO_ACCESS_KEY:-"minioadmin"}"
+        echo "  密码: [已隐藏，请查看.env文件中的MINIO_SECRET_KEY]"
     else
-        echo "用户名: [请查看.env文件中的MINIO_ACCESS_KEY]"
-        echo "密码: [已隐藏，请查看.env文件中的MINIO_SECRET_KEY]"
+        echo "  用户名: [请查看.env文件中的MINIO_ACCESS_KEY]"
+        echo "  密码: [已隐藏，请查看.env文件中的MINIO_SECRET_KEY]"
     fi
 else
-    echo -e "${RED}MinIO容器未运行${NC}"
+    echo -e "${RED}✗ MinIO容器未运行${NC}"
 fi
 
 echo ""

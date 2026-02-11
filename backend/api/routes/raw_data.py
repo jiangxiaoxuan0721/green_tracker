@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
-from database.main_db import get_db
+from database.main_db import get_meta_db
 from database.db_services.raw_data_service import (
     create_raw_data,
     get_raw_data_by_id,
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/api/raw-data", tags=["原始数据"])
 @router.post("/", summary="添加原始数据")
 async def create_new_raw_data(
     request: RawDataRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_meta_db)
 ):
     """
     添加原始数据
@@ -87,7 +87,7 @@ async def get_raw_data_list(
     data_subtype: Optional[str] = Query(None, description="数据子类型过滤"),
     start_time: Optional[datetime] = Query(None, description="开始时间过滤"),
     end_time: Optional[datetime] = Query(None, description="结束时间过滤"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_meta_db)
 ):
     """
     获取原始数据列表
@@ -118,7 +118,7 @@ async def get_raw_data_list(
 @router.get("/{raw_data_id}", summary="获取原始数据详情")
 async def get_raw_data_detail(
     raw_data_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_meta_db)
 ):
     """
     获取原始数据详情
@@ -154,7 +154,7 @@ async def get_raw_data_detail(
 @router.delete("/{raw_data_id}", summary="删除原始数据")
 async def delete_raw_data_by_id(
     raw_data_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_meta_db)
 ):
     """删除原始数据"""
     success = delete_raw_data(db, raw_data_id)
@@ -169,7 +169,7 @@ async def delete_raw_data_by_id(
 async def update_processing_status_by_id(
     raw_data_id: str,
     request: ProcessingStatusRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_meta_db)
 ):
     """更新原始数据处理状态"""
     success = update_processing_status(db, raw_data_id, request.processing_status)
@@ -184,7 +184,7 @@ async def update_processing_status_by_id(
 async def update_ai_status_by_id(
     raw_data_id: str,
     request: AIStatusRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_meta_db)
 ):
     """更新原始数据AI分析状态"""
     success = update_ai_status(db, raw_data_id, request.ai_status)
@@ -199,7 +199,7 @@ async def update_ai_status_by_id(
 async def add_tag_to_raw_data(
     raw_data_id: str,
     request: RawDataTagRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_meta_db)
 ):
     """为原始数据添加标签"""
     tag_id = add_raw_data_tag(
@@ -220,7 +220,7 @@ async def add_tag_to_raw_data(
 @router.get("/{raw_data_id}/tags", summary="获取原始数据标签")
 async def get_tags_for_raw_data(
     raw_data_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_meta_db)
 ):
     """获取原始数据的所有标签"""
     tags = get_raw_data_tags(db, raw_data_id)
