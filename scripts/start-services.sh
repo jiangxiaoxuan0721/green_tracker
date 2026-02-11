@@ -40,7 +40,7 @@ echo -e "${GREEN}检查数据库初始化状态...${NC}"
 
 # 启动MinIO
 echo -e "${GREEN}正在启动MinIO...${NC}"
-"$SCRIPT_DIR/start-minio.sh"
+"$SCRIPT_DIR/minio.sh" start
 
 # 等待MinIO启动
 echo "等待MinIO启动完成..."
@@ -64,26 +64,7 @@ fi
 echo ""
 # MinIO状态
 echo "MinIO状态："
-if [ "$(docker ps -q -f name=minio)" ]; then
-    echo -e "${GREEN}✓ MinIO容器正在运行${NC}"
-    echo "  API: http://localhost:9000"
-    echo "  控制台: http://localhost:9001"
-
-    # 获取项目根目录路径
-    ENV_FILE="$PROJECT_DIR/.env"
-
-    # 从环境变量读取用户名和密码（如果存在）
-    if [ -f "$ENV_FILE" ]; then
-        source "$ENV_FILE"
-        echo "  用户名: ${MINIO_ACCESS_KEY:-"minioadmin"}"
-        echo "  密码: [已隐藏，请查看.env文件中的MINIO_SECRET_KEY]"
-    else
-        echo "  用户名: [请查看.env文件中的MINIO_ACCESS_KEY]"
-        echo "  密码: [已隐藏，请查看.env文件中的MINIO_SECRET_KEY]"
-    fi
-else
-    echo -e "${RED}✗ MinIO容器未运行${NC}"
-fi
+"$SCRIPT_DIR/minio.sh" status
 
 echo ""
 echo -e "${GREEN}所有服务启动完成！${NC}"

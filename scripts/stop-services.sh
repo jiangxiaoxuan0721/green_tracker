@@ -13,13 +13,7 @@ echo -e "${RED}===================================${NC}"
 
 # 停止MinIO
 echo -e "${RED}正在停止MinIO...${NC}"
-if [ "$(docker ps -q -f name=minio)" ]; then
-    docker stop minio
-    docker rm minio
-    echo -e "${RED}✓ MinIO已停止${NC}"
-else
-    echo "  MinIO容器未运行"
-fi
+bash "$SCRIPT_DIR/minio.sh" stop
 
 # 停止后端服务
 echo -e "${RED}正在停止后端服务...${NC}"
