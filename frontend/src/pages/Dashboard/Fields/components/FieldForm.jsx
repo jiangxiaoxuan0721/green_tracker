@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { fieldService } from '@/services/fieldService'
+import useToast from '@/hooks/useToast'
 import { FormContainer } from '@/components/business'
-import { Input, Select, Textarea } from '@/components/ui'
+import { Input, Select, Textarea, ToastContainer } from '@/components/ui'
 
 const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
+  const { toasts, removeToast, error: showError, success: showSuccess } = useToast()
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -14,7 +16,6 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
     irrigation_type: ''
   })
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => {
     if (mode === 'edit' && field) {
@@ -40,18 +41,17 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
     console.log('[FieldForm] 表单数据:', formData)
 
     if (!formData.name.trim()) {
-      setError('地块名称不能为空')
+      showError('地块名称不能为空')
       return
     }
 
     if (!formData.location_wkt.trim()) {
-      setError('地块位置信息不能为空')
+      showError('地块位置信息不能为空')
       return
     }
 
     try {
       setLoading(true)
-      setError('')
       console.log('[FieldForm] 开始调用 API...')
 
       const submitData = {
@@ -69,10 +69,12 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
         console.log('[FieldForm] 调用 createField...')
         await fieldService.createField(submitData)
         console.log('[FieldForm] createField 成功')
+        showSuccess('地块创建成功')
       } else {
         console.log('[FieldForm] 调用 updateField...')
         await fieldService.updateField(field.id, submitData)
         console.log('[FieldForm] updateField 成功')
+        showSuccess('地块更新成功')
       }
 
       console.log('[FieldForm] 调用 onSuccess...')
@@ -80,7 +82,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
       console.log('[FieldForm] handleSubmit 完成')
     } catch (err) {
       console.error('[FieldForm] 错误:', err)
-      setError(err.message || `${mode === 'create' ? '创建' : '更新'}地块失败`)
+      showError(err.message || `${mode === 'create' ? '创建' : '更新'}地块失败`)
     } finally {
       setLoading(false)
     }
@@ -113,17 +115,18 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
   ]
 
   return (
-    <FormContainer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={mode === 'create' ? '创建地块' : '编辑地块'}
-      onSubmit={handleSubmit}
-      loading={loading}
-      size="medium"
-      cancelText="取消"
-      submitText="提交"
-    >
-      {error && <div className="form-error-message">{error}</div>}
+    <>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <FormContainer
+        isOpen={isOpen}
+        onClose={onClose}
+        title={mode === 'create' ? '创建地块' : '编辑地块'}
+        onSubmit={handleSubmit}
+        loading={loading}
+        size="medium"
+        cancelText="取消"
+        submitText="提交"
+      >
 
       <Input
         label="地块名称"
@@ -192,6 +195,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
         options={irrigationTypeOptions}
       />
     </FormContainer>
+    </>
   )
 }
 

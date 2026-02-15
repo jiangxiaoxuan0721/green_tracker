@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { collectionSessionService } from '@/services/collectionSessionService'
 import { fieldService } from '@/services/fieldService'
+import useToast from '@/hooks/useToast'
 import { FormContainer } from '@/components/business'
-import { Input, Select, Textarea } from '@/components/ui'
+import { Input, Select, Textarea, ToastContainer } from '@/components/ui'
 import './SessionForm.css'
 
 const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
+  const { toasts, removeToast, error: showError, success: showSuccess } = useToast()
   const [formData, setFormData] = useState({
     mission_name: '',
     field_id: '',
@@ -15,7 +17,6 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
     description: ''
   })
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const [fields, setFields] = useState([])
 
   useEffect(() => {
@@ -55,23 +56,22 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
 
   const handleSubmit = async (e) => {
     if (!formData.mission_name.trim()) {
-      setError('任务名称不能为空')
+      showError('任务名称不能为空')
       return
     }
 
     if (!formData.field_id) {
-      setError('请选择农田')
+      showError('请选择农田')
       return
     }
 
     if (!formData.mission_type) {
-      setError('请选择任务类型')
+      showError('请选择任务类型')
       return
     }
 
     try {
       setLoading(true)
-      setError('')
 
       if (mode === 'create') {
         const submitData = {
@@ -90,6 +90,7 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
         }
 
         await collectionSessionService.createSession(submitData)
+        showSuccess('任务创建成功')
       } else {
         const submitData = {
           mission_name: formData.mission_name,
@@ -101,11 +102,12 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
         }
 
         await collectionSessionService.updateSession(session.id, submitData)
+        showSuccess('任务更新成功')
       }
 
       onSuccess()
     } catch (err) {
-      setError(err.message || `${mode === 'create' ? '创建' : '更新'}任务失败`)
+      showError(err.message || `${mode === 'create' ? '创建' : '更新'}任务失败`)
     } finally {
       setLoading(false)
     }
@@ -125,26 +127,26 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
   ]
 
   return (
-    <FormContainer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={mode === 'create' ? '创建任务' : '编辑任务'}
-      onSubmit={handleSubmit}
-      loading={loading}
-      size="medium"
-      cancelText="取消"
-      submitText={mode === 'create' ? '创建' : '更新'}
-    >
-      {error && <div className="form-error-message">{error}</div>}
-
-      <Input
-        label="任务名称"
-        id="mission_name"
-        name="mission_name"
-        value={formData.mission_name}
-        onChange={handleChange}
-        required
-      />
+    <>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <FormContainer
+        isOpen={isOpen}
+        onClose={onClose}
+        title={mode === 'create' ? '创建任务' : '编辑任务'}
+        onSubmit={handleSubmit}
+        loading={loading}
+        size="medium"
+        cancelText="取消"
+        submitText={mode === 'create' ? '创建' : '更新'}
+      >
+        <Input
+          label="任务名称"
+          id="mission_name"
+          name="mission_name"
+          value={formData.mission_name}
+          onChange={handleChange}
+          required
+        />
 
       <Select
         label="农田"
@@ -197,6 +199,7 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
         placeholder="任务的详细描述或说明"
       />
     </FormContainer>
+    </>
   )
 }
 

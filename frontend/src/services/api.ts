@@ -69,22 +69,21 @@ api.interceptors.response.use(
       baseURL: error.config?.baseURL,
       method: error.config?.method,
     });
-    
+
     if (error.response?.status === 401) {
-      console.log('[前端API] 401未授权，清除用户信息并重定向到登录页');
-      // Token过期或无效，清除本地存储并跳转到登录页
+      console.log('[前端API] 401未授权，清除用户信息');
+      // Token过期或无效，清除本地存储（由路由守卫处理跳转）
       localStorage.removeItem('token');
       localStorage.removeItem('isLoggedIn');
       localStorage.removeItem('user_id');
-      window.location.href = '/login';
     }
-    
+
     // 如果是网络错误或CORS错误，提供更详细的信息
     if (error.code === 'ERR_NETWORK') {
       console.error('[前端API] 网络错误，可能是后端服务未运行或CORS问题');
       console.error(`[前端API] 请求URL: ${error.config?.baseURL}${error.config?.url}`);
     }
-    
+
     return Promise.reject(error);
   }
 );

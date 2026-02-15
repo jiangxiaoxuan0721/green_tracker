@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { deviceService } from '@/services/deviceService'
-import { Select, Input, Textarea, Checkbox } from '@/components/ui'
+import useToast from '@/hooks/useToast'
+import { Select, Input, Textarea, Checkbox, ToastContainer } from '@/components/ui'
 import { FormContainer } from '@/components/business'
 import './DeviceForm.css'
 
 const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
+  const { toasts, removeToast, error: showError, success: showSuccess } = useToast()
   const [formData, setFormData] = useState({
     name: '',
     device_type: '',
@@ -16,7 +18,6 @@ const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
     actuators: {}
   })
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   const deviceTypeOptions = [
     { value: 'satellite', label: '卫星' },
@@ -96,23 +97,22 @@ const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
 
   const handleSubmit = async (e) => {
     if (!formData.name.trim()) {
-      setError('设备名称不能为空')
+      showError('设备名称不能为空')
       return
     }
 
     if (!formData.device_type.trim()) {
-      setError('设备类型不能为空')
+      showError('设备类型不能为空')
       return
     }
 
     if (!formData.platform_level.trim()) {
-      setError('平台层级不能为空')
+      showError('平台层级不能为空')
       return
     }
 
     try {
       setLoading(true)
-      setError('')
 
       const submitData = {
         ...formData,
@@ -129,44 +129,42 @@ const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
 
       if (mode === 'create') {
         await deviceService.createDevice(submitData)
+        showSuccess('设备创建成功')
       } else {
         await deviceService.updateDevice(device.id, submitData)
+        showSuccess('设备更新成功')
       }
 
       onSuccess()
     } catch (err) {
-      setError(err.message || `${mode === 'create' ? '创建' : '更新'}设备失败`)
+      showError(err.message || `${mode === 'create' ? '创建' : '更新'}设备失败`)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <FormContainer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={`${mode === 'create' ? '添加' : '编辑'}设备`}
-      onSubmit={handleSubmit}
-      loading={loading}
-      size="medium"
-      cancelText="取消"
-      submitText={mode === 'create' ? '添加' : '更新'}
-    >
-      {error && (
-        <div className="form-error-message">
-          {error}
-        </div>
-      )}
-
-      <Input
-        label="设备名称"
-        id="name"
-        name="name"
-        value={formData.name}
-        onChange={handleChange}
-        required
-        placeholder="例如：多光谱巡检无人机01"
-      />
+    <>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <FormContainer
+        isOpen={isOpen}
+        onClose={onClose}
+        title={`${mode === 'create' ? '添加' : '编辑'}设备`}
+        onSubmit={handleSubmit}
+        loading={loading}
+        size="medium"
+        cancelText="取消"
+        submitText={mode === 'create' ? '添加' : '更新'}
+      >
+        <Input
+          label="设备名称"
+          id="name"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          required
+          placeholder="例如：多光谱巡检无人机01"
+        />
 
       <Select
         label="设备类型"
@@ -250,6 +248,7 @@ const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
         <div className="form-help">选择设备具备的执行机构类型</div>
       </div>
     </FormContainer>
+    </>
   )
 }
 
