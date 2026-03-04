@@ -231,7 +231,7 @@ async def add_tag_to_raw_data(
         tag_category=request.tag_category,
         tag_value=request.tag_value,
         confidence=request.confidence,
-        source=request.source
+        source=request.source if request.source else "manual"
     )
 
     if not tag_id:
