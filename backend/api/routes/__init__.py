@@ -7,8 +7,8 @@ from .collection_session import router as collection_session_router
 from .device import router as device_router
 from .feedback import router as feedback_router
 from .field import router as field_router
-from .raw_data import router as raw_data_router
 from .admin_database import router as admin_database_router
+from .raw_data import router as raw_data_router
 
 __all__ = [
     "auth_router",

@@ -5,16 +5,13 @@ export interface RawData {
   id: string;
   session_id: string;
   data_type: string;
-  data_value: string;
-  device_id?: string;
-  device_display_name?: string;
-  field_id?: string;
-  field_display_name?: string;
+  data_value?: string;
   data_subtype?: string;
   data_unit?: string;
   data_format?: string;
   bucket_name?: string;
   object_key?: string;
+  capture_time: string;
   location_geom?: string;
   altitude_m?: number;
   heading?: number;
@@ -22,33 +19,38 @@ export interface RawData {
   file_meta?: Record<string, any>;
   acquisition_meta?: Record<string, any>;
   quality_score?: number;
-  quality_flags?: string[];
+  quality_flags?: Record<string, any>;
   checksum?: string;
   is_valid?: boolean;
   validation_notes?: string;
-  capture_time?: string;
   created_at: string;
   updated_at?: string;
-  processing_status?: string;
-  ai_status?: string;
+  session?: {
+    id: string;
+    mission_name?: string;
+    mission_type: string;
+    field?: {
+      name: string;
+    };
+    device?: {
+      name: string;
+    };
+  };
 }
 
 export interface RawDataListParams {
   user_id: string;
   page?: number;
   page_size?: number;
-  device_id?: string;
-  field_id?: string;
+  session_id?: string;
   data_type?: string;
   data_subtype?: string;
-  start_time?: string;
-  end_time?: string;
 }
 
 export interface RawDataCreate {
   session_id: string;
   data_type: string;
-  data_value: string;
+  data_value?: string;
   device_id?: string;
   device_display_name?: string;
   field_id?: string;
@@ -213,16 +215,29 @@ export const rawDataService = {
     }
   },
 
+  // 获取会话的数据类型
+  async getSessionDataTypes(sessionId: string, dataType?: string) {
+    console.log('[前端RawDataService] 发送获取会话数据类型请求');
+    console.log('[前端RawDataService] 会话ID:', sessionId, '数据类型:', dataType);
+    
+    try {
+      const params = dataType ? { data_type: dataType } : {};
+      const response = await api.get(`/api/raw-data/session/${sessionId}/data-types`, { params });
+      console.log('[前端RawDataService] 获取会话数据类型成功:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('获取会话数据类型失败:', error);
+      throw error;
+    }
+  },
+
   // 导出原始数据
   async exportRawData(params: {
     user_id: string;
     format?: 'csv' | 'json';
-    device_id?: string;
-    field_id?: string;
+    session_id?: string;
     data_type?: string;
     data_subtype?: string;
-    start_time?: string;
-    end_time?: string;
   }) {
     console.log('[前端RawDataService] 发送导出原始数据请求');
     console.log('[前端RawDataService] 导出参数:', params);

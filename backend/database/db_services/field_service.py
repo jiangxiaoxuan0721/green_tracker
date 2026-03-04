@@ -2,14 +2,24 @@ import uuid
 from sqlalchemy import and_, or_, func, text
 from sqlalchemy.orm import Session
 from database.db_models.user_models import Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
-# 尝试导入GeoAlchemy2函数
+# 检查GeoAlchemy2是否可用
+def _placeholder_func(*args, **kwargs):
+    pass
+
+# 检查是否可以使用PostGIS
 try:
     from geoalchemy2.functions import ST_AsText, ST_SetSRID, ST_MakePoint
-    HAS_POSTGIS = True
+    _postgis_available = True
 except ImportError:
-    HAS_POSTGIS = False
+    ST_AsText = _placeholder_func
+    ST_SetSRID = _placeholder_func
+    ST_MakePoint = _placeholder_func
+    _postgis_available = False
+
+# 导入时定义的常量 - 只赋值一次
+HAS_POSTGIS: bool = _postgis_available
 
 def create_field(db: Session, name: str, description: Optional[str] = None,
                 location_geom: str = "", area_m2: Optional[float] = None,
@@ -145,7 +155,7 @@ def get_field_by_id(db: Session, field_id: str) -> Optional[Field]:
     """
     return db.query(Field).filter(Field.id == field_id).first()
 
-def get_field_with_wkt(db: Session, field_id: str) -> Optional[dict]:
+def get_field_with_wkt(db: Session, field_id: str) -> Optional[dict[str, Any]]:
     """
     根据地块ID获取地块信息，包含WKT格式的几何数据
 
@@ -205,7 +215,7 @@ def get_all_fields(db: Session) -> List[Field]:
     """
     return db.query(Field).all()
 
-def get_all_fields_with_wkt(db: Session, active_only: bool = True) -> List[dict]:
+def get_all_fields_with_wkt(db: Session, active_only: bool = True) -> List[dict[str, Any]]:
     """
     获取所有地块，包含WKT格式的几何数据
 
@@ -264,7 +274,7 @@ def get_all_fields_with_wkt(db: Session, active_only: bool = True) -> List[dict]
                 'irrigation_type': field.irrigation_type,
                 'created_at': field.created_at,
                 'updated_at': field.updated_at,
-                'location_wkt': str(field.location_geom) if field.location_geom else None
+                'location_wkt': str(field.location_geom) if field.location_geom is not None else None
             })
 
     return fields
@@ -308,7 +318,7 @@ def search_fields(db: Session,
 def search_fields_with_wkt(db: Session,
                          keyword: Optional[str] = None, crop_type: Optional[str] = None,
                          soil_type: Optional[str] = None, irrigation_type: Optional[str] = None,
-                         active_only: bool = True) -> List[dict]:
+                         active_only: bool = True) -> List[dict[str, Any]]:
     """
     根据条件搜索地块，包含WKT格式的几何数据
 
@@ -409,12 +419,12 @@ def search_fields_with_wkt(db: Session,
                 'irrigation_type': result.irrigation_type,
                 'created_at': result.created_at,
                 'updated_at': result.updated_at,
-                'location_wkt': str(result.location_geom) if result.location_geom else None
+                'location_wkt': str(result.location_geom) if result.location_geom is not None else None
             })
 
         return fields
 
-def find_fields_containing_point(db: Session, longitude: float, latitude: float) -> List[dict]:
+def find_fields_containing_point(db: Session, longitude: float, latitude: float) -> List[dict[str, Any]]:
     """
     查找包含指定点的地块，包含WKT格式的几何数据
 
@@ -496,6 +506,7 @@ def update_field(db: Session, field_id: str,
 
     # 准备更新数据
     update_data = {}
+    needs_geom_update = False
 
     if name is not None:
         update_data["name"] = name

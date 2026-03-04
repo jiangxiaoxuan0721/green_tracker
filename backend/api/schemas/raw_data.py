@@ -8,10 +8,6 @@ class RawDataRequest(BaseModel):
     session_id: str = Field(..., description="采集会话ID")
     data_type: str = Field(..., description="数据类型")
     data_value: str = Field(..., description="数据值")
-    device_id: Optional[str] = Field(None, description="设备ID")
-    device_display_name: Optional[str] = Field(None, description="设备前端显示名称")
-    field_id: Optional[str] = Field(None, description="地块ID")
-    field_display_name: Optional[str] = Field(None, description="地块前端显示名称")
     data_subtype: Optional[str] = Field(None, description="数据子类型")
     data_unit: Optional[str] = Field(None, description="数据单位")
     data_format: Optional[str] = Field(None, description="数据格式")
@@ -35,11 +31,7 @@ class RawDataRequest(BaseModel):
             "example": {
                 "session_id": "550e8400-e29b-41d4-a716-446655440000",
                 "data_type": "image",
-                "data_value": "path/to/image.jpg",
-                "device_id": "device-uuid",
-                "device_display_name": "无人机A1",
-                "field_id": "field-uuid",
-                "field_display_name": "示范田A区"
+                "data_value": "path/to/image.jpg"
             }
         }
 

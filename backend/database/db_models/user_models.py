@@ -69,7 +69,7 @@ class Device(UserBase):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
 
     # 关系
-    raw_data = relationship("RawData", back_populates="device", cascade="all, delete-orphan")
+    # 设备的原始数据现在通过 CollectionSession 间接关联
 
     __table_args__ = (
         Index('idx_devices_name', 'name'),
@@ -132,15 +132,13 @@ class RawData(UserBase):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="数据ID")
     session_id = Column(String(36), ForeignKey('collection_sessions.id', ondelete='CASCADE'), nullable=False, index=True, comment="所属任务")
-    device_id = Column(String(36), ForeignKey('devices.id', ondelete='SET NULL'), nullable=True, index=True, comment="设备ID")
-    field_id = Column(String(36), ForeignKey('fields.id', ondelete='SET NULL'), nullable=True, index=True, comment="地块ID")
-    data_type = Column(Text, nullable=False, index=True, comment="数据类型：image/video/environmental/soil/multi_spectral")
-    data_subtype = Column(Text, nullable=True, index=True, comment="数据子类型：temperature/humidity/ph/light/ndvi/rgb")
-    data_unit = Column(Text, nullable=True, comment="数据单位：°C/%/ppm/lux")
-    data_value = Column(Text, nullable=False, comment="数据值")
-    data_format = Column(Text, nullable=True, comment="数据格式")
-    bucket_name = Column(Text, nullable=True, comment="MinIO bucket")
-    object_key = Column(Text, nullable=True, comment="MinIO 对象路径")
+    data_type = Column(Text, nullable=False, index=True, comment="数据类型：image/video/environmental/soil/spectral/multispectral/thermal")
+    data_subtype = Column(Text, nullable=True, index=True, comment="数据子类型：rgb/nir/red_edge/thermal/temperature/humidity/ph/moisture/ndvi/evi")
+    data_unit = Column(Text, nullable=True, comment="数据单位：°C/%/ppm/lux/cm/ms/mm")
+    data_value = Column(Text, nullable=True, comment="数据值（非图像数据使用）")
+    data_format = Column(Text, nullable=True, comment="数据格式：jpeg/png/tiff/mp4/csv/json")
+    bucket_name = Column(Text, nullable=True, comment="MinIO bucket（图像/视频数据使用，与session_id一致）")
+    object_key = Column(Text, nullable=True, comment="MinIO 对象路径（图像/视频数据使用）")
     capture_time = Column(DateTime, nullable=False, index=True, comment="采集时间")
     location_geom = Column(Geometry('POINT', srid=4326), nullable=True, comment="采集点位置")
     altitude_m = Column(Float, nullable=True, comment="采集高度（米）")
@@ -153,32 +151,23 @@ class RawData(UserBase):
     checksum = Column(Text, nullable=True, comment="文件校验值")
     is_valid = Column(Boolean, nullable=False, default=True, comment="是否有效")
     validation_notes = Column(Text, nullable=True, comment="验证备注")
-    processing_status = Column(Text, nullable=False, default='pending', index=True, comment="处理状态：pending/processing/completed/failed")
-    processed_at = Column(DateTime, nullable=True, comment="处理完成时间")
-    ai_status = Column(Text, nullable=False, default='pending', index=True, comment="AI状态：pending/analyzing/completed/failed")
-    ai_analyzed_at = Column(DateTime, nullable=True, comment="AI分析完成时间")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
 
     # 关系
     session = relationship("CollectionSession", back_populates="raw_data")
-    device = relationship("Device", back_populates="raw_data")
     tags = relationship("RawDataTag", back_populates="raw_data", cascade="all, delete-orphan")
+    processing = relationship("DataProcessing", back_populates="raw_data", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('idx_raw_data_session_id', 'session_id'),
-        Index('idx_raw_data_device_id', 'device_id'),
-        Index('idx_raw_data_field_id', 'field_id'),
         Index('idx_raw_data_data_type', 'data_type'),
         Index('idx_raw_data_data_subtype', 'data_subtype'),
         Index('idx_raw_data_capture_time', 'capture_time'),
-        Index('idx_raw_data_processing_status', 'processing_status'),
-        Index('idx_raw_data_ai_status', 'ai_status'),
         # PostGIS 会为 geometry 列自动创建 gist 索引，不需要手动创建
         # Index('idx_raw_data_location_geom', 'location_geom', postgresql_using='gist'),
         Index('uniq_raw_data_object', 'session_id', 'bucket_name', 'object_key'),
         Index('idx_raw_data_session_type', 'session_id', 'data_type'),
-        Index('idx_raw_data_device_field_time', 'device_id', 'field_id', 'capture_time'),
         Index('idx_raw_data_type_time', 'data_type', 'capture_time'),
         {'comment': '原始数据表'}
     )
@@ -252,3 +241,46 @@ class CropObject(UserBase):
 
     def __repr__(self):
         return f"<CropObject(id={self.id}, type={self.crop_type})>"
+
+
+class DataProcessing(UserBase):
+    """
+    数据处理表 - 管理原始数据的AI/人工处理状态和结果
+    """
+    __tablename__ = "data_processing"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="处理记录ID")
+    raw_data_id = Column(String(36), ForeignKey('raw_data.id', ondelete='CASCADE'), nullable=False, index=True, comment="关联原始数据")
+    processing_type = Column(Text, nullable=False, index=True, comment="处理类型：ai_analysis/manual_review/data_validation/feature_extraction")
+    processing_status = Column(Text, nullable=False, default='pending', index=True, comment="处理状态：pending/processing/completed/failed/skipped")
+    processing_result = Column(JSON, nullable=True, comment="处理结果详情")
+    confidence_score = Column(Float, nullable=True, comment="处理置信度（0-1）")
+    processing_model = Column(Text, nullable=True, comment="使用的AI模型或算法")
+    processing_version = Column(Text, nullable=True, comment="模型版本或算法版本")
+    processing_parameters = Column(JSON, nullable=True, comment="处理参数配置")
+    error_message = Column(Text, nullable=True, comment="错误信息")
+    processing_time_seconds = Column(Float, nullable=True, comment="处理耗时（秒）")
+    processed_by = Column(Text, nullable=True, comment="处理者：ai_system/user_id/automation")
+    quality_metrics = Column(JSON, nullable=True, comment="质量指标")
+    next_processing_step = Column(Text, nullable=True, comment="下一步处理建议")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="创建时间")
+    started_at = Column(DateTime, nullable=True, comment="开始处理时间")
+    completed_at = Column(DateTime, nullable=True, comment="完成处理时间")
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+
+    # 关系
+    raw_data = relationship("RawData", back_populates="processing")
+
+    __table_args__ = (
+        Index('idx_data_processing_raw_data_id', 'raw_data_id'),
+        Index('idx_data_processing_type', 'processing_type'),
+        Index('idx_data_processing_status', 'processing_status'),
+        Index('idx_data_processing_model', 'processing_model'),
+        Index('idx_data_processing_completed', 'completed_at'),
+        Index('idx_data_processing_type_status', 'processing_type', 'processing_status'),
+        Index('idx_data_processing_raw_type', 'raw_data_id', 'processing_type'),
+        {'comment': '数据处理表'}
+    )
+
+    def __repr__(self):
+        return f"<DataProcessing(id={self.id}, type={self.processing_type}, status={self.processing_status})>"

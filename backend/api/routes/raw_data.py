@@ -9,7 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
-from database.main_db import get_meta_db
+from ..routes.auth import get_current_user
+from database.db_models.meta_model import User
+from database.user_db_manager import get_current_user_db, get_user_db
 from database.db_services.raw_data_service import (
     create_raw_data,
     get_raw_data_by_id,
@@ -18,9 +20,10 @@ from database.db_services.raw_data_service import (
     update_ai_status,
     get_raw_data_tags,
     add_raw_data_tag,
-    delete_raw_data
+    delete_raw_data,
+    get_session_data_types
 )
-from api.schemas.raw_data import (
+from ..schemas.raw_data import (
     RawDataRequest,
     RawDataTagRequest,
     ProcessingStatusRequest,
@@ -33,7 +36,8 @@ router = APIRouter(prefix="/api/raw-data", tags=["原始数据"])
 @router.post("/", summary="添加原始数据")
 async def create_new_raw_data(
     request: RawDataRequest,
-    db: Session = Depends(get_meta_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_current_user_db)
 ):
     """
     添加原始数据
@@ -51,8 +55,6 @@ async def create_new_raw_data(
         data_type=request.data_type,
         data_value=request.data_value,
         capture_time=request.capture_time or datetime.now(),
-        device_id=request.device_id,
-        field_id=request.field_id,
         data_subtype=request.data_subtype,
         data_unit=request.data_unit,
         data_format=request.data_format,
@@ -77,40 +79,56 @@ async def create_new_raw_data(
     return {"code": 200, "message": "success", "data": {"id": data_id}}
 
 
+@router.get("/session/{session_id}/data-types", summary="获取会话的数据类型")
+async def get_session_data_types_endpoint(
+    session_id: str,
+    data_type: Optional[str] = Query(None, description="数据类型过滤，用于过滤子类型"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_current_user_db)
+):
+    """
+    获取指定会话中可用的数据类型和子类型
+    用于前端动态生成筛选选项
+    """
+    try:
+        result = get_session_data_types(db, session_id, data_type)
+        return {"code": 200, "message": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取会话数据类型失败: {str(e)}")
+
+
 @router.get("/list", summary="获取原始数据列表")
 async def get_raw_data_list(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    device_id: Optional[str] = Query(None, description="设备ID过滤"),
-    field_id: Optional[str] = Query(None, description="地块ID过滤"),
+    session_id: Optional[str] = Query(None, description="会话ID过滤"),
     data_type: Optional[str] = Query(None, description="数据类型过滤"),
     data_subtype: Optional[str] = Query(None, description="数据子类型过滤"),
-    start_time: Optional[datetime] = Query(None, description="开始时间过滤"),
-    end_time: Optional[datetime] = Query(None, description="结束时间过滤"),
-    db: Session = Depends(get_meta_db)
+    user_id: str = Query("3d5e8a9f-1fc1-4374-8afe-1277b4e0b175", description="用户ID")
 ):
     """
     获取原始数据列表
 
     前端列表显示，返回以下字段：
     - 数据ID
-    - 设备名称
-    - 地块名称
+    - 任务名称
     - 数据类型 (data_type)
     - 数据值 (data_value) - 图像显示缩略图，数值显示单位
     - 操作按钮 - 删除和详情
     """
-    result = get_raw_data_list_for_frontend(
-        db=db,
-        page=page,
-        page_size=page_size,
-        device_id=device_id,
-        field_id=field_id,
-        data_type=data_type,
-        data_subtype=data_subtype,
-        start_time=start_time,
-        end_time=end_time
-    )
+    # 连接到用户数据库
+    db = get_user_db(user_id)
+    try:
+        result = get_raw_data_list_for_frontend(
+            db=db,
+            page=page,
+            page_size=page_size,
+            session_id=session_id,
+            data_type=data_type,
+            data_subtype=data_subtype
+        )
+    finally:
+        db.close()
 
     return {"code": 200, "message": "success", "data": result}
 
@@ -118,7 +136,8 @@ async def get_raw_data_list(
 @router.get("/{raw_data_id}", summary="获取原始数据详情")
 async def get_raw_data_detail(
     raw_data_id: str,
-    db: Session = Depends(get_meta_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_current_user_db)
 ):
     """
     获取原始数据详情
@@ -154,7 +173,8 @@ async def get_raw_data_detail(
 @router.delete("/{raw_data_id}", summary="删除原始数据")
 async def delete_raw_data_by_id(
     raw_data_id: str,
-    db: Session = Depends(get_meta_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_current_user_db)
 ):
     """删除原始数据"""
     success = delete_raw_data(db, raw_data_id)
@@ -169,7 +189,8 @@ async def delete_raw_data_by_id(
 async def update_processing_status_by_id(
     raw_data_id: str,
     request: ProcessingStatusRequest,
-    db: Session = Depends(get_meta_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_current_user_db)
 ):
     """更新原始数据处理状态"""
     success = update_processing_status(db, raw_data_id, request.processing_status)
@@ -184,7 +205,8 @@ async def update_processing_status_by_id(
 async def update_ai_status_by_id(
     raw_data_id: str,
     request: AIStatusRequest,
-    db: Session = Depends(get_meta_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_current_user_db)
 ):
     """更新原始数据AI分析状态"""
     success = update_ai_status(db, raw_data_id, request.ai_status)
@@ -199,7 +221,8 @@ async def update_ai_status_by_id(
 async def add_tag_to_raw_data(
     raw_data_id: str,
     request: RawDataTagRequest,
-    db: Session = Depends(get_meta_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_current_user_db)
 ):
     """为原始数据添加标签"""
     tag_id = add_raw_data_tag(
@@ -220,7 +243,8 @@ async def add_tag_to_raw_data(
 @router.get("/{raw_data_id}/tags", summary="获取原始数据标签")
 async def get_tags_for_raw_data(
     raw_data_id: str,
-    db: Session = Depends(get_meta_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_current_user_db)
 ):
     """获取原始数据的所有标签"""
     tags = get_raw_data_tags(db, raw_data_id)

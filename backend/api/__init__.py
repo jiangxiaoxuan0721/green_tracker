@@ -4,7 +4,7 @@ Green Tracker API 模块
 """
 
 # 导出所有路由
-from api.routes import (
+from .routes import (
     auth_router,
     collection_session_router,
     device_router,
@@ -15,7 +15,7 @@ from api.routes import (
 )
 
 # 导出所有 Schemas
-from api.schemas import (
+from .schemas import (
     # Auth
     UserRegister,
     UserLogin,

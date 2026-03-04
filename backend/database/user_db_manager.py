@@ -3,11 +3,12 @@
 管理每个用户的独立数据库连接
 """
 
+from sqlalchemy.orm.session import Session
 import threading
 import logging
-from typing import Dict, Optional, Any
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, scoped_session, Session
+from typing import Any, cast  # 保留 Any 但仅用于必要时
+from sqlalchemy import create_engine, text, Engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 
 import os
@@ -16,7 +17,7 @@ from pathlib import Path
 
 # 加载环境变量
 project_root = Path(__file__).parent.parent.parent
-load_dotenv(os.path.join(project_root, '.env'))
+_ = load_dotenv(os.path.join(project_root, '.env'))
 
 logger = logging.getLogger(__name__)
 
@@ -27,16 +28,16 @@ class UserDatabaseManager:
     为每个用户维护独立的数据库连接池
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # 存储 user_id -> engine 的映射
-        self._engines: Dict[str, Any] = {}
+        self._engines: dict[str, Engine] = {}
         # 存储 user_id -> session_factory 的映射
-        self._session_factories: Dict[str, Any] = {}
+        self._session_factories: dict[str, Any] = {}
         # 线程锁，保证线程安全
-        self._lock = threading.Lock()
+        self._lock: threading.Lock = threading.Lock()
 
         # 数据库连接配置
-        self._base_config = {
+        self._base_config: dict[str, Any] = {
             'poolclass': QueuePool,
             'pool_size': int(os.getenv("DB_POOL_SIZE", "5")),  # 每个用户5个连接
             'max_overflow': int(os.getenv("DB_MAX_OVERFLOW", "10")),  # 最大额外10个连接
@@ -46,15 +47,15 @@ class UserDatabaseManager:
         }
 
         # 数据库基础配置
-        self._db_user = os.getenv("DB_USER", "postgres")
-        self._db_password = os.getenv("DB_PASSWORD", "")
-        self._db_host = os.getenv("DB_HOST", "localhost")
-        self._db_port = os.getenv("DB_PORT", "5432")
-        self._use_unix_socket = os.getenv("USE_UNIX_SOCKET", "false").lower() == "true"
+        self._db_user: str = os.getenv("DB_USER", "postgres")
+        self._db_password: str = os.getenv("DB_PASSWORD", "")
+        self._db_host: str = os.getenv("DB_HOST", "localhost")
+        self._db_port: str = os.getenv("DB_PORT", "5432")
+        self._use_unix_socket: bool = os.getenv("USE_UNIX_SOCKET", "false").lower() == "true"
 
         logger.info("UserDatabaseManager initialized")
 
-    def _get_user_database_info(self, user_id: str) -> Dict[str, Any]:
+    def _get_user_database_info(self, user_id: str) -> dict[str, Any]:
         """
         从元数据库获取用户数据库信息
 
@@ -86,7 +87,7 @@ class UserDatabaseManager:
                 "database_port": user_db.database_port
             }
 
-    def get_engine(self, user_id: str) -> Any:
+    def get_engine(self, user_id: str) -> Engine:
         """
         获取用户的数据库引擎（懒加载）
 
@@ -161,7 +162,7 @@ class UserDatabaseManager:
             engine = self.get_engine(user_id)
             with engine.connect() as conn:
                 result = conn.execute(text("SELECT 1")).fetchone()
-                return result[0] == 1
+                return result is not None and result[0] == 1
         except Exception as e:
             logger.error(f"User {user_id} database connection test failed: {e}")
             return False
@@ -194,20 +195,20 @@ class UserDatabaseManager:
             logger.error(f"Failed to remove user {user_id} database: {e}")
             return False
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         获取连接管理器的统计信息
 
         Returns:
             统计信息字典
         """
-        stats = {
+        stats: dict[str, Any] = {
             "total_users": len(self._engines),
             "users": []
         }
 
         for user_id, engine in self._engines.items():
-            pool = engine.pool
+            pool = cast(QueuePool, engine.pool)
             stats["users"].append({
                 "user_id": user_id,
                 "pool_size": pool.size(),
@@ -218,7 +219,7 @@ class UserDatabaseManager:
 
         return stats
 
-    def get_active_users(self) -> list:
+    def get_active_users(self) -> list[str]:
         """
         获取所有活跃用户ID列表
 
@@ -246,7 +247,7 @@ def get_user_db(user_id: str) -> Session:
     return db_manager.get_db(user_id)
 
 
-def get_current_user_db(current_user):
+def get_current_user_db(current_user: Any) -> Session:
     """
     获取当前用户的数据库会话（用于 FastAPI 依赖注入）
 

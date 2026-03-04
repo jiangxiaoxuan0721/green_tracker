@@ -18,10 +18,6 @@ def create_raw_data(
     data_type: str,
     data_value: str,
     capture_time: Optional[datetime] = None,
-    device_id: Optional[str] = None,
-    device_display_name: Optional[str] = None,
-    field_id: Optional[str] = None,
-    field_display_name: Optional[str] = None,
     data_subtype: Optional[str] = None,
     data_unit: Optional[str] = None,
     data_format: Optional[str] = None,
@@ -48,10 +44,6 @@ def create_raw_data(
         data_type: 数据类型
         data_value: 数据值
         capture_time: 采集时间
-        device_id: 设备ID
-        device_display_name: 设备显示名称
-        field_id: 农田ID
-        field_display_name: 农田显示名称
         data_subtype: 数据子类型
         data_unit: 数据单位
         data_format: 数据格式
@@ -80,13 +72,12 @@ def create_raw_data(
             data_type=data_type,
             data_value=data_value,
             capture_time=capture_time or datetime.now(),
-            device_id=uuid.UUID(device_id) if device_id and isinstance(device_id, str) else device_id,
-            field_id=uuid.UUID(field_id) if field_id and isinstance(field_id, str) else field_id,
             data_subtype=data_subtype,
             data_unit=data_unit,
             data_format=data_format,
             bucket_name=bucket_name,
             object_key=object_key,
+            location_geom=location_geom,
             altitude_m=altitude_m,
             heading=heading,
             sensor_meta=sensor_meta,
@@ -98,10 +89,6 @@ def create_raw_data(
             is_valid=is_valid,
             validation_notes=validation_notes
         )
-
-        # 如果有位置信息，设置几何点
-        if location_geom:
-            new_raw_data.location_geom = location_geom
 
         db.add(new_raw_data)
         db.commit()
@@ -147,9 +134,7 @@ def get_raw_data_by_id(db: Session, raw_data_id: str) -> Optional[Dict[str, Any]
 
         return {
             "id": str(raw_data.id),
-            "session_id": str(raw_data.session_id) if raw_data.session_id else None,
-            "device_id": str(raw_data.device_id) if raw_data.device_id else None,
-            "field_id": str(raw_data.field_id) if raw_data.field_id else None,
+            "session_id": str(raw_data.session_id) if raw_data.session_id is not None else None,
             "data_type": raw_data.data_type,
             "data_subtype": raw_data.data_subtype,
             "data_unit": raw_data.data_unit,
@@ -169,9 +154,9 @@ def get_raw_data_by_id(db: Session, raw_data_id: str) -> Optional[Dict[str, Any]
             "validation_notes": raw_data.validation_notes,
             "processing_status": raw_data.processing_status,
             "ai_status": raw_data.ai_status,
-            "capture_time": raw_data.capture_time.isoformat() if raw_data.capture_time else None,
-            "created_at": raw_data.created_at.isoformat() if raw_data.created_at else None,
-            "updated_at": raw_data.updated_at.isoformat() if raw_data.updated_at else None
+            "capture_time": raw_data.capture_time.isoformat() if raw_data.capture_time is not None else None,
+            "created_at": raw_data.created_at.isoformat() if raw_data.created_at is not None else None,
+            "updated_at": raw_data.updated_at.isoformat() if raw_data.updated_at is not None else None
         }
     except Exception as e:
         print(f"[后端RawDataService] 获取原始数据详情失败: {str(e)}")
@@ -182,12 +167,9 @@ def get_raw_data_list_for_frontend(
     db: Session,
     page: int = 1,
     page_size: int = 20,
-    device_id: Optional[str] = None,
-    field_id: Optional[str] = None,
+    session_id: Optional[str] = None,
     data_type: Optional[str] = None,
-    data_subtype: Optional[str] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None
+    data_subtype: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     获取原始数据列表（前端展示）
@@ -196,34 +178,26 @@ def get_raw_data_list_for_frontend(
         db: 数据库会话
         page: 页码
         page_size: 每页数量
-        device_id: 设备ID过滤
-        field_id: 农田ID过滤
+        session_id: 会话ID过滤
         data_type: 数据类型过滤
         data_subtype: 数据子类型过滤
-        start_time: 开始时间过滤
-        end_time: 结束时间过滤
 
     Returns:
         Dict[str, Any]: 分页数据列表和分页信息
     """
-    # 构建查询
-    query = db.query(RawData)
+    # 构建查询，包含关联的会话信息
+    query = db.query(RawData, CollectionSession).outerjoin(
+        CollectionSession, RawData.session_id == CollectionSession.id
+    )
 
     # 添加过滤条件
-    if device_id:
+    if session_id:
         try:
-            device_uuid = uuid.UUID(device_id) if isinstance(device_id, str) else device_id
-            query = query.filter(RawData.device_id == device_uuid)
-        except ValueError:
-            print(f"[后端RawDataService] 无效的设备UUID格式: {device_id}")
-            return {"items": [], "pagination": {"page": page, "page_size": page_size, "total_count": 0, "total_pages": 0}}
-
-    if field_id:
-        try:
-            field_uuid = uuid.UUID(field_id) if isinstance(field_id, str) else field_id
-            query = query.filter(RawData.field_id == field_uuid)
-        except ValueError:
-            print(f"[后端RawDataService] 无效的地块UUID格式: {field_id}")
+            # 确保session_id是字符串格式进行匹配
+            session_str = str(session_id)
+            query = query.filter(RawData.session_id == session_str)
+        except Exception as e:
+            print(f"[后端RawDataService] 处理会话ID时出错: {session_id}, 错误: {e}")
             return {"items": [], "pagination": {"page": page, "page_size": page_size, "total_count": 0, "total_pages": 0}}
 
     if data_type:
@@ -231,12 +205,6 @@ def get_raw_data_list_for_frontend(
 
     if data_subtype:
         query = query.filter(RawData.data_subtype == data_subtype)
-
-    if start_time:
-        query = query.filter(RawData.capture_time >= start_time)
-
-    if end_time:
-        query = query.filter(RawData.capture_time <= end_time)
 
     # 计算总数
     total_count = query.count()
@@ -248,36 +216,43 @@ def get_raw_data_list_for_frontend(
     # 转换为前端显示格式
     items = []
     for item in raw_data_list:
-        # 获取设备名称
-        device_name = None
-        if item.device:
-            device_name = item.device.name
+        # 由于现在使用关联查询，item可能是元组(RawData, CollectionSession)
+        if isinstance(item, tuple):
+            raw_data_item = item[0]
+            session_item = item[1]
+        else:
+            raw_data_item = item
+            session_item = None
 
-        # 获取农田名称
-        field_name = None
-        if item.field:
-            field_name = item.field.name
+        # 构建会话信息
+        session_info = None
+        if session_item:
+            session_info = {
+                "id": str(session_item.id),
+                "mission_name": session_item.mission_name,
+                "mission_type": session_item.mission_type
+            }
 
         # 根据数据类型显示不同的值
-        if item.data_type == "image":
+        if raw_data_item.data_type == "image":
             # 图像显示缩略图
-            display_value = f"/api/raw-data/{item.id}/thumbnail"
-        elif item.data_unit:
+            display_value = f"/api/raw-data/{raw_data_item.id}/thumbnail"
+        elif raw_data_item.data_unit and raw_data_item.data_value:
             # 数值类型添加单位
-            display_value = f"{item.data_value} {item.data_unit}"
+            display_value = f"{raw_data_item.data_value} {raw_data_item.data_unit}"
         else:
-            display_value = item.data_value
+            display_value = raw_data_item.data_value or ""
 
         items.append({
-            "id": str(item.id),
-            "device_name": device_name or "未知设备",
-            "field_name": field_name or "未知农田",
-            "data_type": item.data_type,
+            "id": str(raw_data_item.id),
+            "session": session_info,
+            "data_type": raw_data_item.data_type,
+            "data_subtype": raw_data_item.data_subtype,
             "data_value": display_value,
-            "capture_time": item.capture_time.isoformat() if item.capture_time else None,
-            "processing_status": item.processing_status,
-            "ai_status": item.ai_status,
-            "is_valid": item.is_valid
+            "data_format": raw_data_item.data_format,
+            "quality_score": raw_data_item.quality_score,
+            "capture_time": raw_data_item.capture_time.isoformat() if raw_data_item.capture_time is not None else None,
+            "is_valid": raw_data_item.is_valid
         })
 
     # 构建分页信息
@@ -494,7 +469,57 @@ def get_raw_data_tags(db: Session, raw_data_id: str) -> List[Dict[str, Any]]:
             "tag_value": tag.tag_value,
             "confidence": tag.confidence,
             "source": tag.source,
-            "created_at": tag.created_at.isoformat() if tag.created_at else None
+            "created_at": tag.created_at.isoformat() if tag.created_at is not None else None
         }
         for tag in tags
     ]
+
+
+def get_session_data_types(db: Session, session_id: str, data_type: Optional[str] = None) -> Dict[str, Any]:
+    """
+    获取指定会话中可用的数据类型和子类型
+
+    Args:
+        db: 数据库会话
+        session_id: 会话ID
+        data_type: 可选的数据类型过滤，用于过滤子类型
+
+    Returns:
+        Dict[str, Any]: 包含dataTypes和dataSubtypes的字典
+    """
+    try:
+        # 确保session_id是字符串格式进行匹配
+        session_str = str(session_id)
+
+        # 查询该会话中的所有数据类型和子类型
+        data_types = db.query(RawData.data_type).filter(
+            RawData.session_id == session_str,
+            RawData.is_valid == True
+        ).distinct().all()
+
+        # 构建子类型查询
+        subtypes_query = db.query(RawData.data_subtype).filter(
+            RawData.session_id == session_str,
+            RawData.is_valid == True,
+            RawData.data_subtype.isnot(None),
+            RawData.data_subtype != ""
+        )
+        
+        # 如果指定了数据类型，添加过滤条件
+        if data_type and data_type != 'all':
+            subtypes_query = subtypes_query.filter(RawData.data_type == data_type)
+            
+        data_subtypes = subtypes_query.distinct().all()
+
+        # 转换为列表格式
+        data_types_list = [{"value": dt[0], "label": dt[0]} for dt in data_types if dt[0]]
+        data_subtypes_list = [{"value": dst[0], "label": dst[0]} for dst in data_subtypes if dst[0]]
+
+        return {
+            "dataTypes": data_types_list,
+            "dataSubtypes": data_subtypes_list
+        }
+
+    except Exception as e:
+        print(f"[后端RawDataService] 获取会话数据类型失败: {str(e)}")
+        return {"dataTypes": [], "dataSubtypes": []}

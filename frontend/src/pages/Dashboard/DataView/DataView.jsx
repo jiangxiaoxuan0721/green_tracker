@@ -1,72 +1,176 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { rawDataService } from '@/services/rawDataService'
-import { deviceService } from '@/services/deviceService'
-import { fieldService } from '@/services/fieldService'
-import { Button, Card } from '@/components/ui'
-import { DataTable, FilterPanel, FilterInput, FilterSelect, StatusBadge } from '@/components/business'
+import { collectionSessionService } from '@/services/collectionSessionService'
+import { Button } from '@/components/ui'
+import { DataTable, FilterPanel, FilterSelect } from '@/components/business'
 import './DataView.css'
 
 const DataView = () => {
   const { user } = useAuth()
-  const [devices, setDevices] = useState([])
-  const [fields, setFields] = useState([])
+  const [sessions, setSessions] = useState([])
+  const [availableDataTypes, setAvailableDataTypes] = useState([])
+  const [availableDataSubtypes, setAvailableDataSubtypes] = useState([])
   
   const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
-    device: 'all',
-    field: 'all',
-    dataType: 'all'
+    sessionId: 'all',
+    dataType: 'all',
+    dataSubtype: 'all'
   })
   
   const [currentPage, setCurrentPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
 
   useEffect(() => {
-    const fetchDevices = async () => {
+    const fetchSessions = async () => {
       try {
-        const devicesData = await deviceService.getDevices()
-        setDevices(devicesData.data || devicesData || [])
+        const sessionsData = await collectionSessionService.getSessions({
+          limit: 100
+        })
+        setSessions(sessionsData || [])
       } catch (err) {
-        console.error('获取设备列表失败:', err)
-      }
-    }
-
-    const fetchFields = async () => {
-      try {
-        const fieldsData = await fieldService.getFields()
-        setFields(fieldsData.data || fieldsData || [])
-      } catch (err) {
-        console.error('获取地块列表失败:', err)
+        console.error('获取采集任务列表失败:', err)
       }
     }
 
     if (user?.id) {
-      fetchDevices()
-      fetchFields()
+      fetchSessions()
     }
   }, [user?.id])
+
+  // 当选择任务时，获取该任务的数据类型和子类型选项
+  useEffect(() => {
+    const fetchSessionDataTypes = async () => {
+      if (!filters.sessionId || filters.sessionId === 'all') {
+        setAvailableDataTypes(getDefaultDataTypes())
+        setAvailableDataSubtypes([])
+        return
+      }
+
+      try {
+        const response = await rawDataService.getSessionDataTypes(filters.sessionId)
+        setAvailableDataTypes(response.data?.dataTypes || getDefaultDataTypes())
+        setAvailableDataSubtypes(response.data?.dataSubtypes || [])
+      } catch (err) {
+        console.error('获取任务数据类型失败:', err)
+        setAvailableDataTypes(getDefaultDataTypes())
+        setAvailableDataSubtypes([])
+      }
+    }
+
+    fetchSessionDataTypes()
+  }, [filters.sessionId])
+
+  // 当数据类型变化时，重新获取子类型选项
+  useEffect(() => {
+    const fetchSessionSubtypes = async () => {
+      // 如果没有选择任务或数据类型为"全部"
+      if (!filters.sessionId || filters.sessionId === 'all') {
+        if (!filters.dataType || filters.dataType === 'all') {
+          setAvailableDataSubtypes([])
+        } else {
+          // 显示默认的子类型选项
+          setAvailableDataSubtypes(getDefaultDataSubtypes(filters.dataType))
+        }
+        return
+      }
+
+      // 如果数据类型为"全部"，获取该任务的所有子类型
+      if (!filters.dataType || filters.dataType === 'all') {
+        try {
+          const response = await rawDataService.getSessionDataTypes(filters.sessionId)
+          setAvailableDataSubtypes(response.data?.dataSubtypes || [])
+        } catch (err) {
+          console.error('获取任务子类型失败:', err)
+          setAvailableDataSubtypes([])
+        }
+        return
+      }
+
+      // 获取指定数据类型的子类型
+      try {
+        const response = await rawDataService.getSessionDataTypes(filters.sessionId, filters.dataType)
+        setAvailableDataSubtypes(response.data?.dataSubtypes || getDefaultDataSubtypes(filters.dataType))
+      } catch (err) {
+        console.error('获取任务子类型失败:', err)
+        setAvailableDataSubtypes(getDefaultDataSubtypes(filters.dataType))
+      }
+    }
+
+    fetchSessionSubtypes()
+  }, [filters.sessionId, filters.dataType])
+
+  const getDefaultDataTypes = () => [
+    { value: 'image', label: '图像' },
+    { value: 'video', label: '视频' },
+    { value: 'environmental', label: '环境数据' },
+    { value: 'soil', label: '土壤数据' },
+    { value: 'spectral', label: '光谱数据' },
+    { value: 'multispectral', label: '多光谱数据' },
+    { value: 'thermal', label: '热成像数据' }
+  ]
+
+  const getDefaultDataSubtypes = (dataType) => {
+    const subtypes = {
+      image: [
+        { value: 'rgb', label: 'RGB图像' },
+        { value: 'nir', label: '近红外图像' },
+        { value: 'red_edge', label: '红边图像' }
+      ],
+      video: [
+        { value: 'rgb', label: 'RGB视频' },
+        { value: 'thermal', label: '热成像视频' }
+      ],
+      environmental: [
+        { value: 'temperature', label: '温度' },
+        { value: 'humidity', label: '湿度' },
+        { value: 'pressure', label: '气压' },
+        { value: 'wind_speed', label: '风速' }
+      ],
+      soil: [
+        { value: 'ph', label: 'pH值' },
+        { value: 'moisture', label: '土壤湿度' },
+        { value: 'temperature', label: '土壤温度' },
+        { value: 'nutrients', label: '土壤养分' }
+      ],
+      spectral: [
+        { value: 'ndvi', label: 'NDVI' },
+        { value: 'evi', label: 'EVI' },
+        { value: 'ndre', label: 'NDRE' }
+      ],
+      multispectral: [
+        { value: 'blue', label: '蓝光波段' },
+        { value: 'green', label: '绿光波段' },
+        { value: 'red', label: '红光波段' },
+        { value: 'nir', label: '近红外波段' },
+        { value: 'red_edge', label: '红边波段' }
+      ],
+      thermal: [
+        { value: 'temperature', label: '温度' },
+        { value: 'thermal_image', label: '热成像' }
+      ]
+    }
+    
+    return dataType ? (subtypes[dataType] || []) : []
+  }
+
+  
 
   const fetchData = async (page = currentPage) => {
     if (!user?.id) return
 
     setLoading(true)
-    setError(null)
     
     try {
       const params = {
-        user_id: user.id,
         page,
         page_size: 20,
-        start_time: filters.startDate || undefined,
-        end_time: filters.endDate || undefined,
-        device_id: filters.device !== 'all' ? filters.device : undefined,
-        field_id: filters.field !== 'all' ? filters.field : undefined,
-        data_type: filters.dataType !== 'all' ? filters.dataType : undefined
+        session_id: filters.sessionId !== 'all' ? filters.sessionId : undefined,
+        data_type: filters.dataType !== 'all' ? filters.dataType : undefined,
+        data_subtype: filters.dataSubtype !== 'all' ? filters.dataSubtype : undefined,
+        user_id: user.id
       }
       
       const response = await rawDataService.getRawDataList(params)
@@ -89,6 +193,26 @@ const DataView = () => {
   const handleFilterChange = (newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters }))
     setCurrentPage(1)
+    
+    // 如果改变了任务ID，重置数据类型和子类型
+    if (newFilters.sessionId && newFilters.sessionId !== filters.sessionId) {
+      setFilters(prev => ({ 
+        ...prev, 
+        ...newFilters,
+        dataType: 'all',
+        dataSubtype: 'all'
+      }))
+    }
+    
+    // 如果改变了数据类型，重置子类型
+    if (newFilters.dataType && newFilters.dataType !== filters.dataType) {
+      setFilters(prev => ({ 
+        ...prev, 
+        ...newFilters,
+        dataSubtype: 'all'
+      }))
+    }
+    
     fetchData(1)
   }
 
@@ -103,11 +227,9 @@ const DataView = () => {
     try {
       await rawDataService.exportRawData({
         user_id: user.id,
-        start_time: filters.startDate || undefined,
-        end_time: filters.endDate || undefined,
-        device_id: filters.device !== 'all' ? filters.device : undefined,
-        field_id: filters.field !== 'all' ? filters.field : undefined,
+        session_id: filters.sessionId !== 'all' ? filters.sessionId : undefined,
         data_type: filters.dataType !== 'all' ? filters.dataType : undefined,
+        data_subtype: filters.dataSubtype !== 'all' ? filters.dataSubtype : undefined,
         format: 'csv'
       })
     } catch (err) {
@@ -135,21 +257,22 @@ const DataView = () => {
     return date.toLocaleString('zh-CN')
   }
 
-  const deviceOptions = [
-    { value: 'all', label: '全部设备' },
-    ...devices.map(d => ({ value: d.id, label: d.device_name || d.name }))
-  ]
-
-  const fieldOptions = [
-    { value: 'all', label: '全部地块' },
-    ...fields.map(f => ({ value: f.id, label: f.field_name || f.name }))
+  const sessionOptions = [
+    { value: 'all', label: '全部任务' },
+    ...sessions.map(s => ({ 
+      value: s.id, 
+      label: s.mission_name || s.mission_type || '未知任务'
+    }))
   ]
 
   const dataTypeOptions = [
     { value: 'all', label: '全部类型' },
-    { value: 'image', label: '图像' },
-    { value: 'sensor', label: '传感器数据' },
-    { value: 'gps', label: 'GPS数据' }
+    ...availableDataTypes
+  ]
+
+  const dataSubtypeOptions = [
+    { value: 'all', label: '全部子类型' },
+    ...availableDataSubtypes
   ]
 
   const columns = [
@@ -160,25 +283,27 @@ const DataView = () => {
     },
     {
       title: '采集时间',
-      dataIndex: 'timestamp',
+      dataIndex: 'capture_time',
       render: (timestamp) => formatDate(timestamp)
     },
     {
-      title: '设备',
-      dataIndex: 'device_name'
-    },
-    {
-      title: '地块',
-      dataIndex: 'field_name'
+      title: '任务名称',
+      dataIndex: ['session', 'mission_name'],
+      render: (_, record) => record.session?.mission_name || record.session?.mission_type || '未知任务'
     },
     {
       title: '数据类型',
-      dataIndex: 'data_type'
+      dataIndex: 'data_type',
+      render: (type, record) => `${type}${record.data_subtype ? `/${record.data_subtype}` : ''}`
     },
     {
-      title: '状态',
-      dataIndex: 'processing_status',
-      render: (status) => <StatusBadge status={status} />
+      title: '数据格式',
+      dataIndex: 'data_format'
+    },
+    {
+      title: '质量评分',
+      dataIndex: 'quality_score',
+      render: (score) => score ? `${(score * 100).toFixed(1)}%` : '-'
     },
     {
       title: '操作',
@@ -200,33 +325,12 @@ const DataView = () => {
       </div>
 
       <FilterPanel>
-        <FilterInput
-          label="开始日期"
-          name="startDate"
-          type="date"
-          value={filters.startDate}
-          onChange={(e) => handleFilterChange({ startDate: e.target.value })}
-        />
-        <FilterInput
-          label="结束日期"
-          name="endDate"
-          type="date"
-          value={filters.endDate}
-          onChange={(e) => handleFilterChange({ endDate: e.target.value })}
-        />
         <FilterSelect
-          label="设备"
-          name="device"
-          value={filters.device}
-          onChange={(e) => handleFilterChange({ device: e.target.value })}
-          options={deviceOptions}
-        />
-        <FilterSelect
-          label="地块"
-          name="field"
-          value={filters.field}
-          onChange={(e) => handleFilterChange({ field: e.target.value })}
-          options={fieldOptions}
+          label="采集任务"
+          name="sessionId"
+          value={filters.sessionId}
+          onChange={(e) => handleFilterChange({ sessionId: e.target.value })}
+          options={sessionOptions}
         />
         <FilterSelect
           label="数据类型"
@@ -234,6 +338,14 @@ const DataView = () => {
           value={filters.dataType}
           onChange={(e) => handleFilterChange({ dataType: e.target.value })}
           options={dataTypeOptions}
+        />
+        <FilterSelect
+          label="数据子类型"
+          name="dataSubtype"
+          value={filters.dataSubtype}
+          onChange={(e) => handleFilterChange({ dataSubtype: e.target.value })}
+          options={dataSubtypeOptions}
+          disabled={!filters.sessionId || filters.sessionId === 'all'}
         />
       </FilterPanel>
 
