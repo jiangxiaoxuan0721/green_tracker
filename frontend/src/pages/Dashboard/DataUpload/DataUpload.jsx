@@ -88,7 +88,11 @@ const DataUpload = () => {
     const loadSessions = async () => {
       try {
         const sessionData = await collectionSessionService.getSessions({ limit: 100 })
-        setSessions(sessionData || [])
+        // 只显示进行中的会话
+        const runningSessions = (sessionData || []).filter(session => 
+          session.status === 'running' || session.status === 'in_progress'
+        )
+        setSessions(runningSessions)
       } catch (err) {
         console.error('获取会话列表失败:', err)
       }

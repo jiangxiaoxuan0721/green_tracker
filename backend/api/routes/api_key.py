@@ -73,7 +73,6 @@ async def create_new_api_key(
 
 
 @router.get("/", summary="获取API密钥列表")
-@router.get("", summary="获取API密钥列表 - 无斜杠版本")
 async def get_api_key_list(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),

@@ -190,6 +190,10 @@ async def upload_image(
                         print(f"[文件上传] 数据库记录创建成功，ID: {raw_data_record}")
                     else:
                         print(f"[文件上传] 数据库记录创建失败，返回None")
+                        raise HTTPException(
+                            status_code=400, 
+                            detail="文件上传失败：会话不存在或状态不允许上传数据。只有进行中的会话才能上传数据。"
+                        )
                         
                 finally:
                     new_session.close()

@@ -67,8 +67,21 @@ def create_raw_data(
     print(f"[后端RawDataService] 创建原始数据: 类型={data_type}")
 
     try:
+        # 验证会话状态 - 只有进行中的会话才能上传数据
+        session_record = db.query(CollectionSession).filter(
+            CollectionSession.id == session_id
+        ).first()
+        
+        if not session_record:
+            print(f"[后端RawDataService] 会话不存在: {session_id}")
+            return None
+            
+        if session_record.status not in ['running', 'in_progress']:
+            print(f"[后端RawDataService] 会话状态不允许上传数据: {session_record.status}")
+            return None
+
         new_raw_data = RawData(
-            session_id=uuid.UUID(session_id) if isinstance(session_id, str) else session_id,
+            session_id=session_id,
             data_type=data_type,
             data_value=data_value,
             capture_time=capture_time or datetime.now(),

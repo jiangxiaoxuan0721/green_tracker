@@ -24,6 +24,76 @@ const DataView = () => {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
 
+  // 翻译映射：将英文value翻译为中文label
+  const dataTypeTranslations = {
+    'image': '图像',
+    'video': '视频',
+    'environmental': '环境数据',
+    'soil': '土壤数据',
+    'spectral': '光谱数据',
+    'multispectral': '多光谱数据',
+    'thermal': '热成像数据'
+  }
+
+  const dataSubtypeTranslations = {
+    'rgb': 'RGB图像',
+    'nir': '近红外图像',
+    'red_edge': '红边图像',
+    'thermal': '热成像',
+    'temperature': '温度',
+    'humidity': '湿度',
+    'pressure': '气压',
+    'wind_speed': '风速',
+    'ph': 'pH值',
+    'moisture': '土壤湿度',
+    'nutrients': '土壤养分',
+    'ndvi': 'NDVI',
+    'evi': 'EVI',
+    'ndre': 'NDRE',
+    'blue': '蓝光波段',
+    'green': '绿光波段',
+    'red': '红光波段',
+    'thermal_image': '热成像'
+  }
+
+  // 翻译数据类型标签
+  const translateDataType = (type) => {
+    return dataTypeTranslations[type] || type
+  }
+
+  // 翻译数据子类型标签
+  const translateDataSubtype = (subtype) => {
+    return dataSubtypeTranslations[subtype] || subtype
+  }
+
+  const getDefaultDataTypes = () => [
+    { value: 'image', label: translateDataType('image') },
+    { value: 'video', label: translateDataType('video') },
+    { value: 'environmental', label: translateDataType('environmental') },
+    { value: 'soil', label: translateDataType('soil') },
+    { value: 'spectral', label: translateDataType('spectral') },
+    { value: 'multispectral', label: translateDataType('multispectral') },
+    { value: 'thermal', label: translateDataType('thermal') }
+  ]
+
+  const getDefaultDataSubtypes = (dataType) => {
+    const subtypes = {
+      image: ['rgb', 'nir', 'red_edge'],
+      video: ['rgb', 'thermal'],
+      environmental: ['temperature', 'humidity', 'pressure', 'wind_speed'],
+      soil: ['ph', 'moisture', 'temperature', 'nutrients'],
+      spectral: ['ndvi', 'evi', 'ndre'],
+      multispectral: ['blue', 'green', 'red', 'nir', 'red_edge'],
+      thermal: ['temperature', 'thermal_image']
+    }
+    
+    const subtypeValues = dataType ? (subtypes[dataType] || []) : []
+    return subtypeValues.map(value => ({
+      value: value,
+      label: translateDataSubtype(value)
+    }))
+  }
+
   useEffect(() => {
     const fetchSessions = async () => {
       try {
@@ -41,23 +111,27 @@ const DataView = () => {
     }
   }, [user?.id])
 
-  // 当选择任务时，获取该任务的数据类型和子类型选项
+  // 当选择任务时，获取该任务的数据类型选项
   useEffect(() => {
     const fetchSessionDataTypes = async () => {
       if (!filters.sessionId || filters.sessionId === 'all') {
         setAvailableDataTypes(getDefaultDataTypes())
-        setAvailableDataSubtypes([])
         return
       }
 
       try {
         const response = await rawDataService.getSessionDataTypes(filters.sessionId)
-        setAvailableDataTypes(response.data?.dataTypes || getDefaultDataTypes())
-        setAvailableDataSubtypes(response.data?.dataSubtypes || [])
+        // 翻译API返回的数据类型
+        const translatedDataTypes = (response.data?.dataTypes || getDefaultDataTypes()).map(item => ({
+          value: item.value,
+          label: translateDataType(item.value)
+        }))
+        
+        setAvailableDataTypes(translatedDataTypes)
+        // 注意：子类型现在由数据类型的useEffect处理
       } catch (err) {
         console.error('获取任务数据类型失败:', err)
         setAvailableDataTypes(getDefaultDataTypes())
-        setAvailableDataSubtypes([])
       }
     }
 
@@ -66,98 +140,50 @@ const DataView = () => {
 
   // 当数据类型变化时，重新获取子类型选项
   useEffect(() => {
-    const fetchSessionSubtypes = async () => {
-      // 如果没有选择任务或数据类型为"全部"
-      if (!filters.sessionId || filters.sessionId === 'all') {
-        if (!filters.dataType || filters.dataType === 'all') {
-          setAvailableDataSubtypes([])
-        } else {
-          // 显示默认的子类型选项
-          setAvailableDataSubtypes(getDefaultDataSubtypes(filters.dataType))
-        }
-        return
-      }
+    // 如果数据类型为"全部"或未选择，清空子类型
+    if (!filters.dataType || filters.dataType === 'all') {
+      setAvailableDataSubtypes([])
+      return
+    }
 
-      // 如果数据类型为"全部"，获取该任务的所有子类型
-      if (!filters.dataType || filters.dataType === 'all') {
+    // 总是先设置默认子类型
+    let defaultSubtypes = getDefaultDataSubtypes(filters.dataType)
+    
+    // 如果选择了具体任务，异步获取任务中的实际子类型并合并
+    if (filters.sessionId && filters.sessionId !== 'all') {
+      const fetchActualSubtypes = async () => {
         try {
-          const response = await rawDataService.getSessionDataTypes(filters.sessionId)
-          setAvailableDataSubtypes(response.data?.dataSubtypes || [])
+          const response = await rawDataService.getSessionDataTypes(filters.sessionId, filters.dataType)
+          const actualSubtypes = (response.data?.dataSubtypes || []).map(item => {
+            const value = typeof item === 'string' ? item : (item.value || item)
+            return {
+              value: value,
+              label: translateDataSubtype(value)
+            }
+          })
+          
+          // 合并默认和实际子类型，去重
+          const allSubtypes = [...defaultSubtypes]
+          actualSubtypes.forEach(actual => {
+            if (!allSubtypes.some(d => d.value === actual.value)) {
+              allSubtypes.push(actual)
+            }
+          })
+          
+          setAvailableDataSubtypes(allSubtypes)
         } catch (err) {
           console.error('获取任务子类型失败:', err)
-          setAvailableDataSubtypes([])
+          // 失败时保持默认子类型
+          setAvailableDataSubtypes(defaultSubtypes)
         }
-        return
       }
-
-      // 获取指定数据类型的子类型
-      try {
-        const response = await rawDataService.getSessionDataTypes(filters.sessionId, filters.dataType)
-        setAvailableDataSubtypes(response.data?.dataSubtypes || getDefaultDataSubtypes(filters.dataType))
-      } catch (err) {
-        console.error('获取任务子类型失败:', err)
-        setAvailableDataSubtypes(getDefaultDataSubtypes(filters.dataType))
-      }
+      
+      fetchActualSubtypes()
+    } else {
+      // 没有选择任务时，直接显示默认子类型
+      setAvailableDataSubtypes(defaultSubtypes)
     }
-
-    fetchSessionSubtypes()
-  }, [filters.sessionId, filters.dataType])
-
-  const getDefaultDataTypes = () => [
-    { value: 'image', label: '图像' },
-    { value: 'video', label: '视频' },
-    { value: 'environmental', label: '环境数据' },
-    { value: 'soil', label: '土壤数据' },
-    { value: 'spectral', label: '光谱数据' },
-    { value: 'multispectral', label: '多光谱数据' },
-    { value: 'thermal', label: '热成像数据' }
-  ]
-
-  const getDefaultDataSubtypes = (dataType) => {
-    const subtypes = {
-      image: [
-        { value: 'rgb', label: 'RGB图像' },
-        { value: 'nir', label: '近红外图像' },
-        { value: 'red_edge', label: '红边图像' }
-      ],
-      video: [
-        { value: 'rgb', label: 'RGB视频' },
-        { value: 'thermal', label: '热成像视频' }
-      ],
-      environmental: [
-        { value: 'temperature', label: '温度' },
-        { value: 'humidity', label: '湿度' },
-        { value: 'pressure', label: '气压' },
-        { value: 'wind_speed', label: '风速' }
-      ],
-      soil: [
-        { value: 'ph', label: 'pH值' },
-        { value: 'moisture', label: '土壤湿度' },
-        { value: 'temperature', label: '土壤温度' },
-        { value: 'nutrients', label: '土壤养分' }
-      ],
-      spectral: [
-        { value: 'ndvi', label: 'NDVI' },
-        { value: 'evi', label: 'EVI' },
-        { value: 'ndre', label: 'NDRE' }
-      ],
-      multispectral: [
-        { value: 'blue', label: '蓝光波段' },
-        { value: 'green', label: '绿光波段' },
-        { value: 'red', label: '红光波段' },
-        { value: 'nir', label: '近红外波段' },
-        { value: 'red_edge', label: '红边波段' }
-      ],
-      thermal: [
-        { value: 'temperature', label: '温度' },
-        { value: 'thermal_image', label: '热成像' }
-      ]
-    }
-    
-    return dataType ? (subtypes[dataType] || []) : []
-  }
-
-  
+  }, [filters.dataType, filters.sessionId])
 
   const fetchData = async (page = currentPage) => {
     if (!user?.id) return
@@ -191,30 +217,39 @@ const DataView = () => {
     fetchData(1)
   }, [user?.id])
 
+  // 监听filters变化，自动获取数据
+  useEffect(() => {
+    if (user?.id) {
+      fetchData(1)
+    }
+  }, [filters, user?.id])
+
   const handleFilterChange = (newFilters) => {
-    setFilters(prev => ({ ...prev, ...newFilters }))
     setCurrentPage(1)
     
-    // 如果改变了任务ID，重置数据类型和子类型
-    if (newFilters.sessionId && newFilters.sessionId !== filters.sessionId) {
-      setFilters(prev => ({ 
-        ...prev, 
-        ...newFilters,
-        dataType: 'all',
-        dataSubtype: 'all'
-      }))
-    }
-    
-    // 如果改变了数据类型，重置子类型
-    if (newFilters.dataType && newFilters.dataType !== filters.dataType) {
-      setFilters(prev => ({ 
-        ...prev, 
-        ...newFilters,
-        dataSubtype: 'all'
-      }))
-    }
-    
-    fetchData(1)
+    // 使用函数式更新确保基于最新状态计算
+    setFilters(prev => {
+      let updatedFilters = { ...prev, ...newFilters }
+      
+      // 如果改变了任务ID，重置数据类型和子类型
+      if (newFilters.sessionId && newFilters.sessionId !== prev.sessionId) {
+        updatedFilters = {
+          ...updatedFilters,
+          dataType: 'all',
+          dataSubtype: 'all'
+        }
+      }
+      
+      // 如果改变了数据类型，重置子类型
+      if (newFilters.dataType && newFilters.dataType !== prev.dataType) {
+        updatedFilters = {
+          ...updatedFilters,
+          dataSubtype: 'all'
+        }
+      }
+      
+      return updatedFilters
+    })
   }
 
   const handlePageChange = (newPage) => {
@@ -365,7 +400,7 @@ const DataView = () => {
           value={filters.dataSubtype}
           onChange={(e) => handleFilterChange({ dataSubtype: e.target.value })}
           options={dataSubtypeOptions}
-          disabled={!filters.sessionId || filters.sessionId === 'all'}
+          disabled={!filters.dataType || filters.dataType === 'all'}
         />
       </FilterPanel>
 

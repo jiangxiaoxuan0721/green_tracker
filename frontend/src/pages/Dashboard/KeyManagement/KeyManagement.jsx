@@ -6,8 +6,7 @@ import useToast from '@/hooks/useToast'
 const KeyManagement = () => {
   const [apiKeys, setApiKeys] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const { success: showSuccess } = useToast()
+  const { success: showSuccess, error: showError } = useToast()
   
   // 分页状态
   const [pagination, setPagination] = useState({
@@ -39,10 +38,10 @@ const KeyManagement = () => {
   const loadApiKeys = async (page = 1, pageSize = 10) => {
     try {
       setLoading(true)
-      setError('')
       const response = await apiKeyService.getApiKeys({
         page,
-        page_size: pageSize
+        page_size: pageSize,
+        include_inactive: true  // 包含禁用的密钥
       })
       setApiKeys(response.items)
       setPagination({
@@ -52,7 +51,7 @@ const KeyManagement = () => {
         totalPages: response.pagination.total_pages
       })
     } catch (err) {
-      setError('加载API密钥失败：' + (err.response?.data?.detail || err.message))
+      showError('加载API密钥失败：' + (err.response?.data?.detail || err.message))
     } finally {
       setLoading(false)
     }
@@ -66,7 +65,6 @@ const KeyManagement = () => {
   const handleCreateKey = async () => {
     try {
       setLoading(true)
-      setError('')
       
       const createRequest = {
         key_name: formData.key_name,
@@ -92,7 +90,7 @@ const KeyManagement = () => {
       // 重新加载列表
       loadApiKeys(pagination.page)
     } catch (err) {
-      setError('创建API密钥失败：' + (err.response?.data?.detail || err.message))
+      showError('创建API密钥失败：' + (err.response?.data?.detail || err.message))
     } finally {
       setLoading(false)
     }
@@ -102,7 +100,6 @@ const KeyManagement = () => {
   const handleUpdateKey = async () => {
     try {
       setLoading(true)
-      setError('')
       
       const updateRequest = {
         key_name: formData.key_name,
@@ -128,7 +125,7 @@ const KeyManagement = () => {
       // 重新加载列表
       loadApiKeys(pagination.page)
     } catch (err) {
-      setError('更新API密钥失败：' + (err.response?.data?.detail || err.message))
+      showError('更新API密钥失败：' + (err.response?.data?.detail || err.message))
     } finally {
       setLoading(false)
     }
@@ -138,7 +135,6 @@ const KeyManagement = () => {
   const handleDeleteKey = async () => {
     try {
       setLoading(true)
-      setError('')
       
       await apiKeyService.deleteApiKey(currentKey.id)
       showSuccess('API密钥删除成功！')
@@ -149,7 +145,7 @@ const KeyManagement = () => {
       // 重新加载列表
       loadApiKeys(pagination.page)
     } catch (err) {
-      setError('删除API密钥失败：' + (err.response?.data?.detail || err.message))
+      showError('删除API密钥失败：' + (err.response?.data?.detail || err.message))
     } finally {
       setLoading(false)
     }
@@ -159,7 +155,6 @@ const KeyManagement = () => {
   const handleToggleStatus = async (key) => {
     try {
       setLoading(true)
-      setError('')
       
       await apiKeyService.updateApiKey(key.id, { is_active: !key.is_active })
       showSuccess(`API密钥已${key.is_active ? '禁用' : '启用'}`)
@@ -167,7 +162,7 @@ const KeyManagement = () => {
       // 重新加载列表
       loadApiKeys(pagination.page)
     } catch (err) {
-      setError('操作失败：' + (err.response?.data?.detail || err.message))
+      showError('操作失败：' + (err.response?.data?.detail || err.message))
     } finally {
       setLoading(false)
     }
@@ -198,19 +193,63 @@ const KeyManagement = () => {
   }
 
   // 复制到剪贴板
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      showSuccess('已复制到剪贴板')
-    })
+  const copyToClipboard = async (text) => {
+    // 首先尝试使用现代的 Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+      await navigator.clipboard.writeText(text)
+      showSuccess('已复制完整密钥到剪贴板')
+      return
+      } catch (err) {
+        console.error('现代复制API失败:', err)
+      }
+    }
+    
+    // 备用方案：使用传统的 execCommand 方法
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed' // 避免滚动到底部
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      
+      if (successful) {
+        showSuccess('已复制完整密钥到剪贴板')
+      } else {
+        throw new Error('execCommand返回失败')
+      }
+    } catch (fallbackErr) {
+      console.error('备用复制方案也失败:', fallbackErr)
+      showError('复制失败，请手动选择文本复制')
+      
+      // 最后的备用方案：显示文本供用户手动复制
+      if (window.confirm(`复制失败，是否显示密钥进行手动复制？\n\n${text.substring(0, 20)}...`)) {
+        prompt('请手动复制密钥:', text)
+      }
+    }
   }
 
   return (
     <div className="key-management">
-      {error && <div className="error-message">{error}</div>}
-
       {loading && <div className="loading">加载中...</div>}
 
       <div className="key-list">
+        <div className="list-header">
+          <h2>API密钥管理</h2>
+          <button 
+            className="primary-btn create-btn"
+            onClick={() => setShowCreateModal(true)}
+            disabled={loading}
+          >
+            + 新建密钥
+          </button>
+        </div>
+        
         {apiKeys.length === 0 ? (
           <div className="empty-state">
             <p>暂无API密钥</p>
@@ -237,11 +276,16 @@ const KeyManagement = () => {
                 <tr key={key.id} className={key.is_expired ? 'expired' : ''}>
                   <td>{key.key_name}</td>
                   <td>
-                    <code>{key.api_key}</code>
+                    <code>
+                      {key.api_key.length > 20 
+                        ? `${key.api_key.substring(0, 8)}****${key.api_key.substring(key.api_key.length - 4)}`
+                        : key.api_key
+                      }
+                    </code>
                     <button 
                       className="copy-btn"
                       onClick={() => copyToClipboard(key.api_key)}
-                      title="复制密钥"
+                      title="复制完整密钥"
                     >
                       📋
                     </button>

@@ -144,7 +144,7 @@ async def upload_data_via_api_key(
         )
 
         if not data_id:
-            raise HTTPException(status_code=500, detail="添加原始数据失败")
+            raise HTTPException(status_code=400, detail="数据上传失败：会话不存在或状态不允许上传数据。只有进行中的会话才能上传数据。")
 
         return {
             "code": 200, 
@@ -166,18 +166,21 @@ async def upload_data_via_api_key(
 async def get_session_data_types_endpoint(
     session_id: str,
     data_type: Optional[str] = Query(None, description="数据类型过滤，用于过滤子类型"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_current_user_db)
+    user_id: str = Query("3d5e8a9f-1fc1-4374-8afe-1277b4e0b175", description="用户ID")
 ):
     """
     获取指定会话中可用的数据类型和子类型
     用于前端动态生成筛选选项
     """
+    # 连接到用户数据库
+    db = get_user_db(user_id)
     try:
         result = get_session_data_types(db, session_id, data_type)
         return {"code": 200, "message": "success", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取会话数据类型失败: {str(e)}")
+    finally:
+        db.close()
 
 
 @router.get("/list", summary="获取原始数据列表")

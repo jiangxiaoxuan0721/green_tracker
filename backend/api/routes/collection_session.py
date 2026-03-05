@@ -174,7 +174,6 @@ async def get_sessions_by_field(
         db.close()
 
 @router.get("/", response_model=List[CollectionSessionWithFieldResponse], summary="获取采集任务列表（含农田信息）")
-@router.get("", response_model=List[CollectionSessionWithFieldResponse], summary="获取采集任务列表（含农田信息）- 无斜杠版本")
 async def get_sessions_with_field(
     limit: int = Query(100, description="返回记录数限制"),
     offset: int = Query(0, description="偏移量"),

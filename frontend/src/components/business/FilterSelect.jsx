@@ -9,6 +9,7 @@ const FilterSelect = ({ label, name, value, onChange, options, ...props }) => {
         value={value}
         onChange={onChange}
         options={options}
+        placeholder=""  // 不显示默认占位符选项
         {...props}
       />
     </div>

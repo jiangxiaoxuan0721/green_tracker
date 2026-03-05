@@ -128,9 +128,8 @@ def get_api_keys_by_user(
                 if expires_at < datetime.now(tz.utc):
                     is_expired = True
 
-            # 隐藏完整密钥，只显示前8位和后4位
+            # 获取完整密钥（用CSS在前端遮蔽显示）
             api_key_value = getattr(key, 'api_key', '')
-            masked_key = api_key_value[:8] + "*"*20 + api_key_value[-4:] if len(api_key_value) > 32 else api_key_value
 
             # 获取权限列表
             permissions_str = getattr(key, 'permissions', '[]')
@@ -142,8 +141,7 @@ def get_api_keys_by_user(
             items.append({
                 "id": str(key.id),
                 "key_name": key.key_name,
-                "api_key": masked_key,
-                "full_api_key": getattr(key, 'api_key', ''),  # 完整密钥，仅在创建时显示
+                "api_key": api_key_value,  # 完整密钥，用CSS遮蔽显示
                 "description": getattr(key, 'description', None),
                 "permissions": permissions,
                 "is_active": key.is_active,
