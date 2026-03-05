@@ -1,3 +1,4 @@
+from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -41,7 +42,7 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: timedelta = None): # type: ignore
+def create_access_token(data: dict[str, Optional[Any]], expires_delta: Optional[timedelta] = None): # type: ignore
     """创建访问令牌"""
     to_encode = data.copy()
     if expires_delta:
@@ -65,7 +66,7 @@ async def register(user: UserRegister, db: Session = Depends(get_meta_db)):
         # 2. 为用户创建独立数据库
         try:
             from database.create_user_database import create_user_database
-            db_info = create_user_database(existing_user.userid)
+            db_info = create_user_database(str(existing_user.userid))
             logger.info(f"User database created successfully: {db_info}")
         except Exception as db_error:
             # 如果创建数据库失败，回滚用户创建
@@ -156,7 +157,7 @@ async def verify_token(current_user: User = Depends(get_current_user)):
 
 
 async def get_current_user_from_api_key(
-    x_api_key: str = None, db: Session = Depends(get_meta_db)
+    x_api_key: Optional[str] = None, db: Session = Depends(get_meta_db)
 ):
     """
     从API密钥中获取当前用户
@@ -190,5 +191,4 @@ async def get_current_user_from_api_key(
         )
 
     # API密钥使用记录已在validate_api_key函数中更新
-
     return user

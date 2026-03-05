@@ -204,7 +204,7 @@ const DataView = () => {
       
       if (response.code === 200) {
         setData(response.data.items || [])
-        setTotal(response.data.pagination?.total || response.data.total || 0)
+        setTotal(response.data.pagination?.total_count || response.data.total || 0)
       }
     } catch (err) {
       console.error('获取数据列表失败:', err)
@@ -271,20 +271,6 @@ const DataView = () => {
     } catch (err) {
       console.error('导出数据失败:', err)
       alert('导出失败，请稍后再试')
-    }
-  }
-
-  const handleDelete = async (id) => {
-    if (!user?.id) return
-    
-    if (window.confirm('确定要删除这条数据吗？此操作不可撤销。')) {
-      try {
-        await rawDataService.deleteRawData(id, user.id)
-        fetchData(currentPage)
-      } catch (err) {
-        console.error('删除数据失败:', err)
-        alert('删除失败，请稍后再试')
-      }
     }
   }
 
@@ -359,14 +345,6 @@ const DataView = () => {
       title: '质量评分',
       dataIndex: 'quality_score',
       render: (score) => score ? `${(score * 100).toFixed(1)}%` : '-'
-    },
-    {
-      title: '操作',
-      render: (_, record) => (
-        <Button size="small" variant="danger" onClick={() => handleDelete(record.id)}>
-          删除
-        </Button>
-      )
     }
   ]
 

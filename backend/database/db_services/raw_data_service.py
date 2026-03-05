@@ -5,10 +5,9 @@
 注意：每个用户有独立的数据库，因此不需要 user_id 过滤
 """
 
-from sqlalchemy import and_, or_, func, desc, asc
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from database.db_models.user_models import RawData, RawDataTag, CollectionSession
-import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -233,9 +232,9 @@ def get_raw_data_list_for_frontend(
             }
 
         # 根据数据类型显示不同的值
-        if raw_data_item.data_type == "image":
+        if raw_data_item.data_type == "image":  # pyright: ignore[reportGeneralTypeIssues]
             # 图像直接使用MinIO存储路径
-            if raw_data_item.object_key:
+            if raw_data_item.object_key:  # pyright: ignore[reportGeneralTypeIssues]
                 # 使用MinIO对象路径生成公开访问URL
                 try:
                     from storage.storage_manager import get_storage_manager
@@ -246,7 +245,7 @@ def get_raw_data_list_for_frontend(
                 except Exception as e:
                     print(f"[RawDataService] 生成公开URL失败: {str(e)}")
                     display_value = str(raw_data_item.object_key)  # 备选方案：使用原始路径
-            elif raw_data_item.data_value and str(raw_data_item.data_value).startswith("http"):
+            elif raw_data_item.data_value and str(raw_data_item.data_value).startswith("http"):  # pyright: ignore[reportGeneralTypeIssues]
                 # 如果data_value是完整的HTTP URL，直接使用
                 display_value = str(raw_data_item.data_value)
                 print(f"[RawDataService] 图像使用HTTP URL: {display_value}")
@@ -254,9 +253,9 @@ def get_raw_data_list_for_frontend(
                 # 如果都没有有效的图像路径，标记为无图像
                 display_value = ""
                 print(f"[RawDataService] 图像无有效路径: {raw_data_item.id}")
-        elif raw_data_item.data_value:
+        elif raw_data_item.data_value:  # pyright: ignore[reportGeneralTypeIssues]
             # 数值类型，如果有单位则添加单位
-            if raw_data_item.data_unit:
+            if raw_data_item.data_unit:  # pyright: ignore[reportGeneralTypeIssues]
                 display_value = f"{str(raw_data_item.data_value)} {str(raw_data_item.data_unit)}"
             else:
                 display_value = str(raw_data_item.data_value)
@@ -340,37 +339,6 @@ def update_ai_status(db: Session, raw_data_id: str, ai_status: str) -> bool:
         return affected_rows > 0
     except Exception as e:
         print(f"[后端RawDataService] 更新AI状态失败: {str(e)}")
-        db.rollback()
-        return False
-
-
-def delete_raw_data(db: Session, raw_data_id: str) -> bool:
-    """
-    删除原始数据
-
-    Args:
-        db: 数据库会话
-        raw_data_id: 原始数据ID
-
-    Returns:
-        bool: 删除是否成功
-    """
-    try:
-        # 直接使用字符串ID，不转换为UUID，因为数据库字段是String类型
-        # 先删除关联的标签
-        db.query(RawDataTag).filter(
-            RawDataTag.raw_data_id == str(raw_data_id)
-        ).delete()
-
-        # 再删除原始数据
-        affected_rows = db.query(RawData).filter(
-            RawData.id == str(raw_data_id)
-        ).delete()
-
-        db.commit()
-        return affected_rows > 0
-    except Exception as e:
-        print(f"[后端RawDataService] 删除原始数据失败: {str(e)}")
         db.rollback()
         return False
 

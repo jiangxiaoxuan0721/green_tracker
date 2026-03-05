@@ -22,6 +22,9 @@ const DataUpload = () => {
   const [formData, setFormData] = useState({})
   const [isUploading, setIsUploading] = useState(false)
   
+  // 输入模式状态
+  const [inputModes, setInputModes] = useState({})
+  
   // API密钥相关状态
   const [apiKeys, setApiKeys] = useState([])
   const [loadingApiKeys, setLoadingApiKeys] = useState(false)
@@ -58,9 +61,9 @@ const DataUpload = () => {
         nutrients: { hasFile: false, hasValue: true, unit: 'mg/kg' }
       },
       spectral: {
-        ndvi: { hasFile: true, hasValue: false, unit: '' },
-        evi: { hasFile: true, hasValue: false, unit: '' },
-        ndre: { hasFile: true, hasValue: false, unit: '' }
+        ndvi: { hasFile: true, hasValue: true, unit: '' },
+        evi: { hasFile: true, hasValue: true, unit: '' },
+        ndre: { hasFile: true, hasValue: true, unit: '' }
       },
       video: {
         mp4: { hasFile: true, hasValue: false, unit: '' },
@@ -77,7 +80,7 @@ const DataUpload = () => {
       thermal: {
         thermal_image: { hasFile: true, hasValue: false, unit: '' },
         thermal_video: { hasFile: true, hasValue: false, unit: '' },
-        temperature_map: { hasFile: true, hasValue: false, unit: '' }
+        temperature_map: { hasFile: true, hasValue: true, unit: '°C' }
       }
     }
     return configs[dataType]?.[subtype] || { hasFile: false, hasValue: true, unit: '' }
@@ -250,20 +253,25 @@ const DataUpload = () => {
 
     setIsUploading(true)
     try {
-      // 对于图像数据，data_value应该是存储的文件路径
-      // 对于其他数据类型，data_value是用户输入的值
+      // 对于文件上传，data_value应该是存储的文件路径
+      // 对于数值输入，data_value是用户输入的值
       let dataValue;
-      if (selectedDataType === 'image' && formData.fileData?.storage_info?.object_path) {
-        dataValue = formData.fileData.storage_info.object_path; // 使用存储路径作为data_value
+      if (formData.fileData?.storage_info?.object_path) {
+        dataValue = formData.fileData.storage_info.object_path; // 文件上传使用存储路径
       } else {
-        dataValue = formData.value || ''; // 其他类型使用用户输入的值
+        dataValue = formData.value || ''; // 数值输入使用用户输入的值
       }
 
+      // 获取当前子类型的配置信息
+      const currentConfig = getSubtypeConfig(selectedDataType, selectedSubtype)
+      
       const data = {
         session_id: selectedSession,
         data_type: selectedDataType,
         data_subtype: selectedSubtype,
         data_value: dataValue,
+        // 自动添加单位信息
+        data_unit: currentConfig?.unit || '',
         // 暂时不发送capture_time，让后端使用默认值
         ...(formData.fileData && {
           bucket_name: formData.fileData.bucket_name,
@@ -456,18 +464,87 @@ const DataUpload = () => {
                                           <div className="child-item">
                                             {(() => {
                                               const config = getSubtypeConfig(selectedDataType, selectedSubtype)
+                                              const subtypeLabel = subtypes.find(s => s.value === selectedSubtype)?.label
                                               
+                                              // 如果同时支持文件和数值输入，显示选项卡
+                                              if (config.hasFile && config.hasValue) {
+                                                const modeKey = `${selectedDataType}-${selectedSubtype}`
+                                                const currentMode = inputModes[modeKey] || (formData.fileData ? 'file' : 'value')
+                                                
+                                                return (
+                                                  <div className="data-input-section">
+                                                    <div className="input-mode-tabs">
+                                                      <button
+                                                        className={`tab-button ${currentMode === 'file' ? 'active' : ''}`}
+                                                        onClick={() => setInputModes(prev => ({ ...prev, [modeKey]: 'file' }))}
+                                                      >
+                                                        文件上传
+                                                      </button>
+                                                      <button
+                                                        className={`tab-button ${currentMode === 'value' ? 'active' : ''}`}
+                                                        onClick={() => setInputModes(prev => ({ ...prev, [modeKey]: 'value' }))}
+                                                      >
+                                                        数值输入
+                                                      </button>
+                                                    </div>
+                                                    
+                                                    {currentMode === 'file' && (
+                                                      <div>
+                                                        <p>上传{subtypeLabel}</p>
+                                                        <ImageUpload
+                                                          onUploadSuccess={handleImageUploadSuccess}
+                                                          onUploadError={(error) => alert(`上传失败: ${error}`)}
+                                                          maxSizeMB={50}
+                                                          maxFiles={1}
+                                                          uploadOptions={{
+                                                            session_id: selectedSession,
+                                                            data_subtype: selectedSubtype
+                                                          }}
+                                                        />
+                                                      </div>
+                                                    )}
+                                                    
+                                                    {currentMode === 'value' && (
+                                                      <div className="value-input-section">
+                                                        <div className="input-group">
+                                                          <label>{subtypeLabel}</label>
+                                                          <div className="input-with-unit">
+                                                            <Input
+                                                              type="number"
+                                                              value={formData.value || ''}
+                                                              onChange={(e) => setFormData(prev => ({ ...prev, value: e.target.value }))}
+                                                              placeholder="请输入数值"
+                                                            />
+                                                            {config.unit && (
+                                                              <span className="unit-label">{config.unit}</span>
+                                                            )}
+                                                          </div>
+                                                        </div>
+                                                        <Button
+                                                          variant="primary"
+                                                          onClick={handleSubmit}
+                                                          disabled={!formData.value || isUploading}
+                                                          style={{ marginTop: 'var(--spacing-sm)' }}
+                                                        >
+                                                          {isUploading ? '上传中...' : '提交数据'}
+                                                        </Button>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )
+                                              }
+                                              
+                                              // 仅支持文件上传
                                               if (config.hasFile) {
-                                                // 根据数据类型设置不同的文件大小限制
                                                 const getFileSizeLimit = () => {
-                                                  if (selectedDataType === 'video') return 200 // 视频文件允许200MB
-                                                  if (selectedDataType === 'multispectral') return 100 // 多光谱数据允许100MB
-                                                  return 50 // 其他文件默认50MB
+                                                  if (selectedDataType === 'video') return 200
+                                                  if (selectedDataType === 'multispectral') return 100
+                                                  return 50
                                                 }
                                                 
                                                 return (
                                                   <div>
-                                                    <p>上传{subtypes.find(s => s.value === selectedSubtype)?.label}</p>
+                                                    <p>上传{subtypeLabel}</p>
                                                     <ImageUpload
                                                       onUploadSuccess={handleImageUploadSuccess}
                                                       onUploadError={(error) => alert(`上传失败: ${error}`)}
@@ -482,17 +559,23 @@ const DataUpload = () => {
                                                 )
                                               }
                                               
+                                              // 仅支持数值输入
                                               if (config.hasValue) {
                                                 return (
                                                   <div className="data-input-section">
                                                     <div className="input-group">
-                                                      <label>{subtypes.find(s => s.value === selectedSubtype)?.label}</label>
-                                                      <Input
-                                                        type="number"
-                                                        value={formData.value || ''}
-                                                        onChange={(e) => setFormData(prev => ({ ...prev, value: e.target.value }))}
-                                                        placeholder={`请输入${config.unit ? `(${config.unit})` : ''}`}
-                                                      />
+                                                      <label>{subtypeLabel}</label>
+                                                      <div className="input-with-unit">
+                                                        <Input
+                                                          type="number"
+                                                          value={formData.value || ''}
+                                                          onChange={(e) => setFormData(prev => ({ ...prev, value: e.target.value }))}
+                                                          placeholder="请输入数值"
+                                                        />
+                                                        {config.unit && (
+                                                          <span className="unit-label">{config.unit}</span>
+                                                        )}
+                                                      </div>
                                                     </div>
                                                     <Button
                                                       variant="primary"

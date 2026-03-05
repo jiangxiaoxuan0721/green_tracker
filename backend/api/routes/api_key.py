@@ -57,7 +57,7 @@ async def create_new_api_key(
         raise HTTPException(status_code=500, detail="创建API密钥后查询失败")
     
     # 转换为响应格式
-    key_id = str(key_record.id) if key_record and key_record.id else None
+    key_id = str(key_record.id)
     if not key_id:
         raise HTTPException(status_code=500, detail="无法获取API密钥ID")
     key_info = get_api_key_by_id(db, key_id)
@@ -228,9 +228,10 @@ async def validate_api_key_endpoint(
     db: Session = Depends(get_meta_db)
 ):
     """
-    验证API密钥有效性
+    验证API密钥有效性和权限
     
-    用于设备在上传数据前验证密钥有效性
+    用于设备在上传数据前验证密钥有效性及权限
+    返回密钥的详细信息，包括权限列表
     """
     # 验证API密钥
     key_info = validate_api_key(db, x_api_key)
@@ -244,36 +245,6 @@ async def validate_api_key_endpoint(
     return {
         "code": 200,
         "message": "API密钥有效",
-        "data": {
-            "user_id": key_info["user_id"],
-            "key_name": key_info["key_name"],
-            "permissions": key_info["permissions"]
-        }
-    }
-
-
-@router.get("/validate/permissions", summary="验证API密钥权限")
-async def validate_api_key_permissions(
-    x_api_key: str = Header(..., description="API密钥"),
-    db: Session = Depends(get_meta_db)
-):
-    """
-    验证API密钥及其权限
-    
-    用于设备在上传数据前验证密钥有效性
-    """
-    # 验证API密钥
-    key_info = validate_api_key(db, x_api_key)
-
-    if not key_info:
-        raise HTTPException(
-            status_code=401,
-            detail="无效的API密钥"
-        )
-
-    return {
-        "code": 200,
-        "message": "success",
         "data": {
             "user_id": key_info["user_id"],
             "key_name": key_info["key_name"],

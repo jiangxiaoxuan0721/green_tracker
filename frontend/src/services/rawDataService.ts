@@ -132,23 +132,6 @@ export const rawDataService = {
     }
   },
 
-  // 删除原始数据
-  async deleteRawData(rawDataId: string, userId: string) {
-    console.log('[前端RawDataService] 发送删除原始数据请求');
-    console.log('[前端RawDataService] 数据ID:', rawDataId, '用户ID:', userId);
-    
-    try {
-      const response = await api.delete(`/api/raw-data/${rawDataId}`, {
-        data: { user_id: userId }
-      });
-      console.log('[前端RawDataService] 删除原始数据成功:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('删除原始数据失败:', error);
-      throw error;
-    }
-  },
-
   // 更新处理状态
   async updateProcessingStatus(rawDataId: string, processingStatus: string, userId: string) {
     console.log('[前端RawDataService] 发送更新处理状态请求');
@@ -286,7 +269,6 @@ export const rawDataService = {
 export const createRawData = rawDataService.createRawData;
 export const getRawDataList = rawDataService.getRawDataList;
 export const getRawDataDetail = rawDataService.getRawDataDetail;
-export const deleteRawData = rawDataService.deleteRawData;
 export const updateProcessingStatus = rawDataService.updateProcessingStatus;
 export const updateAIStatus = rawDataService.updateAIStatus;
 export const addRawDataTag = rawDataService.addRawDataTag;

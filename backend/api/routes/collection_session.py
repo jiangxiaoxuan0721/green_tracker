@@ -1,20 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request, status
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import datetime
-
 from database.user_db_manager import get_user_db
 from api.routes.auth import get_current_user
 from database.db_models.meta_model import User
+from database.main_db import get_meta_db
+from sqlalchemy.orm import Session
 from database.db_services.collection_session_service import (
     create_collection_session,
-    get_collection_session_by_id,
     get_collection_session_with_details,
-    get_collection_sessions_by_field,
     update_collection_session,
     delete_collection_session,
     get_latest_collection_session_by_field,
-    get_collection_sessions_by_status,
     get_collection_sessions_with_field_info
 )
 from api.schemas.collection_session import (
@@ -320,7 +318,7 @@ async def get_latest_session_by_field(
         # 然后获取带有详细信息的采集任务
         session_with_details = get_collection_session_with_details(db, str(session.id))
 
-        return CollectionSessionWithFieldResponse(**session_with_details)
+        return CollectionSessionWithFieldResponse(**session_with_details)  # pyright: ignore[reportCallIssue]
     finally:
         db.close()
 
@@ -349,5 +347,62 @@ async def get_sessions_by_status(
         )
 
         return [CollectionSessionWithFieldResponse(**session_dict) for session_dict in sessions_with_info]
+    finally:
+        db.close()
+
+# API密钥认证的接口
+@router.post("/active_sessions", summary="根据API密钥获取活跃采集任务")
+async def get_active_sessions_via_api_key(
+    x_api_key: str = Header(..., description="API密钥"),
+    meta_db: Session = Depends(get_meta_db)
+):
+    """
+    根据API密钥获取用户的活跃采集任务，只返回ID、名称和描述
+    """
+    print(f"[API] 收到通过API密钥获取活跃采集任务请求: API密钥={x_api_key[:10]}...")
+    
+    # 验证API密钥
+    from database.db_services.api_key_service import validate_api_key
+    key_info = validate_api_key(meta_db, x_api_key)
+    
+    if not key_info:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的API密钥"
+        )
+    
+    # 从数据库获取用户
+    user = meta_db.query(User).filter(User.userid == key_info['user_id']).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户不存在"
+        )
+    
+    print(f"[API] API密钥验证成功: 用户={user.username}")
+    
+    # 获取用户的数据库会话
+    db = get_user_db(str(user.userid))
+    
+    try:
+        # 使用带有农田信息的查询，过滤正在运行的任务
+        sessions_with_info = get_collection_sessions_with_field_info(
+            db=db,
+            limit=100,
+            offset=0,
+            status="running"
+        )
+        
+        # 只返回ID、名称和描述
+        result = []
+        for session in sessions_with_info:
+            result.append({
+                "id": session["id"],
+                "mission_name": session["mission_name"],
+                "description": session["description"]
+            })
+        
+        print(f"[API] 找到 {len(result)} 个活跃采集任务")
+        return result
     finally:
         db.close()

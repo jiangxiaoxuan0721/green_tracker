@@ -6,11 +6,9 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from typing import List, Optional, Dict, Any
+from typing import Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
-from pydantic import ValidationError
-from fastapi.exceptions import RequestValidationError
 import logging
 logger = logging.getLogger(__name__)
 from ..routes.auth import get_current_user
@@ -25,7 +23,6 @@ from database.db_services.raw_data_service import (
     update_ai_status,
     get_raw_data_tags,
     add_raw_data_tag,
-    delete_raw_data,
     get_session_data_types
 )
 from ..schemas.raw_data import (
@@ -41,7 +38,6 @@ router = APIRouter(prefix="/raw-data", tags=["原始数据"])
 
 
 @router.post("/", summary="添加原始数据")
-@router.post("", summary="添加原始数据 - 无斜杠版本")
 async def create_new_raw_data(
     request: RawDataRequest,
     current_user: User = Depends(get_current_user)
@@ -254,21 +250,6 @@ async def get_raw_data_detail(
             "tags": tags
         }
     }
-
-
-@router.delete("/{raw_data_id}", summary="删除原始数据")
-async def delete_raw_data_by_id(
-    raw_data_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_current_user_db)
-):
-    """删除原始数据"""
-    success = delete_raw_data(db, raw_data_id)
-
-    if not success:
-        raise HTTPException(status_code=500, detail="删除原始数据失败")
-
-    return {"code": 200, "message": "success", "data": None}
 
 
 @router.put("/{raw_data_id}/processing-status", summary="更新处理状态")
