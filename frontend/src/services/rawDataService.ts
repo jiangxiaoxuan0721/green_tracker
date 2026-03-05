@@ -71,7 +71,7 @@ export interface RawDataCreate {
   checksum?: string;
   is_valid?: boolean;
   validation_notes?: string;
-  capture_time?: string;
+  capture_time?: Date;
 }
 
 export interface RawDataTag {
@@ -85,6 +85,21 @@ export interface RawDataTag {
 }
 
 export const rawDataService = {
+  // 创建原始数据
+  async createRawData(data: RawDataCreate) {
+    console.log('[前端RawDataService] 发送创建原始数据请求');
+    console.log('[前端RawDataService] 请求数据:', data);
+    
+    try {
+      const response = await api.post('/api/raw-data', data);
+      console.log('[前端RawDataService] 创建原始数据成功:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('创建原始数据失败:', error);
+      throw error;
+    }
+  },
+
   // 获取原始数据列表
   async getRawDataList(params: RawDataListParams) {
     console.log('[前端RawDataService] 发送获取原始数据列表请求');
@@ -268,6 +283,7 @@ export const rawDataService = {
 };
 
 // 为了向后兼容，导出单独的函数
+export const createRawData = rawDataService.createRawData;
 export const getRawDataList = rawDataService.getRawDataList;
 export const getRawDataDetail = rawDataService.getRawDataDetail;
 export const deleteRawData = rawDataService.deleteRawData;

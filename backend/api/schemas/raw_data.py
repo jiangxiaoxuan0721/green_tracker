@@ -20,20 +20,22 @@ class RawDataRequest(BaseModel):
     file_meta: Optional[Dict[str, Any]] = Field(None, description="文件元数据")
     acquisition_meta: Optional[Dict[str, Any]] = Field(None, description="采集元数据")
     quality_score: Optional[float] = Field(None, description="质量评分")
-    quality_flags: Optional[List[str]] = Field(None, description="质量标记")
+    quality_flags: Optional[Any] = Field(None, description="质量标记")
     checksum: Optional[str] = Field(None, description="文件校验值")
     is_valid: Optional[bool] = Field(True, description="是否有效")
     validation_notes: Optional[str] = Field(None, description="验证备注")
     capture_time: Optional[datetime] = Field(None, description="采集时间")
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
             "example": {
                 "session_id": "550e8400-e29b-41d4-a716-446655440000",
                 "data_type": "image",
                 "data_value": "path/to/image.jpg"
             }
         }
+    }
 
 
 class RawDataTagRequest(BaseModel):
@@ -44,8 +46,8 @@ class RawDataTagRequest(BaseModel):
     confidence: Optional[float] = Field(None, description="置信度")
     source: Optional[str] = Field("manual", description="标签来源")
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "raw_data_id": "data-uuid",
                 "tag_category": "crop",
@@ -54,30 +56,33 @@ class RawDataTagRequest(BaseModel):
                 "source": "ai"
             }
         }
+    }
 
 
 class ProcessingStatusRequest(BaseModel):
     """处理状态更新请求模型"""
     processing_status: str = Field(..., description="处理状态")
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "processing_status": "processed"
             }
         }
+    }
 
 
 class AIStatusRequest(BaseModel):
     """AI状态更新请求模型"""
     ai_status: str = Field(..., description="AI分析状态")
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "ai_status": "analyzed"
             }
         }
+    }
 
 
 class RawDataResponse(BaseModel):
@@ -113,8 +118,9 @@ class RawDataResponse(BaseModel):
     processing_status: Optional[str] = None
     ai_status: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class RawDataListResponse(BaseModel):

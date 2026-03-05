@@ -1,12 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 import os
 import logging
-
-# 加载环境变量 - 从项目根目录加载.env文件
-# 获取项目根目录路径
-import os
 from pathlib import Path
 project_root = Path(__file__).parent.parent
 load_dotenv(os.path.join(project_root, '.env'))
@@ -39,7 +37,6 @@ async def startup_event():
     """启动时初始化数据库"""
     try:
         from database.database_initializer import DatabaseInitializer
-
         logger.info("Initializing meta database...")
         DatabaseInitializer.init_meta_database()
         logger.info("Meta database initialized successfully")
@@ -65,7 +62,31 @@ async def log_requests(request, call_next):
     print(f"[后端Main] 响应状态码: {response.status_code}")
     return response
 
-# 导入并包含路由模块
+# 全局异常处理器
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """处理请求验证异常，返回详细的错误信息"""
+    print(f"[后端Main] 请求验证失败: {exc.errors()}")
+    
+    error_details = []
+    for error in exc.errors():
+        error_details.append({
+            "field": " -> ".join(str(loc) for loc in error["loc"]),
+            "message": error["msg"],
+            "type": error["type"],
+            "input": error.get("input", None)
+        })
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": 422,
+            "message": "请求验证失败",
+            "details": error_details,
+            "error_count": len(error_details)
+        }
+    )
+
 from api import (
     auth_router,
     collection_session_router,
@@ -73,29 +94,37 @@ from api import (
     feedback_router,
     field_router,
     raw_data_router,
-    admin_database_router
+    api_key_router,
+    admin_database_router,
+    file_upload_router
 )
 
 # 注册认证路由
-app.include_router(auth_router) # /api/auth
+app.include_router(auth_router, prefix="/api") # /api/auth
 
 # 注册反馈路由
-app.include_router(feedback_router) # /api/feedback
+app.include_router(feedback_router, prefix="/api") # /api/feedback
 
 # 注册地块路由
-app.include_router(field_router) # /api/fields
+app.include_router(field_router, prefix="/api") # /api/fields
 
 # 注册设备路由
-app.include_router(device_router) # /api/devices
+app.include_router(device_router, prefix="/api") # /api/devices
 
 # 注册采集任务路由
-app.include_router(collection_session_router) # /api/collection-sessions
+app.include_router(collection_session_router, prefix="/api") # /api/collection-sessions
 
 # 注册原始数据路由
-app.include_router(raw_data_router) # /api/raw-data
+app.include_router(raw_data_router, prefix="/api") # /api/raw-data
+
+# 注册API密钥路由
+app.include_router(api_key_router, prefix="/api") # /api/api-keys
 
 # 注册数据库管理路由（管理员专用）
-app.include_router(admin_database_router) # /api/admin/database
+app.include_router(admin_database_router, prefix="/api") # /api/admin/database
+
+# 注册文件上传路由
+app.include_router(file_upload_router, prefix="/api") # /api/file-upload
 
 # 健康检查端点
 @app.get("/health") # /health

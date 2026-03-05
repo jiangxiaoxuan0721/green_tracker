@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { rawDataService } from '@/services/rawDataService'
+import ImageThumbnail from '@/components/ui/ImageThumbnail'
 import './DataDetailModal.css'
 
 const DataDetailModal = ({ isOpen, onClose, rawDataId, userId }) => {
@@ -99,7 +100,7 @@ const DataDetailModal = ({ isOpen, onClose, rawDataId, userId }) => {
         <div className="modal-body">
           <div className="detail-item">
             <span className="label">数据ID:</span>
-            <span className="value">{data?.id}</span>
+            <span className="value">{data?.id ? `${data.id.slice(0, 6)}...` : '-'}</span>
           </div>
           <div className="detail-item">
             <span className="label">采集时间:</span>
@@ -111,7 +112,20 @@ const DataDetailModal = ({ isOpen, onClose, rawDataId, userId }) => {
           </div>
           <div className="detail-item">
             <span className="label">数据值:</span>
-            <span className="value">{`${data?.data_value} ${data?.data_unit || ''}`}</span>
+            <span className="value">
+              {data?.data_type === 'image' ? (
+                // 图像类型显示文字链接
+                <div>
+                  <ImageThumbnail 
+                    record={data}
+                    userId={userId}
+                  />
+                </div>
+              ) : (
+                // 非图像类型显示数值和单位
+                `${data?.data_value || ''} ${data?.data_unit || ''}`.trim()
+              )}
+            </span>
           </div>
           <div className="detail-item">
             <span className="label">设备ID:</span>

@@ -4,20 +4,21 @@ import { useAuth } from '@/hooks/auth/useAuth'
 import { useRegisterForm } from '@/hooks/auth/useRegisterForm'
 import { useState } from 'react'
 import { Card, Input, Button } from '@/components/ui'
+import useToast from '@/hooks/useToast'
 import './Register.css'
 
 const Register = () => {
   const navigate = useNavigate()
   const { register, loading, error: authError } = useAuth()
   const { formData, errors, handleChange, handleSubmit } = useRegisterForm(register)
-  const [successMessage, setSuccessMessage] = useState('')
+  const { success: showSuccess } = useToast()
   
   const handleRegisterSuccess = async (e) => {
     try {
       const result = await handleSubmit(e)
       
       if (result.success) {
-        setSuccessMessage('注册成功！正在跳转到登录页面...')
+        showSuccess('注册成功！正在跳转到登录页面...')
         setTimeout(() => {
           navigate('/login')
         }, 2000)
@@ -41,7 +42,7 @@ const Register = () => {
                   {authError || errors.username || errors.email || errors.password || errors.confirmPassword}
                 </div>
               )}
-              {successMessage && <div className="success-message">{successMessage}</div>}
+
               
               <Input
                 label="用户名"

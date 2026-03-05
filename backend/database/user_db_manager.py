@@ -148,24 +148,7 @@ class UserDatabaseManager:
 
         return self._session_factories[user_id]()
 
-    def test_connection(self, user_id: str) -> bool:
-        """
-        测试用户数据库连接
 
-        Args:
-            user_id: 用户ID
-
-        Returns:
-            连接是否成功
-        """
-        try:
-            engine = self.get_engine(user_id)
-            with engine.connect() as conn:
-                result = conn.execute(text("SELECT 1")).fetchone()
-                return result is not None and result[0] == 1
-        except Exception as e:
-            logger.error(f"User {user_id} database connection test failed: {e}")
-            return False
 
     def remove_user_db(self, user_id: str) -> bool:
         """

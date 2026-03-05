@@ -19,8 +19,20 @@ export interface CollectionSession {
 export interface CollectionSessionWithField {
   id: string;
   field_id: string;
-  creator_id?: string;
   field_name: string;
+  device_id?: string;
+  device_name?: string;
+  device_type?: string;
+  // 为了向后兼容和方便使用，同时提供嵌套对象
+  field?: {
+    id: string;
+    name: string;
+  };
+  device?: {
+    id: string;
+    name: string;
+    device_type?: string;
+  };
   start_time?: string;
   end_time?: string;
   mission_type: string;
@@ -92,6 +104,12 @@ export const collectionSessionService = {
   
   // 根据ID获取采集任务详情
   getSessionById: async (sessionId: string): Promise<CollectionSession> => {
+    const response = await api.get(`/api/collection-sessions/${sessionId}`);
+    return response.data;
+  },
+  
+  // 根据ID获取采集任务详情（包含农田和设备信息）
+  getSessionDetails: async (sessionId: string): Promise<CollectionSessionWithField> => {
     const response = await api.get(`/api/collection-sessions/${sessionId}`);
     return response.data;
   },

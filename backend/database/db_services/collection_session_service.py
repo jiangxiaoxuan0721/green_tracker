@@ -2,6 +2,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from database.db_models.user_models import CollectionSession
 from database.db_models.user_models import Field
+from database.db_models.user_models import Device
 import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -81,7 +82,7 @@ def get_collection_session_by_id(db: Session, session_id: str) -> Optional[Colle
 
 def get_collection_session_with_details(db: Session, session_id: str) -> Optional[Dict[str, Any]]:
     """
-    根据ID获取采集任务详情，包含农田名称
+    根据ID获取采集任务详情，包含农田名称和设备信息
 
     Args:
         db: 数据库会话
@@ -90,9 +91,11 @@ def get_collection_session_with_details(db: Session, session_id: str) -> Optiona
     Returns:
         Optional[Dict[str, Any]]: 包含采集任务详情的字典，如果不存在则返回None
     """
-    # 执行连接查询（只连接 Field 表，User 表在元数据库中）
-    query = db.query(CollectionSession, Field).outerjoin(
+    # 执行连接查询（连接 Field 和 Device 表）
+    query = db.query(CollectionSession, Field, Device).outerjoin(
         Field, CollectionSession.field_id == Field.id
+    ).outerjoin(
+        Device, CollectionSession.device_id == Device.id
     ).filter(
         CollectionSession.id == session_id  # 直接使用字符串比较
     )
@@ -101,13 +104,26 @@ def get_collection_session_with_details(db: Session, session_id: str) -> Optiona
     if not result:
         return None
 
-    session, field = result
+    session, field, device = result
 
-    # 构建返回字典
+    # 构建返回字典 - 保持与现有schema兼容，同时添加设备信息
     session_dict = {
         "id": str(session.id),
         "field_id": str(session.field_id),
         "field_name": field.name if field else "未知农田",
+        "device_id": str(session.device_id) if session.device_id else None,
+        "device_name": device.name if device else "未知设备",
+        "device_type": device.device_type if device else None,
+        # 为了前端使用，同时提供嵌套对象
+        "field": {
+            "id": str(field.id) if field else None,
+            "name": field.name if field else "未知农田"
+        },
+        "device": {
+            "id": str(device.id) if device else None,
+            "name": device.name if device else "未知设备",
+            "device_type": device.device_type if device else None
+        },
         "start_time": session.start_time.isoformat() if session.start_time else None,
         "end_time": session.end_time.isoformat() if session.end_time else None,
         "mission_type": session.mission_type,

@@ -101,6 +101,39 @@ class User(MetaBase):
         return f"<User(userid={self.userid}, username={self.username})>"
 
 
+class ApiKey(MetaBase):
+    """
+    API密钥管理表
+    存储用户的数据上传API密钥，支持无网页界面的设备上传数据
+    """
+    __tablename__ = "api_keys"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="密钥ID")
+    user_id = Column(String(36), ForeignKey('users.userid', ondelete='CASCADE'), nullable=False, index=True, comment="用户ID")
+    key_name = Column(String(100), nullable=False, comment="密钥名称")
+    api_key = Column(String(100), nullable=False, unique=True, index=True, comment="API密钥（green-开头）")
+    description = Column(Text, nullable=True, comment="密钥描述")
+    permissions = Column(Text, nullable=False, default='["data_upload"]', comment="权限列表（JSON）")
+    is_active = Column(Boolean, nullable=False, default=True, comment="是否激活")
+    last_used_at = Column(DateTime, nullable=True, comment="最后使用时间")
+    usage_count = Column(Integer, nullable=False, default=0, comment="使用次数")
+    expires_at = Column(DateTime, nullable=True, comment="过期时间（可选）")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="创建时间")
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+
+    # 索引
+    __table_args__ = (
+        Index('idx_api_keys_user_id', 'user_id'),
+        Index('idx_api_keys_key', 'api_key'),
+        Index('idx_api_keys_active', 'is_active'),
+        Index('idx_api_keys_last_used', 'last_used_at'),
+        {'comment': 'API密钥管理表'}
+    )
+
+    def __repr__(self):
+        return f"<ApiKey(id={self.id}, user_id={self.user_id}, key_name={self.key_name})>"
+
+
 class Feedback(MetaBase):
     """
     系统反馈表

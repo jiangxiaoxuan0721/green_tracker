@@ -3,7 +3,7 @@
 /* 网格布局 - 使用通用卡片组件 */
 .fields-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: var(--spacing-md);
   margin-top: var(--spacing-md);
 }

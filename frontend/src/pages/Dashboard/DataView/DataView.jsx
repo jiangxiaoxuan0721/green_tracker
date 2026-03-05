@@ -4,6 +4,7 @@ import { rawDataService } from '@/services/rawDataService'
 import { collectionSessionService } from '@/services/collectionSessionService'
 import { Button } from '@/components/ui'
 import { DataTable, FilterPanel, FilterSelect } from '@/components/business'
+import ImageThumbnail from '@/components/ui/ImageThumbnail'
 import './DataView.css'
 
 const DataView = () => {
@@ -279,6 +280,7 @@ const DataView = () => {
     {
       title: 'ID',
       dataIndex: 'id',
+      render: (id) => id ? `${id.slice(0, 6)}...` : '-',
       style: { width: '80px' }
     },
     {
@@ -295,6 +297,24 @@ const DataView = () => {
       title: '数据类型',
       dataIndex: 'data_type',
       render: (type, record) => `${type}${record.data_subtype ? `/${record.data_subtype}` : ''}`
+    },
+    {
+      title: '数据值',
+      dataIndex: 'data_value',
+      render: (value, record) => {
+        // 如果是图像类型，显示文字链接
+        if (record.data_type === 'image') {
+          return (
+            <ImageThumbnail 
+              record={record}
+              userId={user?.id}
+            />
+          )
+        }
+        
+        // 非图像类型的普通显示
+        return value || '-'
+      }
     },
     {
       title: '数据格式',

@@ -9,6 +9,8 @@ from .feedback import router as feedback_router
 from .field import router as field_router
 from .admin_database import router as admin_database_router
 from .raw_data import router as raw_data_router
+from .api_key import router as api_key_router
+from .file_upload import router as file_upload_router
 
 __all__ = [
     "auth_router",
@@ -17,5 +19,7 @@ __all__ = [
     "feedback_router",
     "field_router",
     "raw_data_router",
-    "admin_database_router"
+    "api_key_router",
+    "admin_database_router",
+    "file_upload_router"
 ]

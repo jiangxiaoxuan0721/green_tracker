@@ -88,4 +88,9 @@ api.interceptors.response.use(
   }
 );
 
+// 导出API基础URL供其他服务使用
+export function getApiUrl(): string {
+  return apiBaseUrl;
+}
+
 export default api;

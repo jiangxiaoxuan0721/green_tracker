@@ -11,7 +11,9 @@ from .routes import (
     feedback_router,
     field_router,
     raw_data_router,
-    admin_database_router
+    api_key_router,
+    admin_database_router,
+    file_upload_router
 )
 
 # 导出所有 Schemas
@@ -47,7 +49,13 @@ from .schemas import (
     ProcessingStatusRequest,
     AIStatusRequest,
     RawDataResponse,
-    RawDataListResponse
+    RawDataListResponse,
+    # API Key
+    ApiKeyCreateRequest,
+    ApiKeyUpdateRequest,
+    ApiKeyResponse,
+    ApiKeyListResponse,
+    ApiKeyCreateResponse
 )
 
 __all__ = [
@@ -58,7 +66,9 @@ __all__ = [
     "feedback_router",
     "field_router",
     "raw_data_router",
+    "api_key_router",
     "admin_database_router",
+    "file_upload_router",
     # Schemas - Auth
     "UserRegister",
     "UserLogin",
@@ -90,5 +100,11 @@ __all__ = [
     "ProcessingStatusRequest",
     "AIStatusRequest",
     "RawDataResponse",
-    "RawDataListResponse"
+    "RawDataListResponse",
+    # Schemas - API Key
+    "ApiKeyCreateRequest",
+    "ApiKeyUpdateRequest",
+    "ApiKeyResponse",
+    "ApiKeyListResponse",
+    "ApiKeyCreateResponse"
 ]

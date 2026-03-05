@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 import logging
+from typing import Optional, Dict, Any
 
 # 加载环境变量
 project_root = Path(__file__).parent.parent.parent
@@ -108,14 +109,14 @@ class DatabaseInitializer:
 
             # 4. 连接到元数据库创建表结构
             from database.main_db import Base, SessionLocal
-            from database.db_models.meta_model import User, UserDatabase, SchemaVersion
+            from database.db_models.meta_model import User, UserDatabase, SchemaVersion, ApiKey, Feedback
 
             # 创建所有表（使用 checkfirst=True 避免重复创建）
             with SessionLocal() as db:
                 # 检查表是否存在，如果存在则检查是否需要迁移
                 from sqlalchemy import inspect
                 inspector = inspect(db.bind)
-                existing_tables = inspector.get_table_names()
+                existing_tables = inspector.get_table_names() if inspector else []
 
                 if not existing_tables:
                     Base.metadata.create_all(bind=db.bind, checkfirst=True)
@@ -124,8 +125,8 @@ class DatabaseInitializer:
                     logger.info(f"Meta tables already exist: {', '.join(existing_tables)}")
 
                     # 检查 users 表是否需要迁移（添加缺失的字段）
-                    if 'users' in existing_tables:
-                        users_columns = {col['name'] for col in inspector.get_columns('users')}
+                    if 'users' in existing_tables and inspector:
+                        users_columns = {col['name'] for col in inspector.get_columns('users') or []}
                         required_columns = {
                             'userid', 'username', 'email', 'password_hash', 'status',
                             'subscription_plan', 'storage_quota_gb', 'storage_used_gb',
@@ -291,7 +292,7 @@ class DatabaseInitializer:
             raise
 
     @staticmethod
-    def verify_database(db_name: str = None) -> dict:
+    def verify_database(db_name: Optional[str] = None) -> Dict[str, Any]:
         """
         验证数据库是否正常工作
 
@@ -316,8 +317,9 @@ class DatabaseInitializer:
             with conn.cursor() as cursor:
                 # 测试查询
                 cursor.execute("SELECT version()")
-                version = cursor.fetchone()[0]
-                logger.info(f"Database version: {version.split(',')[0]}")
+                result = cursor.fetchone()
+                version = result[0] if result and len(result) > 0 else "Unknown"
+                logger.info(f"Database version: {version.split(',')[0] if isinstance(version, str) else version}")
 
                 # 检查扩展
                 cursor.execute("SELECT extname FROM pg_extension WHERE extname IN ('postgis', 'uuid-ossp', 'pg_trgm')")
@@ -345,17 +347,17 @@ class DatabaseInitializer:
 
 
 # 便捷函数
-def init_meta():
+def init_meta() -> Dict[str, Any]:
     """初始化元数据库的便捷函数"""
     return DatabaseInitializer.init_meta_database()
 
 
-def init_template():
+def init_template() -> Dict[str, Any]:
     """初始化模板数据库的便捷函数"""
     return DatabaseInitializer.init_template_database()
 
 
-def verify(db_name: str = None):
+def verify(db_name: Optional[str] = None) -> Dict[str, Any]:
     """验证数据库的便捷函数"""
     return DatabaseInitializer.verify_database(db_name)
 

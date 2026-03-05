@@ -5,7 +5,7 @@ from database.db_services import create_feedback, get_all_feedback
 from api.schemas.feedback import FeedbackCreate, FeedbackResponse
 from typing import List
 
-router = APIRouter(prefix="/api/feedback", tags=["feedback"])
+router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
 @router.post("/", response_model=FeedbackResponse)

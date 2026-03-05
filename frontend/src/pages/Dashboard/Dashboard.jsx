@@ -43,13 +43,12 @@ const Dashboard = () => {
     { id: 'fields', label: '地块管理', path: '/dashboard/fields' },
     { id: 'devices', label: '设备管理', path: '/dashboard/devices' },
     { id: 'sessions', label: '任务管理', path: '/dashboard/sessions' },
+    { id: 'data-upload', label: '数据上传', path: '/dashboard/data-upload' },
     { id: 'data-view', label: '数据查看', path: '/dashboard/data-view' },
     { id: 'data-analyze', label: '数据分析', path: '/dashboard/data-analyze' },
     { id: 'system', label: '系统设置', path: '/dashboard/system' },
     { id: 'logs', label: '日志查看', path: '/dashboard/logs' }
   ]
-  
-
 
   const handleLogout = () => {
     // 清除登录状态

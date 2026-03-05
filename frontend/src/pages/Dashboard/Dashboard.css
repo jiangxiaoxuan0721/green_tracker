@@ -49,8 +49,8 @@
 .sidebar-header {
   padding: var(--spacing-lg);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: var(--spacing-sm);
   border-bottom: 1px solid var(--border-primary);
   position: relative;
   z-index: 10;
@@ -64,6 +64,15 @@
   letter-spacing: -0.01em;
 }
 
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+.data-upload-btn,
+.key-management-btn,
 .logout-btn {
   background-color: var(--primary-darker);
   color: var(--text-secondary);
@@ -74,11 +83,34 @@
   font-size: 0.875rem;
   transition: var(--transition-normal);
   font-weight: 400;
+  text-align: center;
 }
 
+.data-upload-btn:hover,
+.key-management-btn:hover,
 .logout-btn:hover {
   background-color: var(--primary-dark);
   border-color: var(--border-medium);
+}
+
+.data-upload-btn {
+  background-color: var(--primary-color);
+  color: var(--text-primary);
+}
+
+.key-management-btn {
+  background-color: var(--info-color);
+  color: var(--text-primary);
+}
+
+.data-upload-btn:hover {
+  background-color: var(--primary-dark);
+  box-shadow: 0 2px 4px var(--primary-medium);
+}
+
+.key-management-btn:hover {
+  background-color: var(--info-dark);
+  box-shadow: 0 2px 4px var(--info-medium);
 }
 
 .sidebar-menu {
@@ -720,4 +752,50 @@ input:checked + .slider:before {
     content: "消息: ";
     font-weight: 600;
   }
+}
+
+/* 数据上传和密钥管理页面样式 */
+.dashboard-data-upload,
+.dashboard-key-management {
+  padding: var(--spacing-sm);
+  max-width: 100%;
+}
+
+.data-upload-section,
+.key-management-section {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 新的空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--text-muted);
+  min-height: 300px;
+}
+
+.empty-state h2 {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  font-size: 1.5rem;
+  font-weight: 300;
+}
+
+.empty-state h3 {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+  font-size: 1.25rem;
+  font-weight: 300;
+}
+
+.empty-state p {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin: 0;
 }

@@ -13,8 +13,8 @@ class CollectionSessionBase(BaseModel):
     weather_snapshot: Optional[Dict[str, Any]] = Field(None, description="采集时的环境快照")
     status: str = Field("planned", description="任务状态")
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "field_id": "550e8400-e29b-41d4-a716-446655440000",
                 "start_time": "2025-01-01T10:00:00",
@@ -24,6 +24,7 @@ class CollectionSessionBase(BaseModel):
                 "description": "春季农田全面巡检任务"
             }
         }
+    }
 
 
 class CollectionSessionCreate(CollectionSessionBase):
@@ -39,13 +40,14 @@ class CollectionSessionUpdate(BaseModel):
     weather_snapshot: Optional[Dict[str, Any]] = Field(None, description="采集时的环境快照")
     status: Optional[str] = Field(None, description="任务状态")
 
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "end_time": "2025-01-01T14:00:00",
                 "status": "completed"
             }
         }
+    }
 
 
 class CollectionSessionResponse(BaseModel):
@@ -62,15 +64,19 @@ class CollectionSessionResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class CollectionSessionWithFieldResponse(BaseModel):
-    """包含农田信息的采集会话响应模型"""
+    """包含农田和设备信息的采集会话响应模型"""
     id: str
     field_id: str
     field_name: str
+    device_id: Optional[str] = None
+    device_name: Optional[str] = None
+    device_type: Optional[str] = None
     start_time: Optional[str]
     end_time: Optional[str]
     mission_type: str

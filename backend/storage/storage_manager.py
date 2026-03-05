@@ -7,8 +7,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import logging
-from typing import Optional, List, BinaryIO
-from datetime import datetime
+from typing import Optional, List
 
 # 加载环境变量
 project_root = Path(__file__).parent.parent.parent
@@ -25,7 +24,7 @@ class StorageManager:
 
     # MinIO 配置
     MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost")
-    MINIO_PORT = os.getenv("MINIO_PORT", "6130")
+    MINIO_PORT = os.getenv("MINIO_PORT", "9100")
     MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
     MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
     MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
@@ -333,6 +332,50 @@ class StorageManager:
                 "message": str(e)
             }
 
+    def _get_file_bytes_direct(self, object_path: str) -> dict:
+        """
+        直接通过完整对象路径获取文件二进制数据
+        不再构建路径，直接使用传入的object_path
+
+        Args:
+            object_path: 完整的对象路径
+
+        Returns:
+            包含文件数据的字典
+        """
+        try:
+            logger.info(f"直接获取文件数据: {object_path}")
+
+            response = self._client.get_object(
+                bucket_name=self.BUCKET_NAME,
+                object_name=object_path
+            )
+
+            data = response.read()
+            response.close()
+            response.release_conn()
+
+            return {
+                "success": True,
+                "message": "获取成功",
+                "data": data,
+                "content_type": response.headers.get('Content-Type', 'application/octet-stream')
+            }
+
+        except self._S3Error as e:
+            if e.code == "NoSuchKey":
+                return {
+                    "success": False,
+                    "message": f"文件不存在: {object_path}"
+                }
+            raise
+        except Exception as e:
+            logger.error(f"直接获取文件数据失败: {e}")
+            return {
+                "success": False,
+                "message": str(e)
+            }
+
     def list_files(
         self,
         user_id: str,
@@ -572,6 +615,57 @@ class StorageManager:
         """
         object_path = self._get_object_path(user_id, category, object_name, subcategory)
         return self._get_file_url(object_path, expires)
+
+    def get_public_url(
+        self,
+        object_path: str,
+        expires: int = 7 * 24 * 60 * 60
+    ) -> str:
+        """
+        生成公开访问URL（优先使用直接URL，因为已配置公开访问）
+
+        Args:
+            object_path: 对象路径
+            expires: 过期时间（秒），默认7天
+
+        Returns:
+            可访问的URL（优先直接URL）
+        """
+        try:
+            import os
+
+            # 获取MinIO配置
+            endpoint = os.getenv('MINIO_ENDPOINT', 'localhost')
+            port = os.getenv('MINIO_PORT', '9100')
+            secure = os.getenv('MINIO_SECURE', 'false').lower() == 'true'
+            bucket_name = os.getenv('MINIO_BUCKET_NAME', 'green-tracker-minio')
+            
+            # 构建直接访问URL（因为已配置公开访问）
+            protocol = 'https' if secure else 'http'
+            url = f"{protocol}://{endpoint}:{port}/{bucket_name}/{object_path}"
+            
+            # 先测试直接URL是否可访问
+            try:
+                import requests
+                response = requests.head(url, timeout=2)
+                if response.status_code == 200:
+                    logger.info(f"使用直接URL（公开访问）: {url}")
+                    return url
+            except:
+                logger.info(f"直接URL不可访问，尝试预签名URL: {url}")
+            
+            # 如果直接URL不可访问，回退到预签名URL
+            presigned_url = self._get_file_url(object_path, expires)
+            if presigned_url:
+                logger.info(f"使用预签名URL: {presigned_url}")
+                return presigned_url
+            
+            logger.error(f"无法生成可访问的URL: {object_path}")
+            return url  # 最后返回直接URL作为备选
+
+        except Exception as e:
+            logger.error(f"生成URL失败: {e}")
+            return ""
 
 
 # 全局单例

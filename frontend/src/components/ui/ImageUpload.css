@@ -1,0 +1,252 @@
+.image-upload {
+  width: 100%;
+  max-width: 100%;
+}
+
+.image-upload.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* 上传区域 */
+.upload-area {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: var(--surface-color);
+}
+
+.upload-area:hover {
+  border-color: var(--primary-color);
+  background-color: var(--surface-hover);
+}
+
+.upload-area.drag-active {
+  border-color: var(--primary-color);
+  background-color: rgba(var(--primary-rgb), 0.05);
+}
+
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.upload-icon {
+  color: var(--primary-color);
+  opacity: 0.6;
+}
+
+.upload-text p {
+  margin: 0;
+  color: var(--text-color);
+}
+
+.upload-hint {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem !important;
+}
+
+/* 预览区域 */
+.preview-area {
+  margin-top: 1.5rem;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius);
+  font-weight: 500;
+}
+
+.clear-btn {
+  background: none;
+  border: none;
+  color: var(--danger-color);
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius);
+  transition: background-color 0.2s ease;
+}
+
+.clear-btn:hover {
+  background-color: rgba(var(--danger-rgb), 0.1);
+}
+
+.clear-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.preview-item {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  background-color: var(--surface-color);
+}
+
+.preview-image {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+
+.preview-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.preview-image:hover .remove-btn {
+  opacity: 1;
+}
+
+.remove-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.preview-info {
+  padding: 0.75rem;
+}
+
+.preview-name {
+  font-weight: 500;
+  margin: 0 0 0.25rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-size {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.25rem 0;
+}
+
+.preview-warnings {
+  font-size: 0.75rem;
+  color: var(--warning-color);
+  margin: 0;
+}
+
+/* 上传操作 */
+.upload-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.upload-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upload-btn.primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.upload-btn.primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.upload-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 加载动画 */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .upload-area {
+    padding: 1.5rem;
+  }
+
+  .preview-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .upload-actions {
+    flex-direction: column;
+  }
+
+  .upload-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .upload-area {
+    padding: 1rem;
+  }
+
+  .upload-text p {
+    font-size: 0.875rem;
+  }
+
+  .upload-hint {
+    font-size: 0.75rem;
+  }
+
+  .preview-grid {
+    grid-template-columns: 1fr;
+  }
+}

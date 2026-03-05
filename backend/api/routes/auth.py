@@ -28,7 +28,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "30"))
 
-router = APIRouter(prefix="/api/auth", tags=["authentication"])
+router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
 def verify_password(plain_password, hashed_password):
@@ -153,3 +153,42 @@ async def verify_token(current_user: User = Depends(get_current_user)):
     """
     # 如果能通过get_current_user依赖，说明token有效
     return {"valid": True, "user_id": str(current_user.userid)}
+
+
+async def get_current_user_from_api_key(
+    x_api_key: str = None, db: Session = Depends(get_meta_db)
+):
+    """
+    从API密钥中获取当前用户
+    用于设备上传数据时的认证
+    """
+    if not x_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API密钥缺失",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+    # 验证API密钥
+    from database.db_services.api_key_service import validate_api_key
+    key_info = validate_api_key(db, x_api_key)
+
+    if not key_info:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的API密钥",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+    # 从数据库获取用户
+    user = db.query(User).filter(User.userid == key_info['user_id']).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户不存在",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+    # API密钥使用记录已在validate_api_key函数中更新
+
+    return user

@@ -2,10 +2,11 @@ import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './hooks/auth/useAuth'
 import { Home, About, Contact, Login, Register, Dashboard, Feedback, NotFound, DashboardPages } from './pages'
+import { ToastContainer } from './components/ui'
 import './App.css'
 
 // 解构Dashboard子页面
-const { Overview, Fields, Devices, Sessions, DataView, DataAnalyze, System, Logs } = DashboardPages
+const { Overview, Fields, Devices, Sessions, DataUpload, DataView, DataAnalyze, System, Logs } = DashboardPages
 
 function AppContent() {
   const location = useLocation()
@@ -45,6 +46,7 @@ function AppContent() {
             <Route path="fields" element={<Fields />} />
             <Route path="devices" element={<Devices />} />
             <Route path="sessions" element={<Sessions />} />
+            <Route path="data-upload" element={<DataUpload />} />
             <Route path="data-view" element={<DataView />} />
             <Route path="data-analyze" element={<DataAnalyze />} />
             <Route path="system" element={<System />} />
@@ -54,6 +56,7 @@ function AppContent() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
+      <ToastContainer />
     </div>
   )
 }

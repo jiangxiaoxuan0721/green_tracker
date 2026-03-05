@@ -15,7 +15,7 @@ from typing import List, Optional
 # 从auth模块导入get_current_user函数
 from api.routes.auth import get_current_user
 
-router = APIRouter(prefix="/api/devices", tags=["devices"])
+router = APIRouter(prefix="/devices", tags=["devices"])
 
 
 @router.post("/", response_model=DeviceResponse, status_code=status.HTTP_201_CREATED)

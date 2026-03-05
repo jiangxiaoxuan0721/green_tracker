@@ -30,7 +30,7 @@ def create_raw_data(
     file_meta: Optional[Dict[str, Any]] = None,
     acquisition_meta: Optional[Dict[str, Any]] = None,
     quality_score: Optional[float] = None,
-    quality_flags: Optional[List[str]] = None,
+    quality_flags: Optional[Any] = None,
     checksum: Optional[str] = None,
     is_valid: Optional[bool] = True,
     validation_notes: Optional[str] = None
@@ -87,7 +87,10 @@ def create_raw_data(
             quality_flags=quality_flags,
             checksum=checksum,
             is_valid=is_valid,
-            validation_notes=validation_notes
+            validation_notes=validation_notes,
+            # 添加数据库表结构中存在但模型定义中缺失的字段
+            processing_status='pending',  # 处理状态，必需字段
+            ai_status='pending',          # AI分析状态，必需字段
         )
 
         db.add(new_raw_data)
@@ -114,20 +117,10 @@ def get_raw_data_by_id(db: Session, raw_data_id: str) -> Optional[Dict[str, Any]
     Returns:
         Dict[str, Any]: 原始数据详情，如果不存在则返回None
     """
-    # 添加错误处理，确保ID是有效的UUID
+    # 添加错误处理，数据库中的ID是String类型，直接使用字符串查询
     try:
-        # 如果是字符串，尝试转换为UUID
-        if isinstance(raw_data_id, str):
-            # 检查是否是有效的UUID格式
-            try:
-                raw_data_uuid = uuid.UUID(raw_data_id)
-            except ValueError:
-                print(f"[后端RawDataService] 无效的UUID格式: {raw_data_id}")
-                return None
-        else:
-            raw_data_uuid = raw_data_id
-
-        raw_data = db.query(RawData).filter(RawData.id == raw_data_uuid).first()
+        # 直接使用字符串ID，不转换为UUID，因为数据库字段是String类型
+        raw_data = db.query(RawData).filter(RawData.id == str(raw_data_id)).first()
 
         if not raw_data:
             return None
@@ -185,10 +178,8 @@ def get_raw_data_list_for_frontend(
     Returns:
         Dict[str, Any]: 分页数据列表和分页信息
     """
-    # 构建查询，包含关联的会话信息
-    query = db.query(RawData, CollectionSession).outerjoin(
-        CollectionSession, RawData.session_id == CollectionSession.id
-    )
+    # 构建查询，先查询原始数据
+    query = db.query(RawData)
 
     # 添加过滤条件
     if session_id:
@@ -215,14 +206,9 @@ def get_raw_data_list_for_frontend(
 
     # 转换为前端显示格式
     items = []
-    for item in raw_data_list:
-        # 由于现在使用关联查询，item可能是元组(RawData, CollectionSession)
-        if isinstance(item, tuple):
-            raw_data_item = item[0]
-            session_item = item[1]
-        else:
-            raw_data_item = item
-            session_item = None
+    for raw_data_item in raw_data_list:
+        # 获取关联的会话信息
+        session_item = db.query(CollectionSession).filter(CollectionSession.id == raw_data_item.session_id).first()
 
         # 构建会话信息
         session_info = None
@@ -235,13 +221,34 @@ def get_raw_data_list_for_frontend(
 
         # 根据数据类型显示不同的值
         if raw_data_item.data_type == "image":
-            # 图像显示缩略图
-            display_value = f"/api/raw-data/{raw_data_item.id}/thumbnail"
-        elif raw_data_item.data_unit and raw_data_item.data_value:
-            # 数值类型添加单位
-            display_value = f"{raw_data_item.data_value} {raw_data_item.data_unit}"
+            # 图像直接使用MinIO存储路径
+            if raw_data_item.object_key:
+                # 使用MinIO对象路径生成公开访问URL
+                try:
+                    from storage.storage_manager import get_storage_manager
+                    storage_manager = get_storage_manager()
+                    public_url = storage_manager.get_public_url(str(raw_data_item.object_key))
+                    display_value = public_url
+                    print(f"[RawDataService] 图像使用MinIO公开URL: {display_value}")
+                except Exception as e:
+                    print(f"[RawDataService] 生成公开URL失败: {str(e)}")
+                    display_value = str(raw_data_item.object_key)  # 备选方案：使用原始路径
+            elif raw_data_item.data_value and str(raw_data_item.data_value).startswith("http"):
+                # 如果data_value是完整的HTTP URL，直接使用
+                display_value = str(raw_data_item.data_value)
+                print(f"[RawDataService] 图像使用HTTP URL: {display_value}")
+            else:
+                # 如果都没有有效的图像路径，标记为无图像
+                display_value = ""
+                print(f"[RawDataService] 图像无有效路径: {raw_data_item.id}")
+        elif raw_data_item.data_value:
+            # 数值类型，如果有单位则添加单位
+            if raw_data_item.data_unit:
+                display_value = f"{str(raw_data_item.data_value)} {str(raw_data_item.data_unit)}"
+            else:
+                display_value = str(raw_data_item.data_value)
         else:
-            display_value = raw_data_item.data_value or ""
+            display_value = ""
 
         items.append({
             "id": str(raw_data_item.id),
@@ -252,7 +259,8 @@ def get_raw_data_list_for_frontend(
             "data_format": raw_data_item.data_format,
             "quality_score": raw_data_item.quality_score,
             "capture_time": raw_data_item.capture_time.isoformat() if raw_data_item.capture_time is not None else None,
-            "is_valid": raw_data_item.is_valid
+            "is_valid": raw_data_item.is_valid,
+            "object_key": raw_data_item.object_key  # 添加object_key字段供前端使用
         })
 
     # 构建分页信息
@@ -284,18 +292,9 @@ def update_processing_status(db: Session, raw_data_id: str, processing_status: s
         bool: 更新是否成功
     """
     try:
-        # 添加错误处理，确保ID是有效的UUID
-        if isinstance(raw_data_id, str):
-            try:
-                raw_data_uuid = uuid.UUID(raw_data_id)
-            except ValueError:
-                print(f"[后端RawDataService] 无效的UUID格式: {raw_data_id}")
-                return False
-        else:
-            raw_data_uuid = raw_data_id
-
+        # 直接使用字符串ID，不转换为UUID，因为数据库字段是String类型
         affected_rows = db.query(RawData).filter(
-            RawData.id == raw_data_uuid
+            RawData.id == str(raw_data_id)
         ).update({"processing_status": processing_status})
 
         db.commit()
@@ -319,18 +318,9 @@ def update_ai_status(db: Session, raw_data_id: str, ai_status: str) -> bool:
         bool: 更新是否成功
     """
     try:
-        # 添加错误处理，确保ID是有效的UUID
-        if isinstance(raw_data_id, str):
-            try:
-                raw_data_uuid = uuid.UUID(raw_data_id)
-            except ValueError:
-                print(f"[后端RawDataService] 无效的UUID格式: {raw_data_id}")
-                return False
-        else:
-            raw_data_uuid = raw_data_id
-
+        # 直接使用字符串ID，不转换为UUID，因为数据库字段是String类型
         affected_rows = db.query(RawData).filter(
-            RawData.id == raw_data_uuid
+            RawData.id == str(raw_data_id)
         ).update({"ai_status": ai_status})
 
         db.commit()
@@ -353,24 +343,15 @@ def delete_raw_data(db: Session, raw_data_id: str) -> bool:
         bool: 删除是否成功
     """
     try:
-        # 添加错误处理，确保ID是有效的UUID
-        if isinstance(raw_data_id, str):
-            try:
-                raw_data_uuid = uuid.UUID(raw_data_id)
-            except ValueError:
-                print(f"[后端RawDataService] 无效的UUID格式: {raw_data_id}")
-                return False
-        else:
-            raw_data_uuid = raw_data_id
-
+        # 直接使用字符串ID，不转换为UUID，因为数据库字段是String类型
         # 先删除关联的标签
         db.query(RawDataTag).filter(
-            RawDataTag.raw_data_id == raw_data_uuid
+            RawDataTag.raw_data_id == str(raw_data_id)
         ).delete()
 
         # 再删除原始数据
         affected_rows = db.query(RawData).filter(
-            RawData.id == raw_data_uuid
+            RawData.id == str(raw_data_id)
         ).delete()
 
         db.commit()
@@ -404,18 +385,9 @@ def add_raw_data_tag(
         str: 创建的标签ID，失败返回None
     """
     try:
-        # 添加错误处理，确保ID是有效的UUID
-        if isinstance(raw_data_id, str):
-            try:
-                raw_data_uuid = uuid.UUID(raw_data_id)
-            except ValueError:
-                print(f"[后端RawDataService] 无效的UUID格式: {raw_data_id}")
-                return None
-        else:
-            raw_data_uuid = raw_data_id
-
+        # 直接使用字符串ID，不转换为UUID，因为数据库字段是String类型
         new_tag = RawDataTag(
-            raw_data_id=raw_data_uuid,
+            raw_data_id=str(raw_data_id),
             tag_category=tag_category,
             tag_value=tag_value,
             confidence=confidence,
@@ -444,19 +416,10 @@ def get_raw_data_tags(db: Session, raw_data_id: str) -> List[Dict[str, Any]]:
     Returns:
         List[Dict[str, Any]]: 标签列表
     """
-    # 添加错误处理，确保ID是有效的UUID
+    # 直接使用字符串ID，不转换为UUID，因为数据库字段是String类型
     try:
-        if isinstance(raw_data_id, str):
-            try:
-                raw_data_uuid = uuid.UUID(raw_data_id)
-            except ValueError:
-                print(f"[后端RawDataService] 无效的UUID格式: {raw_data_id}")
-                return []
-        else:
-            raw_data_uuid = raw_data_id
-
         tags = db.query(RawDataTag).filter(
-            RawDataTag.raw_data_id == raw_data_uuid
+            RawDataTag.raw_data_id == str(raw_data_id)
         ).all()
     except Exception as e:
         print(f"[后端RawDataService] 获取标签失败: {str(e)}")

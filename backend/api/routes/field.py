@@ -17,7 +17,7 @@ from typing import List, Optional
 # 从auth模块导入get_current_user函数
 from api.routes.auth import get_current_user
 
-router = APIRouter(prefix="/api/fields", tags=["fields"])
+router = APIRouter(prefix="/fields", tags=["fields"])
 
 
 @router.post("/", response_model=FieldResponse, status_code=status.HTTP_201_CREATED)

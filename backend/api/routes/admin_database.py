@@ -20,7 +20,7 @@ from database.db_models.meta_model import UserDatabase, SchemaVersion, User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/admin/database", tags=["database-management"])
+router = APIRouter(prefix="/admin/database", tags=["database-management"])
 
 
 # Pydantic 模型
@@ -297,25 +297,6 @@ async def get_database_stats():
     """
     stats = db_manager.get_stats()
     return DatabaseStats(**stats)
-
-
-@router.post("/test-connection/{user_id}")
-async def test_database_connection(user_id: str):
-    """
-    测试用户数据库连接
-
-    Args:
-        user_id: 用户ID
-
-    Returns:
-        连接测试结果
-    """
-    success = db_manager.test_connection(user_id)
-
-    return {
-        "user_id": user_id,
-        "connection_status": "success" if success else "failed"
-    }
 
 
 @router.post("/sync-connections")

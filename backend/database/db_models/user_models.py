@@ -151,6 +151,10 @@ class RawData(UserBase):
     checksum = Column(Text, nullable=True, comment="文件校验值")
     is_valid = Column(Boolean, nullable=False, default=True, comment="是否有效")
     validation_notes = Column(Text, nullable=True, comment="验证备注")
+    processing_status = Column(Text, nullable=False, default='pending', index=True, comment="处理状态：pending/processing/completed/failed/skipped")
+    processed_at = Column(DateTime, nullable=True, comment="处理完成时间")
+    ai_status = Column(Text, nullable=False, default='pending', index=True, comment="AI分析状态：pending/processing/completed/failed/skipped")
+    ai_analyzed_at = Column(DateTime, nullable=True, comment="AI分析完成时间")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
 

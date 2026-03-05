@@ -1,6 +1,9 @@
+import useToast from '@/hooks/useToast'
 import Toast from './Toast'
 
-const ToastContainer = ({ toasts, onRemove }) => {
+const ToastContainer = () => {
+  const { toasts, removeToast } = useToast()
+  
   return (
     <div className="toast-container">
       {toasts.map(toast => (
@@ -9,7 +12,7 @@ const ToastContainer = ({ toasts, onRemove }) => {
           message={toast.message}
           type={toast.type}
           duration={toast.duration}
-          onClose={() => onRemove(toast.id)}
+          onClose={() => removeToast(toast.id)}
         />
       ))}
     </div>
