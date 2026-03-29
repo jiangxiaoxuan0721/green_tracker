@@ -18,7 +18,6 @@ const Fields = () => {
 
   const {
     data: fields,
-    loading,
     initialLoading,
     error,
     refresh

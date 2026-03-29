@@ -5,9 +5,9 @@
 注意：每个用户有独立的数据库，因此不需要 user_id 过滤
 """
 
-from sqlalchemy import desc
+from sqlalchemy import desc, Float, func, and_, or_
 from sqlalchemy.orm import Session
-from database.db_models.user_models import RawData, RawDataTag, CollectionSession
+from database.db_models.user_models import RawData, RawDataTag, CollectionSession, Device, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -196,9 +196,15 @@ def get_raw_data_list_for_frontend(
     # 添加过滤条件
     if session_id:
         try:
-            # 确保session_id是字符串格式进行匹配
-            session_str = str(session_id)
-            query = query.filter(RawData.session_id == session_str)
+            # 支持多个session_id（逗号分隔）
+            if ',' in str(session_id):
+                session_ids = [s.strip() for s in str(session_id).split(',') if s.strip()]
+                if session_ids:
+                    query = query.filter(RawData.session_id.in_(session_ids))
+            else:
+                # 单个session_id
+                session_str = str(session_id)
+                query = query.filter(RawData.session_id == session_str)
         except Exception as e:
             print(f"[后端RawDataService] 处理会话ID时出错: {session_id}, 错误: {e}")
             return {"items": [], "pagination": {"page": page, "page_size": page_size, "total_count": 0, "total_pages": 0}}
@@ -232,8 +238,8 @@ def get_raw_data_list_for_frontend(
             }
 
         # 根据数据类型显示不同的值
-        if raw_data_item.data_type == "image":  # pyright: ignore[reportGeneralTypeIssues]
-            # 图像直接使用MinIO存储路径
+        if raw_data_item.data_type == "image" or raw_data_item.data_type == "file":  # pyright: ignore[reportGeneralTypeIssues]
+            # 图像/文件类型：使用MinIO存储路径生成公开访问URL
             if raw_data_item.object_key:  # pyright: ignore[reportGeneralTypeIssues]
                 # 使用MinIO对象路径生成公开访问URL
                 try:
@@ -241,18 +247,18 @@ def get_raw_data_list_for_frontend(
                     storage_manager = get_storage_manager()
                     public_url = storage_manager.get_public_url(str(raw_data_item.object_key))
                     display_value = public_url
-                    print(f"[RawDataService] 图像使用MinIO公开URL: {display_value}")
+                    print(f"[RawDataService] 图像/文件使用MinIO公开URL: {display_value}")
                 except Exception as e:
                     print(f"[RawDataService] 生成公开URL失败: {str(e)}")
                     display_value = str(raw_data_item.object_key)  # 备选方案：使用原始路径
             elif raw_data_item.data_value and str(raw_data_item.data_value).startswith("http"):  # pyright: ignore[reportGeneralTypeIssues]
                 # 如果data_value是完整的HTTP URL，直接使用
                 display_value = str(raw_data_item.data_value)
-                print(f"[RawDataService] 图像使用HTTP URL: {display_value}")
+                print(f"[RawDataService] 图像/文件使用HTTP URL: {display_value}")
             else:
                 # 如果都没有有效的图像路径，标记为无图像
                 display_value = ""
-                print(f"[RawDataService] 图像无有效路径: {raw_data_item.id}")
+                print(f"[RawDataService] 图像/文件无有效路径: {raw_data_item.id}")
         elif raw_data_item.data_value:  # pyright: ignore[reportGeneralTypeIssues]
             # 数值类型，如果有单位则添加单位
             if raw_data_item.data_unit:  # pyright: ignore[reportGeneralTypeIssues]
@@ -448,11 +454,11 @@ def get_session_data_types(db: Session, session_id: str, data_type: Optional[str
             RawData.data_subtype.isnot(None),
             RawData.data_subtype != ""
         )
-        
+
         # 如果指定了数据类型，添加过滤条件
         if data_type and data_type != 'all':
             subtypes_query = subtypes_query.filter(RawData.data_type == data_type)
-            
+
         data_subtypes = subtypes_query.distinct().all()
 
         # 转换为列表格式
@@ -467,3 +473,292 @@ def get_session_data_types(db: Session, session_id: str, data_type: Optional[str
     except Exception as e:
         print(f"[后端RawDataService] 获取会话数据类型失败: {str(e)}")
         return {"dataTypes": [], "dataSubtypes": []}
+
+
+def get_raw_data_statistics(
+    db: Session,
+    session_ids: Optional[List[str]] = None,
+    data_type: Optional[str] = None,
+    data_subtype: Optional[str] = None,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None
+) -> Dict[str, Any]:
+    """
+    获取原始数据的统计信息（用于数据分析页面）
+
+    Args:
+        db: 数据库会话
+        session_ids: 会话ID列表（可选）
+        data_type: 数据类型过滤（可选）
+        data_subtype: 数据子类型过滤（可选）
+        start_time: 开始时间（可选）
+        end_time: 结束时间（可选）
+
+    Returns:
+        统计信息字典，包含：
+        - total_records: 总记录数
+        - data_types: 各数据类型的数量
+        - average_values: 各数据类型的平均值
+        - min_values: 各数据类型的最小值
+        - max_values: 各数据类型的最大值
+        - session_count: 涉及的会话数量
+    """
+    try:
+        from sqlalchemy import func, and_
+
+        query = db.query(RawData)
+
+        # 过滤会话ID列表
+        if session_ids and len(session_ids) > 0:
+            query = query.filter(RawData.session_id.in_(session_ids))
+
+        # 过滤数据类型
+        if data_type:
+            query = query.filter(RawData.data_type == data_type)
+
+        # 过滤数据子类型
+        if data_subtype:
+            query = query.filter(RawData.data_subtype == data_subtype)
+
+        # 过滤时间范围
+        if start_time or end_time:
+            time_filter = []
+            if start_time:
+                time_filter.append(RawData.capture_time >= start_time)
+            if end_time:
+                time_filter.append(RawData.capture_time <= end_time)
+            if time_filter:
+                query = query.filter(and_(*time_filter))
+
+        # 统计总记录数
+        total_records = query.count()
+
+        if total_records == 0:
+            return {
+                "total_records": 0,
+                "data_types": {},
+                "average_values": {},
+                "min_values": {},
+                "max_values": {},
+                "session_count": 0
+            }
+
+        # 按data_subtype分组统计
+        # 只统计数值类型的数据（过滤掉图像、视频等文件类型）
+        grouped_result = query.filter(
+            RawData.data_type.in_(['environmental', 'soil', 'spectral'])
+        ).with_entities(
+            RawData.data_subtype,
+            func.count(RawData.id).label('count'),
+            func.avg(func.cast(RawData.data_value, Float)).label('avg_value'),
+            func.min(func.cast(RawData.data_value, Float)).label('min_value'),
+            func.max(func.cast(RawData.data_value, Float)).label('max_value')
+        ).group_by(RawData.data_subtype).all()
+
+        data_types = {}
+        average_values = {}
+        min_values = {}
+        max_values = {}
+
+        for row in grouped_result:
+            if row.data_subtype:
+                data_types[row.data_subtype] = row.count
+                if row.avg_value is not None:
+                    average_values[row.data_subtype] = round(row.avg_value, 2)
+                if row.min_value is not None:
+                    min_values[row.data_subtype] = row.min_value
+                if row.max_value is not None:
+                    max_values[row.data_subtype] = row.max_value
+
+        # 统计涉及的会话数量
+        session_count_query = db.query(func.count(func.distinct(RawData.session_id)))
+        if session_ids and len(session_ids) > 0:
+            session_count_query = session_count_query.filter(RawData.session_id.in_(session_ids))
+        if data_type:
+            session_count_query = session_count_query.filter(RawData.data_type == data_type)
+        if data_subtype:
+            session_count_query = session_count_query.filter(RawData.data_subtype == data_subtype)
+        if start_time or end_time:
+            time_filter = []
+            if start_time:
+                time_filter.append(RawData.capture_time >= start_time)
+            if end_time:
+                time_filter.append(RawData.capture_time <= end_time)
+            if time_filter:
+                session_count_query = session_count_query.filter(and_(*time_filter))
+
+        session_count = session_count_query.scalar() or 0
+
+        return {
+            "total_records": total_records,
+            "data_types": data_types,
+            "average_values": average_values,
+            "min_values": min_values,
+            "max_values": max_values,
+            "session_count": session_count
+        }
+
+    except Exception as e:
+        print(f"[后端RawDataService] 获取数据统计失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "total_records": 0,
+            "data_types": {},
+            "average_values": {},
+            "min_values": {},
+            "max_values": {},
+            "session_count": 0
+        }
+
+
+def get_overview_statistics(db: Session) -> Dict[str, Any]:
+    """
+    获取概览页面的统计数据
+
+    返回数据包括：
+    - total_devices: 设备总数
+    - active_devices: 在线设备数（is_active=True）
+    - today_sessions: 今日任务数
+    - total_data_records: 总数据记录数
+    - recent_activities: 最近活动记录（最近10条）
+    - system_status: 系统状态（基于数据库连接和数据量）
+
+    Args:
+        db: 数据库会话
+
+    Returns:
+        Dict[str, Any]: 包含概览统计数据的字典
+    """
+    try:
+        # 获取当前时间
+        now = datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        # 统计设备总数
+        total_devices = db.query(func.count(Device.id)).scalar() or 0
+
+        # 统计在线设备数
+        active_devices = db.query(func.count(Device.id)).filter(Device.is_active == True).scalar() or 0
+
+        # 统计今日任务数（今天还在进行中的任务）
+        # 条件：任务在今天之前开始，并且尚未完成
+        today_sessions = db.query(func.count(CollectionSession.id)).filter(
+            CollectionSession.start_time <= now,
+            or_(
+                CollectionSession.end_time.is_(None),  # 还没结束
+                CollectionSession.end_time > now  # 结束时间在未来
+            )
+        ).scalar() or 0
+        
+        # 调试：打印时间范围和查询结果
+        print(f"[概览统计] 当前时间: {datetime.now()}")
+        print(f"[概览统计] 今日任务数（进行中的任务）: {today_sessions}")
+        
+        # 调试：查询所有会话的详细信息
+        all_sessions = db.query(
+            CollectionSession.id, 
+            CollectionSession.start_time,
+            CollectionSession.end_time,
+            CollectionSession.mission_name
+        ).all()
+        print(f"[概览统计] 数据库中所有会话:")
+        for session in all_sessions:
+            print(f"  - ID: {session.id}, 开始: {session.start_time}, 结束: {session.end_time}, 名称: {session.mission_name}")
+
+        # 统计总数据记录数
+        total_data_records = db.query(func.count(RawData.id)).scalar() or 0
+
+        # 获取最近的活动记录（采集任务）
+        recent_sessions = db.query(CollectionSession).order_by(
+            desc(CollectionSession.start_time)
+        ).limit(10).all()
+
+        # 获取最近的数据记录
+        recent_data = db.query(RawData).order_by(desc(RawData.capture_time)).limit(10).all()
+
+        # 组合最近活动
+        all_activities = []
+
+        # 添加最近的采集任务
+        for session in recent_sessions:
+            field_name = "未知地块"
+            try:
+                field = db.query(Field).filter(Field.id == session.field_id).first()
+                if field:
+                    field_name = field.name
+            except:
+                pass
+
+            session_start_time = session.start_time
+            all_activities.append({
+                "time": session_start_time.strftime("%H:%M") if session_start_time else "",
+                "content": f"任务 {session.mission_type or '采集'} 在 {field_name} 开始",
+                "type": "session",
+                "timestamp": session_start_time.isoformat() if session_start_time else None,
+                "_sort_time": session_start_time or datetime.min
+            })
+
+        # 添加最近的数据记录
+        for data in recent_data:
+            data_type = data.data_type or "数据"
+            if data_type == "image":
+                data_type = "图像"
+            elif data_type == "environmental":
+                data_type = "环境数据"
+            elif data_type == "soil":
+                data_type = "土壤数据"
+            elif data_type == "spectral":
+                data_type = "光谱数据"
+
+            capture_time = data.capture_time
+            all_activities.append({
+                "time": capture_time.strftime("%H:%M") if capture_time else "",
+                "content": f"采集{data_type}",
+                "type": "data",
+                "timestamp": capture_time.isoformat() if capture_time else None,
+                "_sort_time": capture_time or datetime.min
+            })
+
+        # 按时间排序并取前10条
+        all_activities.sort(key=lambda x: x["_sort_time"], reverse=True)
+        recent_activities = all_activities[:10]
+
+        # 移除排序辅助字段
+        for activity in recent_activities:
+            if "_sort_time" in activity:
+                del activity["_sort_time"]
+
+        # 计算系统状态
+        system_status = {
+            "database": "正常" if total_data_records >= 0 else "异常",
+            "message_queue": "正常",
+            "disk_usage": "正常" if total_data_records < 100000 else "警告"
+        }
+
+        return {
+            "total_devices": total_devices,
+            "active_devices": active_devices,
+            "today_sessions": today_sessions,
+            "total_data_records": total_data_records,
+            "recent_activities": recent_activities,
+            "system_status": system_status
+        }
+
+    except Exception as e:
+        print(f"[后端RawDataService] 获取概览统计失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "total_devices": 0,
+            "active_devices": 0,
+            "today_sessions": 0,
+            "total_data_records": 0,
+            "recent_activities": [],
+            "system_status": {
+                "database": "异常",
+                "message_queue": "未知",
+                "disk_usage": "未知"
+            }
+        }

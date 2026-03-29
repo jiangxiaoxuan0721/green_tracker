@@ -72,14 +72,22 @@ const config = getEnvironmentConfig()
 /**
  * 获取MinIO完整URL
  * @param {string} objectPath - MinIO对象路径
+ * @param {boolean} forcePreview - 是否强制预览（添加inline响应头参数）
  * @returns {string} 完整的访问URL
  */
-export const getMinioUrl = (objectPath) => {
+export const getMinioUrl = (objectPath, forcePreview = true) => {
   if (!objectPath) return ''
-  
+
   const baseUrl = config.minio.publicUrl
-  // 确保没有重复的斜杠
-  return baseUrl.endsWith('/') ? `${baseUrl}${objectPath}` : `${baseUrl}/${objectPath}`
+  let url = baseUrl.endsWith('/') ? `${baseUrl}${objectPath}` : `${baseUrl}/${objectPath}`
+
+  // 添加查询参数强制浏览器预览而不是下载
+  if (forcePreview) {
+    const separator = url.includes('?') ? '&' : '?'
+    url += `${separator}response-content-disposition=inline`
+  }
+
+  return url
 }
 
 

@@ -19,46 +19,39 @@ const ImageThumbnail = ({
   
   // 点击查看原图
   const handleViewFullImage = useCallback(() => {
-    let fullImageUrl
-    
-    // 优先使用MinIO原图URL
+    // 始终使用 object_key 构建公开 URL，不使用可能过期的预签名 URL
+    // 因为 MinIO 配置了公开访问，可以直接使用公开 URL
     if (minioPath) {
-      fullImageUrl = getMinioUrl(minioPath)
-    } else if (dataValue && dataValue.startsWith('http')) {
-      fullImageUrl = dataValue
+      const fullImageUrl = getMinioUrl(minioPath, false) // 不添加预览参数
+      if (fullImageUrl) {
+        window.open(fullImageUrl, '_blank')
+      }
     } else {
-      fullImageUrl = '#'
+      console.log('[ImageThumbnail] No valid object_path')
     }
-    
-    if (fullImageUrl && fullImageUrl !== '#') {
-      window.open(fullImageUrl, '_blank')
-    }
-  }, [minioPath, dataValue])
+  }, [minioPath])
   
   // 获取文件名显示
   const getFileName = () => {
     if (minioPath) {
       return minioPath.split('/').pop()
     }
-    if (dataValue) {
-      return dataValue.startsWith('http') ? '外部图片' : dataValue
-    }
     return dataId ? `ID:${dataId}` : '未知图片'
   }
-  
-  // 检查是否有有效的图片数据
-  const hasValidImage = record?.data_type === 'image' && (minioPath || dataValue || dataId)
-  
+
+  // 检查是否有有效的文件数据（支持 image 和 file 类型）
+  const hasValidFile = (record?.data_type === 'image' || record?.data_type === 'file') && (minioPath || dataId)
+
   if (!record) {
     return <div style={style}>无数据</div>
   }
-  
-  if (record.data_type !== 'image') {
+
+  if (record.data_type !== 'image' && record.data_type !== 'file') {
     return <div style={style}>-</div>
   }
-  
-  if (!hasValidImage) {
-    return <div style={style}>无图像</div>
+
+  if (!hasValidFile) {
+    return <div style={style}>无文件</div>
   }
   
   return (

@@ -12,8 +12,7 @@ from .routes import (
     field_router,
     raw_data_router,
     api_key_router,
-    admin_database_router,
-    file_upload_router
+    admin_database_router
 )
 
 # 导出所有 Schemas
@@ -42,7 +41,6 @@ from .schemas import (
     FieldResponse,
     FieldUpdate,
     FieldListParams,
-    PointQuery,
     # Raw Data
     RawDataRequest,
     RawDataTagRequest,
@@ -50,6 +48,13 @@ from .schemas import (
     AIStatusRequest,
     RawDataResponse,
     RawDataListResponse,
+    # Raw Data Upload
+    DataType,
+    DataSubType,
+    DataUnit,
+    UploadDataRequest,
+    UploadFileResponse,
+    UploadDataResponse,
     # API Key
     ApiKeyCreateRequest,
     ApiKeyUpdateRequest,
@@ -68,7 +73,6 @@ __all__ = [
     "raw_data_router",
     "api_key_router",
     "admin_database_router",
-    "file_upload_router",
     # Schemas - Auth
     "UserRegister",
     "UserLogin",
@@ -93,7 +97,6 @@ __all__ = [
     "FieldResponse",
     "FieldUpdate",
     "FieldListParams",
-    "PointQuery",
     # Schemas - Raw Data
     "RawDataRequest",
     "RawDataTagRequest",
@@ -101,6 +104,13 @@ __all__ = [
     "AIStatusRequest",
     "RawDataResponse",
     "RawDataListResponse",
+    # Schemas - Raw Data Upload
+    "DataType",
+    "DataSubType",
+    "DataUnit",
+    "UploadDataRequest",
+    "UploadFileResponse",
+    "UploadDataResponse",
     # Schemas - API Key
     "ApiKeyCreateRequest",
     "ApiKeyUpdateRequest",

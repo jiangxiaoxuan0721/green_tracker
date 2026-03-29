@@ -6,11 +6,10 @@ from database.db_services.field_service import (
     create_field, get_field_by_id, get_all_fields,
     search_fields, update_field, delete_field,
     get_field_with_wkt, get_all_fields_with_wkt,
-    search_fields_with_wkt,
-    find_fields_containing_point
+    search_fields_with_wkt
 )
 from api.schemas.field import (
-    FieldCreate, FieldUpdate, FieldResponse, PointQuery, FieldListParams
+    FieldCreate, FieldUpdate, FieldResponse, FieldListParams
 )
 from typing import List, Optional
 
@@ -257,44 +256,6 @@ async def delete_field_by_id(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"删除地块失败: {str(e)}"
-        )
-    finally:
-        if db:
-            db.close()
-
-
-@router.post("/point-query", response_model=List[FieldResponse])
-async def find_fields_by_point(
-    point: PointQuery,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    查找包含指定点的地块
-
-    根据经纬度查找包含该点的所有地块。
-    """
-    db = None
-    try:
-        print(f"[API] 用户 {current_user.username} 请求点查询: ({point.longitude}, {point.latitude})")
-
-        # 获取用户的数据库会话
-        db = get_user_db(str(current_user.userid))
-
-        # 查找包含指定点的地块（已包含WKT）
-        fields = find_fields_containing_point(
-            db=db,
-            longitude=point.longitude,
-            latitude=point.latitude
-        )
-
-        print(f"[API] 点查询返回 {len(fields)} 个地块")
-        return fields
-
-    except Exception as e:
-        print(f"[API] 点查询失败: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"点查询失败: {str(e)}"
         )
     finally:
         if db:

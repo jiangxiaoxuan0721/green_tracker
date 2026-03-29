@@ -1,45 +1,25 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { rawDataService } from '@/services/rawDataService'
-import { fieldService } from '@/services/fieldService'
 import { deviceService } from '@/services/deviceService'
+import { collectionSessionService } from '@/services/collectionSessionService'
+import { Select } from '@/components/ui'
+import { getMinioUrl } from '@/config/environment'
 import '../Dashboard.css'
-import '../AdditionalStyles.css'
 import './DataAnalyze.css'
 
 const DataAnalyze = () => {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [fields, setFields] = useState([])
   const [devices, setDevices] = useState([])
+  const [sessions, setSessions] = useState([])
   const [rawData, setRawData] = useState([])
-  
-  const [analysisType, setAnalysisType] = useState('trend')
-  const [timeRange, setTimeRange] = useState('month')
-  const [selectedFields, setSelectedFields] = useState([])
-  const [selectedDevices, setSelectedDevices] = useState([])
-  const [dataType, setDataType] = useState('all')
-  
-  // 获取用户的地块列表
-  useEffect(() => {
-    const fetchFields = async () => {
-      try {
-        const fieldsData = await fieldService.getFields()
-        setFields(fieldsData.data || [])
-        // 默认选择所有地块
-        if (fieldsData.data && fieldsData.data.length > 0) {
-          setSelectedFields(fieldsData.data.map(field => field.id))
-        }
-      } catch (err) {
-        console.error('获取地块列表失败:', err)
-      }
-    }
 
-    if (user?.id) {
-      fetchFields()
-    }
-  }, [user?.id])
+  const [timeRange, setTimeRange] = useState('month')
+  const [selectedDevices, setSelectedDevices] = useState([])
+  const [selectedSessions, setSelectedSessions] = useState([])
+  const [dataType, setDataType] = useState('all')
 
   // 获取用户的设备列表
   useEffect(() => {
@@ -47,7 +27,6 @@ const DataAnalyze = () => {
       try {
         const devicesData = await deviceService.getDevices()
         setDevices(devicesData.data || [])
-        // 默认选择所有设备
         if (devicesData.data && devicesData.data.length > 0) {
           setSelectedDevices(devicesData.data.map(device => device.id))
         }
@@ -55,25 +34,42 @@ const DataAnalyze = () => {
         console.error('获取设备列表失败:', err)
       }
     }
-
     if (user?.id) {
       fetchDevices()
     }
   }, [user?.id])
 
-  // 获取原始数据用于分析
+  // 获取用户的采集会话列表
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user?.id || selectedFields.length === 0) return
-      
+    const fetchSessions = async () => {
+      try {
+        const sessionsData = await collectionSessionService.getSessions({ limit: 100 })
+        setSessions(sessionsData || [])
+        if (sessionsData && sessionsData.length > 0) {
+          setSelectedSessions(sessionsData.map(session => session.id))
+        }
+      } catch (err) {
+        console.error('获取采集会话列表失败:', err)
+      }
+    }
+    if (user?.id) {
+      fetchSessions()
+    }
+  }, [user?.id])
+
+  // 获取数据统计信息
+  useEffect(() => {
+    const fetchStatistics = async () => {
+      if (!user?.id || selectedSessions.length === 0) return
+
       setLoading(true)
       setError(null)
-      
+
       try {
         // 计算时间范围
         const endDate = new Date()
         const startDate = new Date()
-        
+
         switch (timeRange) {
           case 'week':
             startDate.setDate(endDate.getDate() - 7)
@@ -88,34 +84,32 @@ const DataAnalyze = () => {
             startDate.setFullYear(endDate.getFullYear() - 1)
             break
         }
-        
+
+        // 构建请求参数
         const params = {
           user_id: user.id,
           start_time: startDate.toISOString(),
-          end_time: endDate.toISOString(),
-          page: 1,
-          page_size: 1000 // 获取足够的数据用于分析
+          end_time: endDate.toISOString()
         }
-        
-        // 如果选择了特定设备，添加设备过滤
-        if (selectedDevices.length > 0 && selectedDevices.length !== devices.length) {
-          params.device_id = selectedDevices.join(',')
+
+        // 过滤选中的会话ID
+        const filteredSessions = selectedSessions.length > 0 && selectedSessions.length !== sessions.length
+          ? selectedSessions
+          : sessions.map(s => s.id)
+
+        if (filteredSessions.length > 0) {
+          params.session_ids = filteredSessions.join(',')
         }
-        
-        // 如果选择了特定地块，添加地块过滤
-        if (selectedFields.length > 0 && selectedFields.length !== fields.length) {
-          params.field_id = selectedFields.join(',')
-        }
-        
-        // 如果选择了特定数据类型，添加数据类型过滤
+
+        // 过滤数据类型
         if (dataType !== 'all') {
-          params.data_type = dataType
+          params.data_subtype = dataType
         }
-        
-        const response = await rawDataService.getRawDataList(params)
-        
+
+        const response = await rawDataService.getRawDataStatistics(params)
+
         if (response.code === 200) {
-          setRawData(response.data.data || [])
+          setStatistics(response.data)
         } else {
           setError(response.message || '获取分析数据失败')
         }
@@ -126,30 +120,70 @@ const DataAnalyze = () => {
         setLoading(false)
       }
     }
-    
-    fetchData()
-  }, [user?.id, timeRange, selectedFields, selectedDevices, dataType])
-  
-  const handleAnalysisTypeChange = (e) => {
-    setAnalysisType(e.target.value)
-  }
-  
-  const handleTimeRangeChange = (e) => {
-    setTimeRange(e.target.value)
-  }
-  
-  const handleDataTypeChange = (e) => {
-    setDataType(e.target.value)
-  }
-  
-  const handleFieldChange = (fieldId) => {
-    if (selectedFields.includes(fieldId)) {
-      setSelectedFields(selectedFields.filter(id => id !== fieldId))
-    } else {
-      setSelectedFields([...selectedFields, fieldId])
+
+    fetchStatistics()
+  }, [user?.id, timeRange, selectedSessions, dataType, devices, sessions])
+
+  // 获取最近数据（仅用于显示最近10条）
+  useEffect(() => {
+    const fetchRecentData = async () => {
+      if (!user?.id || sessions.length === 0) return
+
+      try {
+        const params = {
+          user_id: user.id,
+          page: 1,
+          page_size: 10
+        }
+
+        // 如果选中了会话，使用选中的会话ID；否则使用所有会话ID
+        const filteredSessions = selectedSessions.length > 0
+          ? selectedSessions
+          : sessions.map(s => s.id)
+
+        if (filteredSessions.length > 0) {
+          params.session_id = filteredSessions.join(',')
+        }
+
+        if (dataType !== 'all') {
+          params.data_subtype = dataType
+        }
+
+        const response = await rawDataService.getRawDataList(params)
+
+        if (response.code === 200) {
+          setRawData(response.data.items || [])
+        }
+      } catch (err) {
+        console.error('获取最近数据失败:', err)
+      }
     }
+
+    fetchRecentData()
+  }, [user?.id, selectedSessions, dataType, sessions])
+
+  const [statistics, setStatistics] = useState({
+    total_records: 0,
+    data_types: {},
+    average_values: {},
+    min_values: {},
+    max_values: {},
+    session_count: 0
+  })
+
+  // 数据类型配置
+  const dataTypeConfig = {
+    temperature: { label: '温度', unit: '°C', color: '#e74c3c' },
+    humidity: { label: '湿度', unit: '%', color: '#3498db' },
+    moisture: { label: '土壤湿度', unit: '%', color: '#9b59b6' },
+    ph: { label: '土壤pH', unit: '', color: '#1abc9c' },
+    ec: { label: '电导率', unit: 'μS/cm', color: '#f39c12' },
+    co2: { label: 'CO2', unit: 'ppm', color: '#2ecc71' },
+    light: { label: '光照', unit: 'lux', color: '#f1c40f' },
+    pressure: { label: '气压', unit: 'hPa', color: '#34495e' }
   }
-  
+
+  // 处理设备变更
   const handleDeviceChange = (deviceId) => {
     if (selectedDevices.includes(deviceId)) {
       setSelectedDevices(selectedDevices.filter(id => id !== deviceId))
@@ -158,174 +192,358 @@ const DataAnalyze = () => {
     }
   }
 
-  const handleGenerateReport = () => {
-    // 这里可以实现报告生成逻辑
-    alert('报告生成功能正在开发中')
+  // 处理会话变更
+  const handleSessionChange = (sessionId) => {
+    if (selectedSessions.includes(sessionId)) {
+      setSelectedSessions(selectedSessions.filter(id => id !== sessionId))
+    } else {
+      setSelectedSessions([...selectedSessions, sessionId])
+    }
   }
 
-  const getChartData = (dataType) => {
-    // 根据数据类型和选择的时间范围过滤数据
-    const filteredData = rawData.filter(item => 
-      item.data_type === dataType || dataType === 'all'
-    )
-    
-    // 这里可以根据分析类型进一步处理数据
-    // 例如趋势分析、对比分析等
-    
-    return filteredData
-  }
-
+  // 格式化日期
   const formatDate = (timestamp) => {
     const date = new Date(timestamp)
-    return date.toLocaleDateString('zh-CN')
+    return date.toLocaleString('zh-CN')
   }
-  
+
+  // 生成简单的条形图
+  const renderBarChart = (data) => {
+    if (!data || Object.keys(data).length === 0) {
+      return <p className="no-data">暂无数据</p>
+    }
+
+    const maxValue = Math.max(...Object.values(data))
+
+    return (
+      <div className="simple-chart">
+        {Object.entries(data).map(([key, value]) => {
+          const configInfo = dataTypeConfig[key] || { label: key, color: '#95a5a6' }
+          const percentage = (value / maxValue) * 100
+
+          return (
+            <div key={key} className="chart-bar-wrapper">
+              <div className="chart-bar-label">{configInfo.label}</div>
+              <div className="chart-bar-container">
+                <div
+                  className="chart-bar"
+                  style={{
+                    width: `${percentage}%`,
+                    backgroundColor: configInfo.color
+                  }}
+                />
+                <span className="chart-bar-value">{value}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className="dashboard-data-analyze">
       <div className="dashboard-header">
         <h1>数据分析</h1>
-        <button className="primary-btn" onClick={handleGenerateReport} disabled={loading}>
-          生成报告
-        </button>
       </div>
-      
+
+      {/* 控制面板 */}
       <div className="analysis-controls">
-        <div className="control-group">
-          <label>分析类型</label>
-          <select value={analysisType} onChange={handleAnalysisTypeChange}>
-            <option value="trend">趋势分析</option>
-            <option value="comparison">对比分析</option>
-            <option value="correlation">相关性分析</option>
-            <option value="prediction">预测分析</option>
-          </select>
-        </div>
-        
-        <div className="control-group">
-          <label>时间范围</label>
-          <select value={timeRange} onChange={handleTimeRangeChange}>
-            <option value="week">最近一周</option>
-            <option value="month">最近一月</option>
-            <option value="quarter">最近一季</option>
-            <option value="year">最近一年</option>
-          </select>
-        </div>
-        
-        <div className="control-group">
-          <label>数据类型</label>
-          <select value={dataType} onChange={handleDataTypeChange}>
-            <option value="all">全部类型</option>
-            <option value="temperature">温度</option>
-            <option value="humidity">湿度</option>
-            <option value="soil_ph">土壤pH</option>
-            <option value="light">光照</option>
-            <option value="image">图像</option>
-            <option value="ndvi">NDVI</option>
-          </select>
-        </div>
-        
-        <div className="control-group">
-          <label>选择地块</label>
-          <div className="field-selector">
-            {fields.map(field => (
-              <div key={field.id} className="field-checkbox">
-                <input 
-                  type="checkbox" 
-                  id={`field-${field.id}`} 
-                  checked={selectedFields.includes(field.id)}
-                  onChange={() => handleFieldChange(field.id)}
-                />
-                <label htmlFor={`field-${field.id}`}>{field.name}</label>
-              </div>
-            ))}
+        <div className="controls-header">
+          <div className="filter-group">
+            <div className="filter-item">
+              <label>时间范围</label>
+              <Select
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value)}
+                options={[
+                  { value: 'week', label: '最近一周' },
+                  { value: 'month', label: '最近一月' },
+                  { value: 'quarter', label: '最近一季' },
+                  { value: 'year', label: '最近一年' }
+                ]}
+              />
+            </div>
+
+            <div className="filter-item">
+              <label>数据类型</label>
+              <Select
+                value={dataType}
+                onChange={(e) => setDataType(e.target.value)}
+                options={[
+                  { value: 'all', label: '全部类型' },
+                  ...Object.entries(dataTypeConfig).map(([key, config]) => ({
+                    value: key,
+                    label: config.label
+                  }))
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="selection-summary">
+            <span className="summary-item">
+              <strong>采集会话:</strong> {selectedSessions.length}/{sessions.length}
+            </span>
+            <span className="summary-item">
+              <strong>设备:</strong> {selectedDevices.length}/{devices.length}
+            </span>
           </div>
         </div>
-        
-        <div className="control-group">
-          <label>选择设备</label>
-          <div className="device-selector">
-            {devices.map(device => (
-              <div key={device.id} className="device-checkbox">
-                <input 
-                  type="checkbox" 
-                  id={`device-${device.id}`} 
-                  checked={selectedDevices.includes(device.id)}
-                  onChange={() => handleDeviceChange(device.id)}
-                />
-                <label htmlFor={`device-${device.id}`}>
-                  {device.model || `${device.device_type}-${device.id.substring(0, 8)}`}
+
+        <div className="controls-body">
+          <div className="checkbox-group">
+            <div className="checkbox-group-header">
+              <label>采集会话</label>
+              <button
+                className="text-button"
+                onClick={() => setSelectedSessions(sessions.map(s => s.id))}
+              >
+                全选
+              </button>
+              <button
+                className="text-button"
+                onClick={() => setSelectedSessions([])}
+              >
+                清空
+              </button>
+            </div>
+            <div className="checkbox-list">
+              {sessions.map(session => (
+                <label key={session.id} className="checkbox-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedSessions.includes(session.id)}
+                    onChange={() => handleSessionChange(session.id)}
+                  />
+                  <span className="checkbox-label-text">
+                    {session.mission_name || session.mission_type || `会话 ${session.id.slice(0, 8)}`}
+                  </span>
                 </label>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          <div className="checkbox-group">
+            <div className="checkbox-group-header">
+              <label>设备</label>
+              <button
+                className="text-button"
+                onClick={() => setSelectedDevices(devices.map(d => d.id))}
+              >
+                全选
+              </button>
+              <button
+                className="text-button"
+                onClick={() => setSelectedDevices([])}
+              >
+                清空
+              </button>
+            </div>
+            <div className="checkbox-list">
+              {devices.map(device => (
+                <label key={device.id} className="checkbox-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedDevices.includes(device.id)}
+                    onChange={() => handleDeviceChange(device.id)}
+                  />
+                  <span className="checkbox-label-text">
+                    {device.model || device.device_type || `设备 ${device.id.slice(0, 8)}`}
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-      
+
+      {/* 错误提示 */}
       {error && (
-        <div className="error-message" style={{ color: 'red', marginBottom: '20px' }}>
+        <div className="error-message">
           {error}
         </div>
       )}
-      
-      <div className="analysis-results">
-        {loading ? (
-          <div className="loading">加载数据中...</div>
-        ) : (
-          <>
-            <div className="data-summary">
-              <h3>数据概览</h3>
-              <p>在选定的时间范围内，共有 {rawData.length} 条数据记录</p>
-              <p>涉及 {selectedFields.length} 个地块，{selectedDevices.length} 个设备</p>
-            </div>
-            
-            <div className="chart-container">
-              <h3>数据分布</h3>
-              <div className="chart-placeholder">
-                <p>图表区域 - 这里将显示数据分布情况</p>
-                {rawData.slice(0, 5).map(item => (
-                  <div key={item.id}>
-                    {formatDate(item.capture_time || item.created_at)} - 
-                    {item.data_type}: {item.data_value} {item.data_unit || ''}
-                  </div>
-                ))}
+
+      {/* 加载状态 */}
+      {loading ? (
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>加载数据中...</p>
+        </div>
+      ) : (
+        <>
+          {/* 统计卡片 */}
+          <div className="statistics-grid">
+            <div className="stat-card stat-card-primary">
+              <div className="stat-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 3v18h18" />
+                  <path d="M18 17V9" />
+                  <path d="M13 17V5" />
+                  <path d="M8 17v-3" />
+                </svg>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{statistics.total_records}</div>
+                <div className="stat-label">总数据记录</div>
               </div>
             </div>
-            
-            {dataType === 'all' ? (
-              <>
-                {['temperature', 'humidity', 'soil_ph', 'light'].map(type => {
-                  const typeData = getChartData(type)
-                  if (typeData.length === 0) return null
-                  
-                  const typeNames = {
-                    temperature: '温度',
-                    humidity: '湿度',
-                    soil_ph: '土壤pH值',
-                    light: '光照'
-                  }
-                  
-                  return (
-                    <div key={type} className="chart-container">
-                      <h3>{typeNames[type]}变化趋势</h3>
-                      <div className="chart-placeholder">
-                        <p>图表区域 - 这里将显示{typeNames[type]}变化趋势</p>
-                        <p>共 {typeData.length} 条{typeNames[type]}数据</p>
-                      </div>
+
+            <div className="stat-card stat-card-success">
+              <div className="stat-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{statistics.session_count}</div>
+                <div className="stat-label">涉及会话</div>
+              </div>
+            </div>
+
+            <div className="stat-card stat-card-info">
+              <div className="stat-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M3 9h18" />
+                  <path d="M9 21V9" />
+                </svg>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{Object.keys(statistics.data_types).length}</div>
+                <div className="stat-label">数据类型</div>
+              </div>
+            </div>
+
+            <div className="stat-card stat-card-warning">
+              <div className="stat-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{selectedDevices.length}</div>
+                <div className="stat-label">选中设备</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 数据分布 */}
+          <div className="chart-section">
+            <h2>数据分布</h2>
+            <div className="chart-card">
+              {renderBarChart(statistics.data_types)}
+            </div>
+          </div>
+
+          {/* 数据统计 */}
+          <div className="chart-section">
+            <h2>数据统计</h2>
+            <div className="stats-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>数据类型</th>
+                    <th>记录数</th>
+                    <th>平均值</th>
+                    <th>最小值</th>
+                    <th>最大值</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(statistics.data_types).map(([key, count]) => {
+                    const configInfo = dataTypeConfig[key] || { label: key }
+                    return (
+                      <tr key={key}>
+                        <td>
+                          <span
+                            className="type-indicator"
+                            style={{ backgroundColor: configInfo.color }}
+                          ></span>
+                          {configInfo.label}
+                        </td>
+                        <td>{count}</td>
+                        <td>
+                          {statistics.average_values[key] || '-'}
+                          {configInfo.unit && ` ${configInfo.unit}`}
+                        </td>
+                        <td>
+                          {statistics.min_values[key] !== undefined ? statistics.min_values[key] : '-'}
+                          {configInfo.unit && statistics.min_values[key] !== undefined ? ` ${configInfo.unit}` : ''}
+                        </td>
+                        <td>
+                          {statistics.max_values[key] !== undefined ? statistics.max_values[key] : '-'}
+                          {configInfo.unit && statistics.max_values[key] !== undefined ? ` ${configInfo.unit}` : ''}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 最近数据 */}
+          <div className="chart-section">
+            <h2>最近数据</h2>
+            <div className="recent-data">
+              {rawData.slice(0, 10).map(item => {
+                const configInfo = dataTypeConfig[item.data_subtype] || { label: item.data_subtype }
+
+                // 判断是否是图片/文件类型
+                const isImage = item.data_type === 'image' || item.data_type === 'file'
+                const minioPath = item.object_key
+
+                // 使用 getMinioUrl 构建完整的公开访问URL
+                const imageUrl = isImage && minioPath ? getMinioUrl(minioPath, false) : null
+
+                return (
+                  <div key={item.id} className="data-item">
+                    <div className="data-item-header">
+                      <span className="data-type-badge" style={{ backgroundColor: configInfo.color }}>
+                        {configInfo.label}
+                      </span>
+                      <span className="data-time">{formatDate(item.capture_time || item.created_at)}</span>
                     </div>
-                  )
-                })}
-              </>
-            ) : (
-              <div className="chart-container">
-                <h3>数据分析</h3>
-                <div className="chart-placeholder">
-                  <p>图表区域 - 这里将显示{dataType}数据的详细分析</p>
-                  <p>共 {getChartData(dataType).length} 条数据</p>
+                    <div className="data-item-value">
+                      {imageUrl ? (
+                        <a
+                          href={imageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: '#007bff',
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            borderBottom: '1px dotted #007bff'
+                          }}
+                        >
+                          查看图片
+                        </a>
+                      ) : (
+                        <>
+                          <span className="value-text">{item.data_value}</span>
+                          {configInfo.unit && <span className="value-unit">{configInfo.unit}</span>}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              {rawData.length === 0 && (
+                <div className="empty-state">
+                  <p>暂无数据</p>
                 </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

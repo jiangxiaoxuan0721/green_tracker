@@ -4,7 +4,7 @@ from database.user_db_manager import get_user_db
 from database.db_models.meta_model import User
 from database.db_services.device_service import (
     create_device, get_device_by_id, get_all_devices,
-    search_devices, update_device, delete_device, restore_device,
+    search_devices, update_device, delete_device,
     get_devices_by_type, get_devices_by_platform
 )
 from api.schemas.device import (
@@ -217,27 +217,24 @@ async def update_device_by_id(
 @router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_device_by_id(
     device_id: str,
-    soft_delete: Optional[bool] = Query(True, description="是否使用软删除，默认为True"),
     current_user: User = Depends(get_current_user)
 ):
     """
-    删除设备
+    删除设备（硬删除）
 
     删除当前用户的设备。
-    默认使用软删除（标记为不活跃），可通过参数hard=true进行硬删除。
     """
     db = None
     try:
-        print(f"[API] 用户 {current_user.username} 请求删除设备: {device_id}, 软删除: {soft_delete}")
+        print(f"[API] 用户 {current_user.username} 请求删除设备: {device_id}")
 
         # 获取用户的数据库会话
         db = get_user_db(str(current_user.userid))
 
-        # 删除设备
+        # 删除设备（硬删除）
         success = delete_device(
             db=db,
-            device_id=device_id,
-            soft_delete=soft_delete
+            device_id=device_id
         )
 
         if not success:
@@ -257,52 +254,6 @@ async def delete_device_by_id(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"删除设备失败: {str(e)}"
-        )
-    finally:
-        if db:
-            db.close()
-
-
-@router.post("/{device_id}/restore", response_model=DeviceResponse)
-async def restore_device_by_id(
-    device_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    恢复已软删除的设备
-
-    恢复当前用户的设备。
-    """
-    db = None
-    try:
-        print(f"[API] 用户 {current_user.username} 请求恢复设备: {device_id}")
-
-        # 获取用户的数据库会话
-        db = get_user_db(str(current_user.userid))
-
-        # 恢复设备
-        db_device = restore_device(
-            db=db,
-            device_id=device_id
-        )
-
-        if not db_device:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="设备不存在"
-            )
-
-        print(f"[API] 设备恢复成功: {db_device.model}")
-        return DeviceResponse.model_validate(db_device)
-
-    except HTTPException:
-        # 重新抛出HTTP异常
-        raise
-    except Exception as e:
-        print(f"[API] 恢复设备失败: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"恢复设备失败: {str(e)}"
         )
     finally:
         if db:

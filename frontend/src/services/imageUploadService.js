@@ -32,29 +32,41 @@ class ImageUploadService {
     }
 
     /**
-     * 上传单个图像文件
-     * @param {File} file - 图像文件
+     * 上传单个文件
+     * @param {File} file - 文件
      * @param {Object} options - 上传选项
      * @returns {Promise} 上传结果
      */
-    async uploadImage(file, options = {}) {
+    async uploadFile(file, options = {}) {
         const formData = new FormData();
         formData.append('file', file);
         
-        // 添加可选参数
-        if (options.session_id) {
-            formData.append('session_id', options.session_id);
+        // 添加必需参数
+        if (!options.session_id) {
+            throw new Error('session_id 是必需的');
         }
+        formData.append('session_id', options.session_id);
+        
+        // 添加可选参数
         if (options.data_subtype) {
             formData.append('data_subtype', options.data_subtype);
         }
         if (options.description) {
             formData.append('description', options.description);
         }
+        if (options.location_geom) {
+            formData.append('location_geom', options.location_geom);
+        }
+        if (options.altitude_m !== undefined) {
+            formData.append('altitude_m', options.altitude_m);
+        }
+        if (options.heading !== undefined) {
+            formData.append('heading', options.heading);
+        }
 
         try {
             const headers = createAuthHeaders();
-            const response = await fetch(`${this.baseUrl}/api/file-upload/image`, {
+            const response = await fetch(`${this.baseUrl}/api/raw-data/upload-file`, {
                 method: 'POST',
                 body: formData,
                 headers: headers,
@@ -64,58 +76,71 @@ class ImageUploadService {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.detail || '图像上传失败');
+                throw new Error(result.detail || '文件上传失败');
             }
 
             return result;
         } catch (error) {
-            console.error('图像上传失败:', error);
+            console.error('文件上传失败:', error);
             throw error;
         }
     }
 
     /**
-     * 批量上传图像文件
-     * @param {FileList} files - 图像文件列表
+     * 批量上传文件（通过多次调用单文件上传）
+     * @param {FileList} files - 文件列表
      * @param {Object} options - 上传选项
      * @returns {Promise} 批量上传结果
      */
-    async uploadBatchImages(files, options = {}) {
-        const formData = new FormData();
-        
-        // 添加所有文件
-        Array.from(files).forEach(file => {
-            formData.append('files', file);
-        });
-        
-        // 添加可选参数
-        if (options.session_id) {
-            formData.append('session_id', options.session_id);
-        }
-        if (options.data_subtype) {
-            formData.append('data_subtype', options.data_subtype);
-        }
+    async uploadBatchFiles(files, options = {}) {
+        const fileArray = Array.from(files);
+        const results = [];
+        const errors = [];
 
-        try {
-            const headers = createAuthHeaders();
-            const response = await fetch(`${this.baseUrl}/api/file-upload/batch-images`, {
-                method: 'POST',
-                body: formData,
-                headers: headers,
-                credentials: 'include',
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.detail || '批量上传失败');
+        for (const file of fileArray) {
+            try {
+                const result = await this.uploadFile(file, options);
+                results.push({
+                    file: file.name,
+                    success: true,
+                    data: result
+                });
+            } catch (error) {
+                errors.push({
+                    file: file.name,
+                    error: error.message
+                });
+                results.push({
+                    file: file.name,
+                    success: false,
+                    error: error.message
+                });
             }
-
-            return result;
-        } catch (error) {
-            console.error('批量上传失败:', error);
-            throw error;
         }
+
+        return {
+            total: fileArray.length,
+            success_count: results.filter(r => r.success).length,
+            failed_count: errors.length,
+            results,
+            errors
+        };
+    }
+
+    /**
+     * 上传单个图像文件（兼容旧接口名）
+     * @deprecated 请使用 uploadFile 代替
+     */
+    async uploadImage(file, options = {}) {
+        return this.uploadFile(file, options);
+    }
+
+    /**
+     * 批量上传图像文件（兼容旧接口名）
+     * @deprecated 请使用 uploadBatchFiles 代替
+     */
+    async uploadBatchImages(files, options = {}) {
+        return this.uploadBatchFiles(files, options);
     }
 
     /**
@@ -145,28 +170,60 @@ class ImageUploadService {
     }
 
     /**
-     * 删除已上传的图像
-     * @param {string} fileId - 文件ID
-     * @returns {Promise} 删除结果
+     * 获取支持的格式信息
+     * @returns {Promise} 支持的格式信息
      */
-    async deleteImage(fileId) {
+    async getSupportedFormats() {
         try {
             const headers = createAuthHeaders();
-            const response = await fetch(`${this.baseUrl}/api/file-upload/image/${fileId}`, {
-                method: 'DELETE',
+            const response = await fetch(`${this.baseUrl}/api/raw-data/upload-data`, {
+                method: 'GET',
                 headers: headers,
                 credentials: 'include',
             });
 
-            const result = await response.json();
-
             if (!response.ok) {
-                throw new Error(result.detail || '删除图像失败');
+                throw new Error('获取支持格式失败');
             }
 
-            return result;
+            // 返回支持的文件类型信息
+            return {
+                code: 200,
+                message: "success",
+                data: {
+                    supported_formats: {
+                        "RGB": {
+                            extensions: ["jpg", "jpeg", "png"],
+                            mime_types: ["image/jpeg", "image/png"],
+                            description: "RGB图像"
+                        },
+                        "NIR": {
+                            extensions: ["tif", "tiff", "png"],
+                            mime_types: ["image/tiff", "image/png"],
+                            description: "近红外图像"
+                        },
+                        "THERMAL": {
+                            extensions: ["jpg", "tif"],
+                            mime_types: ["image/jpeg", "image/tiff"],
+                            description: "热成像"
+                        },
+                        "MULTISPECTRAL": {
+                            extensions: ["tif", "tiff"],
+                            mime_types: ["image/tiff"],
+                            description: "多光谱图像"
+                        },
+                        "VIDEO": {
+                            extensions: ["mp4", "mov"],
+                            mime_types: ["video/mp4", "video/quicktime"],
+                            description: "视频文件"
+                        }
+                    },
+                    max_file_size_mb: 50,
+                    max_batch_size: 20
+                }
+            };
         } catch (error) {
-            console.error('删除图像失败:', error);
+            console.error('获取支持的格式失败:', error);
             throw error;
         }
     }

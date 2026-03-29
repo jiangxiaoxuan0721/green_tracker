@@ -12,7 +12,7 @@ from .collection_session import (
 )
 from .device import DeviceCreate, DeviceResponse, DeviceUpdate, DeviceListParams
 from .feedback import FeedbackCreate, FeedbackResponse
-from .field import FieldCreate, FieldResponse, FieldUpdate, FieldListParams, PointQuery
+from .field import FieldCreate, FieldResponse, FieldUpdate, FieldListParams
 from .raw_data import (
     RawDataRequest,
     RawDataTagRequest,
@@ -20,6 +20,14 @@ from .raw_data import (
     AIStatusRequest,
     RawDataResponse,
     RawDataListResponse
+)
+from .raw_data_upload import (
+    DataType,
+    DataSubType,
+    DataUnit,
+    UploadDataRequest,
+    UploadFileResponse,
+    UploadDataResponse
 )
 from .api_key import (
     ApiKeyCreateRequest,
@@ -54,7 +62,6 @@ __all__ = [
     "FieldResponse",
     "FieldUpdate",
     "FieldListParams",
-    "PointQuery",
     # Raw Data
     "RawDataRequest",
     "RawDataTagRequest",
@@ -62,6 +69,13 @@ __all__ = [
     "AIStatusRequest",
     "RawDataResponse",
     "RawDataListResponse",
+    # Raw Data Upload
+    "DataType",
+    "DataSubType",
+    "DataUnit",
+    "UploadDataRequest",
+    "UploadFileResponse",
+    "UploadDataResponse",
     # API Key
     "ApiKeyCreateRequest",
     "ApiKeyUpdateRequest",

@@ -323,8 +323,8 @@ const DataView = () => {
       title: '数据值',
       dataIndex: 'data_value',
       render: (value, record) => {
-        // 如果是图像类型，显示文字链接
-        if (record.data_type === 'image') {
+        // 如果是图像类型或文件类型，显示文字链接
+        if (record.data_type === 'image' || record.data_type === 'file') {
           return (
             <ImageThumbnail 
               record={record}
@@ -332,8 +332,8 @@ const DataView = () => {
             />
           )
         }
-        
-        // 非图像类型的普通显示
+
+        // 非图像/文件类型的普通显示
         return value || '-'
       }
     },

@@ -30,60 +30,38 @@ const DataUpload = () => {
   const [loadingApiKeys, setLoadingApiKeys] = useState(false)
   const [showApiKeyCopied, setShowApiKeyCopied] = useState(false)
 
-  // 数据类型配置
+  // 数据类型配置（与后端 DataType 枚举一致）
   const dataTypes = [
-    { value: 'image', label: '图像' },
-    { value: 'video', label: '视频' },
+    { value: 'file', label: '文件数据' },
     { value: 'environmental', label: '环境数据' },
-    { value: 'soil', label: '土壤数据' },
-    { value: 'spectral', label: '光谱数据' },
-    { value: 'multispectral', label: '多光谱数据' },
-    { value: 'thermal', label: '热成像数据' }
+    { value: 'soil', label: '土壤数据' }
   ]
 
   const getSubtypeConfig = (dataType, subtype) => {
     const configs = {
-      image: {
-        rgb: { hasFile: true, hasValue: false, unit: '' },
-        nir: { hasFile: true, hasValue: false, unit: '' },
-        red_edge: { hasFile: true, hasValue: false, unit: '' }
+      file: {
+        rgb: { hasFile: true, hasValue: false, unit: '', label: 'RGB图像' },
+        nir: { hasFile: true, hasValue: false, unit: '', label: '近红外图像' },
+        red_edge: { hasFile: true, hasValue: false, unit: '', label: '红边图像' },
+        thermal: { hasFile: true, hasValue: false, unit: '', label: '热成像' },
+        multispectral: { hasFile: true, hasValue: false, unit: '', label: '多光谱' },
+        video: { hasFile: true, hasValue: false, unit: '', label: '视频' }
       },
       environmental: {
-        temperature: { hasFile: false, hasValue: true, unit: '°C' },
-        humidity: { hasFile: false, hasValue: true, unit: '%' },
-        pressure: { hasFile: false, hasValue: true, unit: 'hPa' },
-        wind_speed: { hasFile: false, hasValue: true, unit: 'm/s' }
+        temperature: { hasFile: false, hasValue: true, unit: '°C', label: '温度' },
+        humidity: { hasFile: false, hasValue: true, unit: '%', label: '湿度' },
+        co2: { hasFile: false, hasValue: true, unit: 'ppm', label: '二氧化碳浓度' },
+        light: { hasFile: false, hasValue: true, unit: 'lux', label: '光照强度' },
+        pressure: { hasFile: false, hasValue: true, unit: 'hPa', label: '气压' }
       },
       soil: {
-        ph: { hasFile: false, hasValue: true, unit: 'pH' },
-        moisture: { hasFile: false, hasValue: true, unit: '%' },
-        temperature: { hasFile: false, hasValue: true, unit: '°C' },
-        nutrients: { hasFile: false, hasValue: true, unit: 'mg/kg' }
-      },
-      spectral: {
-        ndvi: { hasFile: true, hasValue: true, unit: '' },
-        evi: { hasFile: true, hasValue: true, unit: '' },
-        ndre: { hasFile: true, hasValue: true, unit: '' }
-      },
-      video: {
-        mp4: { hasFile: true, hasValue: false, unit: '' },
-        avi: { hasFile: true, hasValue: false, unit: '' },
-        mov: { hasFile: true, hasValue: false, unit: '' }
-      },
-      multispectral: {
-        red_edge: { hasFile: true, hasValue: false, unit: '' },
-        nir: { hasFile: true, hasValue: false, unit: '' },
-        red: { hasFile: true, hasValue: false, unit: '' },
-        green: { hasFile: true, hasValue: false, unit: '' },
-        blue: { hasFile: true, hasValue: false, unit: '' }
-      },
-      thermal: {
-        thermal_image: { hasFile: true, hasValue: false, unit: '' },
-        thermal_video: { hasFile: true, hasValue: false, unit: '' },
-        temperature_map: { hasFile: true, hasValue: true, unit: '°C' }
+        moisture: { hasFile: false, hasValue: true, unit: '%', label: '土壤湿度' },
+        ph: { hasFile: false, hasValue: true, unit: '', label: '土壤酸碱度' },
+        ec: { hasFile: false, hasValue: true, unit: 'μS/cm', label: '电导率' },
+        temperature_soil: { hasFile: false, hasValue: true, unit: '°C', label: '土壤温度' }
       }
     }
-    return configs[dataType]?.[subtype] || { hasFile: false, hasValue: true, unit: '' }
+    return configs[dataType]?.[subtype] || { hasFile: false, hasValue: true, unit: '', label: '' }
   }
 
   // 加载会话列表
@@ -167,44 +145,26 @@ const DataUpload = () => {
   useEffect(() => {
     if (selectedDataType) {
       const subtypesMap = {
-        image: [
+        file: [
           { value: 'rgb', label: 'RGB图像' },
           { value: 'nir', label: '近红外图像' },
-          { value: 'red_edge', label: '红边图像' }
+          { value: 'red_edge', label: '红边图像' },
+          { value: 'thermal', label: '热成像' },
+          { value: 'multispectral', label: '多光谱' },
+          { value: 'video', label: '视频' }
         ],
         environmental: [
           { value: 'temperature', label: '温度' },
           { value: 'humidity', label: '湿度' },
-          { value: 'pressure', label: '气压' },
-          { value: 'wind_speed', label: '风速' }
+          { value: 'co2', label: '二氧化碳浓度' },
+          { value: 'light', label: '光照强度' },
+          { value: 'pressure', label: '气压' }
         ],
         soil: [
-          { value: 'ph', label: 'pH值' },
           { value: 'moisture', label: '土壤湿度' },
-          { value: 'temperature', label: '土壤温度' },
-          { value: 'nutrients', label: '土壤养分' }
-        ],
-        spectral: [
-          { value: 'ndvi', label: 'NDVI' },
-          { value: 'evi', label: 'EVI' },
-          { value: 'ndre', label: 'NDRE' }
-        ],
-        video: [
-          { value: 'mp4', label: 'MP4视频' },
-          { value: 'avi', label: 'AVI视频' },
-          { value: 'mov', label: 'MOV视频' }
-        ],
-        multispectral: [
-          { value: 'red_edge', label: '红边图像' },
-          { value: 'nir', label: '近红外图像' },
-          { value: 'red', label: '红色波段' },
-          { value: 'green', label: '绿色波段' },
-          { value: 'blue', label: '蓝色波段' }
-        ],
-        thermal: [
-          { value: 'thermal_image', label: '热成像图像' },
-          { value: 'thermal_video', label: '热成像视频' },
-          { value: 'temperature_map', label: '温度分布图' }
+          { value: 'ph', label: '土壤酸碱度' },
+          { value: 'ec', label: '电导率' },
+          { value: 'temperature_soil', label: '土壤温度' }
         ]
       }
       setSubtypes(subtypesMap[selectedDataType] || [])
@@ -239,45 +199,29 @@ const DataUpload = () => {
   }
 
   // 处理图片上传成功
-  const handleImageUploadSuccess = (uploadData) => {
-    setFormData(prev => ({
-      ...prev,
-      fileData: uploadData
-    }))
-    handleSubmit()
+  const handleImageUploadSuccess = () => {
+    // 文件上传已经由后端创建记录，不再需要重复提交
+    showSuccessToast('上传成功！数据已成功保存到系统中')
+    // 重置表单
+    setSelectedSession('')
+    setSelectedDataType('')
+    setSelectedSubtype('')
+    setFormData({})
   }
 
-  // 提交数据
+  // 提交数据（仅用于数值输入）
   const handleSubmit = async () => {
     if (!selectedSession || !selectedDataType || !selectedSubtype) return
+    if (formData.value === '' || formData.value === undefined || formData.value === null) return
 
     setIsUploading(true)
     try {
-      // 对于文件上传，data_value应该是存储的文件路径
-      // 对于数值输入，data_value是用户输入的值
-      let dataValue;
-      if (formData.fileData?.storage_info?.object_path) {
-        dataValue = formData.fileData.storage_info.object_path; // 文件上传使用存储路径
-      } else {
-        dataValue = formData.value || ''; // 数值输入使用用户输入的值
-      }
-
-      // 获取当前子类型的配置信息
-      const currentConfig = getSubtypeConfig(selectedDataType, selectedSubtype)
-      
       const data = {
         session_id: selectedSession,
         data_type: selectedDataType,
         data_subtype: selectedSubtype,
-        data_value: dataValue,
-        // 自动添加单位信息
-        data_unit: currentConfig?.unit || '',
-        // 暂时不发送capture_time，让后端使用默认值
-        ...(formData.fileData && {
-          bucket_name: formData.fileData.bucket_name,
-          object_key: formData.fileData.object_key,
-          data_format: formData.fileData.data_format
-        })
+        data_value: formData.value
+        // 单位由后端根据 data_subtype 自动添加，无需前端传递
       }
 
       await rawDataService.createRawData(data)
@@ -523,7 +467,7 @@ const DataUpload = () => {
                                                         <Button
                                                           variant="primary"
                                                           onClick={handleSubmit}
-                                                          disabled={!formData.value || isUploading}
+                                                          disabled={formData.value === '' || formData.value === undefined || formData.value === null || isUploading}
                                                           style={{ marginTop: 'var(--spacing-sm)' }}
                                                         >
                                                           {isUploading ? '上传中...' : '提交数据'}
@@ -580,7 +524,7 @@ const DataUpload = () => {
                                                     <Button
                                                       variant="primary"
                                                       onClick={handleSubmit}
-                                                      disabled={!formData.value || isUploading}
+                                                      disabled={formData.value === '' || formData.value === undefined || formData.value === null || isUploading}
                                                       style={{ marginTop: 'var(--spacing-sm)' }}
                                                     >
                                                       {isUploading ? '上传中...' : '提交数据'}

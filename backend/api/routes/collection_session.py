@@ -12,7 +12,6 @@ from database.db_services.collection_session_service import (
     get_collection_session_with_details,
     update_collection_session,
     delete_collection_session,
-    get_latest_collection_session_by_field,
     get_collection_sessions_with_field_info
 )
 from api.schemas.collection_session import (
@@ -291,34 +290,6 @@ async def delete_session(
             raise HTTPException(status_code=404, detail="采集任务不存在")
 
         return {"message": "采集任务删除成功"}
-    finally:
-        db.close()
-
-@router.get("/field/{field_id}/latest", response_model=CollectionSessionWithFieldResponse, summary="获取指定农田的最新采集任务")
-async def get_latest_session_by_field(
-    field_id: str,
-    mission_type: Optional[str] = Query(None, description="任务类型过滤"),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    获取指定农田的最新采集任务
-    """
-    print(f"[API] 收到获取最新采集任务请求: 农田ID={field_id}")
-
-    # 获取用户的数据库会话
-    db = get_user_db(str(current_user.userid))
-
-    try:
-        # 先获取最新的采集任务
-        session = get_latest_collection_session_by_field(db, field_id, mission_type)
-
-        if not session:
-            raise HTTPException(status_code=404, detail="未找到符合条件的采集任务")
-
-        # 然后获取带有详细信息的采集任务
-        session_with_details = get_collection_session_with_details(db, str(session.id))
-
-        return CollectionSessionWithFieldResponse(**session_with_details)  # pyright: ignore[reportCallIssue]
     finally:
         db.close()
 

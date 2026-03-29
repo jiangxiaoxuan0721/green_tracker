@@ -95,8 +95,7 @@ from api import (
     field_router,
     raw_data_router,
     api_key_router,
-    admin_database_router,
-    file_upload_router
+    admin_database_router
 )
 
 # 注册认证路由
@@ -123,8 +122,6 @@ app.include_router(api_key_router, prefix="/api") # /api/api-keys
 # 注册数据库管理路由（管理员专用）
 app.include_router(admin_database_router, prefix="/api") # /api/admin/database
 
-# 注册文件上传路由
-app.include_router(file_upload_router, prefix="/api") # /api/file-upload
 
 # 健康检查端点
 @app.get("/health") # /health

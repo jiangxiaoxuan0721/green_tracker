@@ -36,6 +36,7 @@ api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     console.log(`[前端API] 发送请求: ${config.method?.toUpperCase()} ${config.url}`);
     console.log('[前端API] 请求数据:', config.data);
+    console.log('[前端API] 请求参数:', config.params);
     
     const token = localStorage.getItem('token');
     if (token) {

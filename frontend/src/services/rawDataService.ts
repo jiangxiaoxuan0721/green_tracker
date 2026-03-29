@@ -47,6 +47,52 @@ export interface RawDataListParams {
   data_subtype?: string;
 }
 
+export interface RawDataStatisticsParams {
+  user_id?: string;
+  session_ids?: string;
+  data_type?: string;
+  data_subtype?: string;
+  start_time?: string;
+  end_time?: string;
+}
+
+export interface RawDataStatistics {
+  total_records: number;
+  data_types: Record<string, number>;
+  average_values: Record<string, number>;
+  min_values: Record<string, number>;
+  max_values: Record<string, number>;
+  session_count: number;
+}
+
+export interface OverviewStatistics {
+  total_devices: number;
+  active_devices: number;
+  today_sessions: number;
+  total_data_records: number;
+  recent_activities: Array<{
+    time: string;
+    content: string;
+    type: string;
+    timestamp: string | null;
+  }>;
+  system_status: {
+    database: string;
+    message_queue: string;
+    disk_usage: string;
+  };
+}
+
+
+export interface RawDataStatistics {
+  total_records: number;
+  data_types: Record<string, number>;
+  average_values: Record<string, number>;
+  min_values: Record<string, number>;
+  max_values: Record<string, number>;
+  session_count: number;
+}
+
 export interface RawDataCreate {
   session_id: string;
   data_type: string;
@@ -229,6 +275,38 @@ export const rawDataService = {
     }
   },
 
+  // 获取数据统计信息
+  async getRawDataStatistics(params: RawDataStatisticsParams) {
+    console.log('[前端RawDataService] 发送获取数据统计请求');
+    console.log('[前端RawDataService] 请求参数:', params);
+
+    try {
+      const response = await api.get('/api/raw-data/statistics', { params });
+      console.log('[前端RawDataService] 获取数据统计成功:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('获取数据统计失败:', error);
+      throw error;
+    }
+  },
+
+  // 获取概览统计信息
+  async getOverviewStatistics(userId?: string) {
+    console.log('[前端RawDataService] 发送获取概览统计请求');
+    console.log('[前端RawDataService] 用户ID:', userId);
+
+    try {
+      const params = userId ? { user_id: userId } : {};
+      console.log('[前端RawDataService] 实际传递的参数:', params);
+      const response = await api.get('/api/raw-data/overview', { params });
+      console.log('[前端RawDataService] 获取概览统计成功:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('获取概览统计失败:', error);
+      throw error;
+    }
+  },
+
   // 导出原始数据
   async exportRawData(params: {
     user_id: string;
@@ -239,13 +317,13 @@ export const rawDataService = {
   }) {
     console.log('[前端RawDataService] 发送导出原始数据请求');
     console.log('[前端RawDataService] 导出参数:', params);
-    
+
     try {
-      const response = await api.get('/api/raw-data/export', { 
+      const response = await api.get('/api/raw-data/export', {
         params,
         responseType: 'blob'
       });
-      
+
       // 创建下载链接
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -255,7 +333,7 @@ export const rawDataService = {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
+
       console.log('[前端RawDataService] 导出原始数据成功');
       return { success: true };
     } catch (error) {
@@ -273,4 +351,5 @@ export const updateProcessingStatus = rawDataService.updateProcessingStatus;
 export const updateAIStatus = rawDataService.updateAIStatus;
 export const addRawDataTag = rawDataService.addRawDataTag;
 export const getRawDataTags = rawDataService.getRawDataTags;
+export const getRawDataStatistics = rawDataService.getRawDataStatistics;
 export const exportRawData = rawDataService.exportRawData;

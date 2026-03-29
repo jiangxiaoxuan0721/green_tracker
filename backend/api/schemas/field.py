@@ -79,19 +79,6 @@ class FieldResponse(BaseModel):
         from_attributes = False
 
 
-class PointQuery(BaseModel):
-    longitude: float = Field(..., description="经度")
-    latitude: float = Field(..., description="纬度")
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "longitude": 116.15,
-                "latitude": 39.95
-            }
-        }
-
-
 class FieldListParams(BaseModel):
     owner_id: Optional[str] = Field(None, description="所有者ID")
     keyword: Optional[str] = Field(None, description="搜索关键词")
