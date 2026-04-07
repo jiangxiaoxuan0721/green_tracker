@@ -34,6 +34,11 @@ const Navbar = () => {
               反馈
             </Link>
           </li>
+          <li className="nav-item">
+            <Link to="/map-test" className="nav-link" style={{ color: '#e53e3e' }}>
+              地图测试
+            </Link>
+          </li>
         </ul>
       </div>
     </nav>

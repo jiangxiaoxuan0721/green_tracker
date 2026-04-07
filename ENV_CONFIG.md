@@ -18,6 +18,13 @@
 - `VITE_DEFAULT_USERNAME` - 开发环境默认用户名（仅用于开发测试）
 - `VITE_DEFAULT_PASSWORD` - 开发环境默认密码（仅用于开发测试）
 
+### 高德地图配置
+
+- `VITE_AMAP_KEY` - 高德地图 Web JS API Key（地块地图功能必需）
+- `VITE_AMAP_SERVICE_KEY` - 高德地图 Web服务 API Key（搜索功能必需）
+
+> 申请地址: https://console.amap.com/dev/key/app
+
 ### 后端API配置
 
 - `API_HOST` - API服务器主机，默认为 0.0.0.0

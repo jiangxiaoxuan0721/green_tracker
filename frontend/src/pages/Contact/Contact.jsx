@@ -69,6 +69,8 @@ const Contact = () => {
     } catch (err) {
       console.error('[前端Contact] 提交反馈失败:', err)
       setError(err.response?.data?.detail || '提交失败，请稍后再试')
+      // 失败时也要重置表单状态
+      resetForm()
     } finally {
       setIsSubmitting(false)
     }

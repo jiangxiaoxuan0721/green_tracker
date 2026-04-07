@@ -3,6 +3,8 @@ import { fieldService } from '@/services/fieldService'
 import useToast from '@/hooks/useToast'
 import { FormContainer } from '@/components/business'
 import { Input, Select, Textarea, ToastContainer } from '@/components/ui'
+import { FieldMapPicker } from '@/components/map'
+import './FieldForm.css'
 
 const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
   const { toasts, removeToast, error: showError, success: showSuccess } = useToast()
@@ -16,6 +18,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
     irrigation_type: ''
   })
   const [loading, setLoading] = useState(false)
+  const [showMap, setShowMap] = useState(false)
 
   useEffect(() => {
     if (mode === 'edit' && field) {
@@ -28,12 +31,20 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
         soil_type: field.soil_type || '',
         irrigation_type: field.irrigation_type || ''
       })
+      // 如果有位置数据，自动展开地图
+      if (field.location_wkt) {
+        setShowMap(true)
+      }
     }
   }, [mode, field])
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleMapChange = (wkt) => {
+    setFormData(prev => ({ ...prev, location_wkt: wkt }))
   }
 
   const handleSubmit = async (e) => {
@@ -46,7 +57,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
     }
 
     if (!formData.location_wkt.trim()) {
-      showError('地块位置信息不能为空')
+      showError('请在地图上选择地块位置')
       return
     }
 
@@ -123,7 +134,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
         title={mode === 'create' ? '创建地块' : '编辑地块'}
         onSubmit={handleSubmit}
         loading={loading}
-        size="medium"
+        size="large"
         cancelText="取消"
         submitText="提交"
       >
@@ -143,19 +154,43 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
         name="description"
         value={formData.description}
         onChange={handleChange}
-        rows={3}
+        rows={2}
       />
 
-      <Textarea
-        label="位置信息 (WKT格式)"
-        id="location_wkt"
-        name="location_wkt"
-        value={formData.location_wkt}
-        onChange={handleChange}
-        rows={4}
-        placeholder="POLYGON((经度1 纬度1, 经度2 纬度2, ...))"
-        required
-      />
+      {/* 地图选择器 - 替换原来的WKT输入 */}
+      <div className="form-field-group">
+        <label className="form-label">
+          地块位置 <span className="required">*</span>
+        </label>
+        <div className="map-toggle">
+          <button
+            type="button"
+            className={`toggle-btn ${showMap ? 'active' : ''}`}
+            onClick={() => setShowMap(!showMap)}
+          >
+            {showMap ? '收起地图' : '在地图上选择位置'}
+          </button>
+        </div>
+        
+        {showMap && (
+          <div className="map-picker-wrapper">
+            <FieldMapPicker
+              value={formData.location_wkt}
+              onChange={handleMapChange}
+              height={350}
+            />
+          </div>
+        )}
+        
+        {formData.location_wkt && (
+          <div className="location-info">
+            <span className="location-badge">已设置位置</span>
+            <span className="location-type">
+              {formData.location_wkt.toUpperCase().startsWith('POLYGON') ? '多边形区域' : '单点位置'}
+            </span>
+          </div>
+        )}
+      </div>
 
       <Input
         label="面积 (平方米)"

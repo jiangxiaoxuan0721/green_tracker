@@ -1,0 +1,361 @@
+/* 地图组件样式 */
+
+/* FieldMapPicker */
+.field-map-picker {
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+/* 地图占位符 - API Key未配置时显示 */
+.map-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+}
+
+.map-placeholder-content {
+  text-align: center;
+  padding: var(--spacing-xl);
+}
+
+.placeholder-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: var(--spacing-md);
+}
+
+.placeholder-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.placeholder-hint {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0 0 var(--spacing-md);
+}
+
+.placeholder-hint code {
+  background: var(--bg-main);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  color: var(--primary-color);
+}
+
+.placeholder-link {
+  display: inline-block;
+  color: var(--primary-color);
+  font-size: 0.9rem;
+  text-decoration: none;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.placeholder-link:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* WKT输入面板 */
+.wkt-input-panel {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-main);
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.wkt-input-panel textarea {
+  flex: 1;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-family: monospace;
+  resize: vertical;
+}
+
+.btn-import {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  height: fit-content;
+  align-self: flex-start;
+}
+
+.btn-import:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.textarea-with-label {
+  flex: 1;
+}
+
+.textarea-with-label label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.field-map-picker .map-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.field-map-picker .toolbar-left,
+.field-map-picker .toolbar-right {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.field-map-picker .tool-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.field-map-picker .tool-btn:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  border-color: var(--primary-color);
+}
+
+.field-map-picker .tool-btn.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.field-map-picker .tool-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.field-map-picker .tool-btn.danger {
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.field-map-picker .tool-btn.danger:hover {
+  background: var(--error-color);
+  color: white;
+}
+
+/* 搜索面板 */
+.field-map-picker .search-panel {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.field-map-picker .search-input-group {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.field-map-picker .search-input-group input {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.field-map-picker .search-input-group button {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.field-map-picker .search-input-group button:disabled {
+  opacity: 0.7;
+}
+
+.field-map-picker .search-results {
+  margin-top: var(--spacing-sm);
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.field-map-picker .search-result-item {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.field-map-picker .search-result-item:last-child {
+  border-bottom: none;
+}
+
+.field-map-picker .search-result-item:hover {
+  background: var(--bg-subtle);
+}
+
+.field-map-picker .search-result-item .poi-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.field-map-picker .search-result-item .poi-address {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* WKT输入面板 */
+.field-map-picker .wkt-input-panel {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.field-map-picker .wkt-input-panel textarea {
+  flex: 1;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-family: monospace;
+  resize: vertical;
+}
+
+.field-map-picker .wkt-input-panel .btn-primary {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  height: fit-content;
+}
+
+/* 地图容器 */
+.field-map-picker .map-container,
+.map-display .map-container {
+  width: 100%;
+  height: 400px;
+  position: relative;
+}
+
+/* 确保地图瓦片正确显示 */
+.field-map-picker .map-container .amap-maps,
+.field-map-picker .map-container .amap-canvas,
+.map-display .map-container .amap-maps,
+.map-display .map-container .amap-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 错误提示 */
+.field-map-picker .map-error,
+.map-display .map-error-display {
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--error-color);
+  background: rgba(239, 68, 68, 0.1);
+  font-size: 0.9rem;
+}
+
+.map-display .map-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+}
+
+.map-display .map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+/* WKT输出 */
+.field-map-picker .wkt-output {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border-light);
+}
+
+.field-map-picker .wkt-output label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.field-map-picker .wkt-text {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* 模式提示 */
+.field-map-picker .mode-hint {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(0, 180, 216, 0.1);
+  color: var(--info-color);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* MapDisplay */
+.map-display {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.map-display .map-container {
+  display: block;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .field-map-picker .map-toolbar {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .field-map-picker .toolbar-left,
+  .field-map-picker .toolbar-right {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .field-map-picker .wkt-input-panel {
+    flex-direction: column;
+  }
+}

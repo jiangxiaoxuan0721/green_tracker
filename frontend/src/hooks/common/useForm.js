@@ -59,14 +59,13 @@ const useForm = (initialValues, validationSchema = {}) => {
     const { name, value } = e.target
     setValues(prev => ({ ...prev, [name]: value }))
 
-    if (touched[name]) {
-      const error = validateField(name, value)
-      setErrors(prev => ({
-        ...prev,
-        [name]: error
-      }))
-    }
-  }, [touched, validateField])
+    // 实时验证：只要有值就验证，不论是否 touched
+    const error = validateField(name, value)
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }))
+  }, [validateField])
 
   const handleBlur = useCallback((e) => {
     const { name, value } = e.target
@@ -93,7 +92,8 @@ const useForm = (initialValues, validationSchema = {}) => {
     setTouched({})
   }, [initialValues])
 
-  const isValid = Object.keys(errors).length === 0
+  // 简化：始终检查 errors 是否为空
+  const isValid = Object.keys(errors).every(key => !errors[key])
 
   return {
     values,
