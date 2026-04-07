@@ -239,7 +239,14 @@ const FieldMapPicker = ({
     mouseToolRef.current.on('draw', (e) => {
       const path = e.obj.getPath()
       polygonRef.current = e.obj
-      const wkt = `POLYGON((${path.map(p => `${p.lng} ${p.lat}`).join(',')}))`
+      
+      // 闭合多边形：添加首点到末尾
+      const closedPath = [...path]
+      if (path.length > 0) {
+        closedPath.push(path[0])
+      }
+      
+      const wkt = `POLYGON((${closedPath.map(p => `${p.lng} ${p.lat}`).join(',')}))`
       setCurrentWKT(wkt)
       onChange?.(wkt)
       setMode('view')
