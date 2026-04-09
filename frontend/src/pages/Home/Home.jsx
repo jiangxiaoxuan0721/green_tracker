@@ -1,169 +1,217 @@
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { fadeInUp, scaleIn, listContainer, listItem } from '@/utils/animations'
+import { Button } from '@/components/ui'
 import './Home.css'
 
 const Home = () => {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
 
+  const platformFeatures = [
+    {
+      icon: '🛰️',
+      title: '卫星监测',
+      description: '高分辨率遥感影像实时监测',
+      color: 'var(--primary-color)',
+      delay: 0.1
+    },
+    {
+      icon: '🚁',
+      title: '无人机巡检',
+      description: '精细化作物健康评估',
+      color: 'var(--info-color)',
+      delay: 0.2
+    },
+    {
+      icon: '📡',
+      title: '地面传感',
+      description: '实时数据采集网络',
+      color: 'var(--success-color)',
+      delay: 0.3
+    },
+    {
+      icon: '🧠',
+      title: '智能分析',
+      description: 'AI算法驱动的决策支持',
+      color: 'var(--warning-color)',
+      delay: 0.4
+    }
+  ]
+
   return (
-    <><Navbar />
-    <div className="home-page">
-      <section className="hero-section">
-        <div className="page-container">
-          <div className="hero-content">
-            <h1>空天地一体化农作物智能平台</h1>
-            <p className="hero-subtitle">
-              集成卫星遥感、无人机监测和地面传感器网络，为农业生产提供全方位的数据支持和智能化决策服务
-            </p>
-            <div className="hero-actions">
-              <button 
-                className="btn btn-primary" 
-                onClick={() => isAuthenticated ? navigate('/dashboard') : navigate('/login')}
+    <>
+      <Navbar />
+      <motion.div 
+        className="home-page"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <section className="hero-section">
+          <div className="hero-background-pattern"></div>
+          <div className="page-container">
+            <div className="hero-content">
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={scaleIn}
               >
-                {isAuthenticated ? '进入控制台' : '开始体验'}
-              </button>
-              <button className="btn btn-secondary" onClick={() => navigate('/about')}>
-                了解更多
-              </button>
+                <h1>空天地一体化农作物智能平台</h1>
+              </motion.div>
+              
+              <motion.p 
+                className="hero-subtitle"
+                variants={fadeInUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ delay: 0.1 }}
+              >
+                集成卫星遥感、无人机监测和地面传感器网络，为农业生产提供全方位的数据支持和智能化决策服务
+              </motion.p>
+              
+              <motion.div 
+                className="hero-actions"
+                variants={fadeInUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ delay: 0.2 }}
+              >
+                <Button 
+                  variant="primary" 
+                  size="large"
+                  onClick={() => isAuthenticated ? navigate('/dashboard') : navigate('/login')}
+                  icon="🚀"
+                  animateHover
+                >
+                  {isAuthenticated ? '进入控制台' : '开始体验'}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="large"
+                  onClick={() => navigate('/about')}
+                  icon="📚"
+                  animateHover
+                >
+                  了解更多
+                </Button>
+              </motion.div>
+              
+              <motion.div 
+                className="hero-statistics"
+                variants={fadeInUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ delay: 0.3 }}
+              >
+                <div className="stat-item">
+                  <div className="stat-number">99%</div>
+                  <div className="stat-label">监测准确率</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-number">24/7</div>
+                  <div className="stat-label">实时监控</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-number">50+</div>
+                  <div className="stat-label">智能算法</div>
+                </div>
+              </motion.div>
+            </div>
+            
+            <motion.div 
+              className="platform-preview"
+              variants={listContainer}
+              initial="hidden"
+              animate="visible"
+            >
+              {platformFeatures.map((feature, index) => (
+                <motion.div 
+                  key={index}
+                  className="preview-item"
+                  variants={listItem}
+                  whileHover={{ y: -8, transition: { duration: 0.2 } }}
+                  whileTap={{ scale: 0.97 }}
+                  custom={feature.delay}
+                  style={{ 
+                    '--feature-color': feature.color,
+                    '--feature-delay': feature.delay
+                  }}
+                >
+                  <div className="preview-icon-wrapper">
+                    <div className="preview-icon" style={{ color: feature.color }}>
+                      {feature.icon}
+                    </div>
+                    <div className="icon-glow" style={{ background: feature.color }}></div>
+                  </div>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.description}</p>
+                  <div className="preview-hover-line" style={{ background: feature.color }}></div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </section>
+        
+        <motion.section 
+          className="features-section"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="page-container">
+            <div className="section-header">
+              <h2>为什么选择智能农业平台？</h2>
+              <p className="section-subtitle">将先进技术与农业生产相结合，提升效率与产量</p>
+            </div>
+            
+            <div className="features-grid">
+              <motion.div
+                className="feature-card"
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+              >
+                <div className="feature-icon">📊</div>
+                <h3>数据驱动决策</h3>
+                <p>基于海量数据和多维度分析，提供科学的种植决策建议</p>
+              </motion.div>
+              
+              <motion.div
+                className="feature-card"
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="feature-icon">⚡</div>
+                <h3>自动预警系统</h3>
+                <p>实时监测异常情况，自动预警病虫害和自然灾害</p>
+              </motion.div>
+              
+              <motion.div
+                className="feature-card"
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3 }}
+              >
+                <div className="feature-icon">🌱</div>
+                <h3>精准农业管理</h3>
+                <p>根据作物需求精确调控灌溉、施肥和病虫害防治</p>
+              </motion.div>
             </div>
           </div>
-          <div className="platform-preview">
-            <div className="preview-item">
-              <div className="preview-icon">🛰️</div>
-              <h3>卫星监测</h3>
-              <p>高分辨率遥感影像实时监测</p>
-            </div>
-            <div className="preview-item">
-              <div className="preview-icon">🚁</div>
-              <h3>无人机巡检</h3>
-              <p>精细化作物健康评估</p>
-            </div>
-            <div className="preview-item">
-              <div className="preview-icon">📡</div>
-              <h3>地面传感</h3>
-              <p>实时数据采集网络</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="features-section">
-        <div className="page-container">
-          <div className="section-header">
-            <h2>核心功能</h2>
-            <p>全方位的智能化农业管理解决方案</p>
-          </div>
-          <div className="features-grid">
-            <div className="card feature-card">
-              <div className="feature-icon">🛰️</div>
-              <h3>卫星遥感监测</h3>
-              <p>利用高分辨率卫星影像，实时监测作物生长状况、土壤湿度和植被覆盖度</p>
-            </div>
-            <div className="card feature-card">
-              <div className="feature-icon">🚁</div>
-              <h3>无人机精准巡检</h3>
-              <p>搭载多光谱相机的无人机，进行精细化作物健康评估和病虫害检测</p>
-            </div>
-            <div className="card feature-card">
-              <div className="feature-icon">📡</div>
-              <h3>地面传感器网络</h3>
-              <p>部署在农田的各类传感器，实时采集土壤、气象和作物生长数据</p>
-            </div>
-            <div className="card feature-card">
-              <div className="feature-icon">📊</div>
-              <h3>作物生长分析</h3>
-              <p>基于AI算法的作物生长模型，提供科学的生长预测和管理建议</p>
-            </div>
-            <div className="card feature-card">
-              <div className="feature-icon">⚠️</div>
-              <h3>病虫害预警</h3>
-              <p>智能识别病虫害特征，提前预警并提供防治方案建议</p>
-            </div>
-            <div className="card feature-card">
-              <div className="feature-icon">💧</div>
-              <h3>精准灌溉决策</h3>
-              <p>根据土壤湿度、天气预报和作物需水量，制定最优灌溉方案</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="stats-section">
-        <div className="page-container">
-          <div className="section-header">
-            <h2>平台数据</h2>
-            <p>实时监测数据一目了然</p>
-          </div>
-          <div className="stats-grid">
-            <div className="card stat-card">
-              <div className="stat-number">2,456</div>
-              <div className="stat-label">监测点位</div>
-            </div>
-            <div className="card stat-card">
-              <div className="stat-number">98.5%</div>
-              <div className="stat-label">在线率</div>
-            </div>
-            <div className="card stat-card">
-              <div className="stat-number">15.2K</div>
-              <div className="stat-label">日处理数据</div>
-            </div>
-            <div className="card stat-card">
-              <div className="stat-number">24/7</div>
-              <div className="stat-label">全天候监控</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="technology-section">
-        <div className="page-container">
-          <div className="section-header">
-            <h2>技术架构</h2>
-            <p>先进的技术体系支撑智能化农业管理</p>
-          </div>
-          <div className="tech-layers">
-            <div className="card tech-layer">
-              <h4>数据采集层</h4>
-              <div className="tech-items">
-                <span className="tech-tag">卫星数据</span>
-                <span className="tech-tag">无人机影像</span>
-                <span className="tech-tag">传感器数据</span>
-                <span className="tech-tag">气象数据</span>
-              </div>
-            </div>
-            <div className="card tech-layer">
-              <h4>数据处理层</h4>
-              <div className="tech-items">
-                <span className="tech-tag">图像识别</span>
-                <span className="tech-tag">数据融合</span>
-                <span className="tech-tag">实时分析</span>
-                <span className="tech-tag">质量控制</span>
-              </div>
-            </div>
-            <div className="card tech-layer">
-              <h4>智能分析层</h4>
-              <div className="tech-items">
-                <span className="tech-tag">机器学习</span>
-                <span className="tech-tag">深度学习</span>
-                <span className="tech-tag">预测模型</span>
-                <span className="tech-tag">决策支持</span>
-              </div>
-            </div>
-            <div className="card tech-layer">
-              <h4>应用服务层</h4>
-              <div className="tech-items">
-                <span className="tech-tag">Web平台</span>
-                <span className="tech-tag">移动应用</span>
-                <span className="tech-tag">API接口</span>
-                <span className="tech-tag">数据可视化</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div></>
+        </motion.section>
+      </motion.div>
+    </>
   )
 }
 

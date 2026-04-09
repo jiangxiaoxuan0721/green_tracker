@@ -1,138 +1,35 @@
-/* 设备详情样式 - 使用全局 Modal 组件样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  animation: modalFadeIn var(--transition-fast);
-  padding: var(--spacing-md);
-}
-
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.modal-content {
-  background-color: var(--bg-component);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-default);
-  width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  border: 1px solid var(--border-primary);
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-primary);
-  background-color: var(--bg-component);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-primary);
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: var(--radius-full);
-  transition: var(--transition-fast);
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
-  background-color: var(--bg-subtle-hover);
-}
-
-.modal-body {
-  padding: 1.5rem;
-  background-color: var(--bg-component);
-}
+/* 设备详情样式 - 紧凑版，复用 Modal 样式 */
 
 .detail-item {
   display: flex;
   align-items: flex-start;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
   flex-wrap: nowrap;
 }
 
 .detail-item .label {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
-  width: 120px;
+  width: 80px;
   flex-shrink: 0;
-  margin-right: var(--spacing-sm);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.75rem;
 }
 
 .detail-item .value {
   color: var(--text-secondary);
   word-break: break-word;
   flex: 1;
-  min-width: 0;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-  padding: 1rem;
-  border-top: 1px solid var(--border-primary);
-  background-color: var(--bg-component);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-}
-
-.modal-footer button {
-  flex: 1;
+  font-size: 0.8125rem;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .modal-content {
-    width: 95%;
-  }
-
   .detail-item {
     flex-direction: column;
   }
 
   .detail-item .label {
-    margin-bottom: 0.25rem;
+    margin-bottom: 2px;
     width: auto;
-  }
-
-  .modal-footer {
-    flex-direction: column;
   }
 }

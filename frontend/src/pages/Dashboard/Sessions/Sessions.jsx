@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { collectionSessionService } from '@/services/collectionSessionService'
 import { fieldService } from '@/services/fieldService'
-import { Button, Card } from '@/components/ui'
+import { Button, Card, PageHeader } from '@/components/ui'
 import { DataTable, FilterPanel, FilterSelect, StatusBadge } from '@/components/business'
 import { useModal } from '@/hooks/common'
+import { ListTodo, Plus } from 'lucide-react'
 import { SessionDetail, SessionForm } from './components'
 import './Sessions.css'
+import '../AdditionalStyles.css'
 
 const Sessions = () => {
   const [sessions, setSessions] = useState([])
@@ -253,10 +255,16 @@ const Sessions = () => {
 
   return (
     <div className="dashboard-sessions">
-      <div className="dashboard-header">
-        <h1>任务管理</h1>
-        <Button variant="primary" onClick={openCreate}>创建任务</Button>
-      </div>
+      <PageHeader
+        icon={ListTodo}
+        title="任务管理"
+        description="创建和管理采集任务，追踪任务执行状态"
+        actions={
+          <Button variant="primary" onClick={openCreate} icon={Plus}>
+            创建任务
+          </Button>
+        }
+      />
 
       <FilterPanel>
         <FilterSelect

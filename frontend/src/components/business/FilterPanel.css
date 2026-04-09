@@ -1,12 +1,13 @@
+/* FilterPanel 组件样式 - 紧凑版 */
 .filter-panel {
   background-color: var(--bg-component);
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   align-items: flex-end;
 }
 
@@ -17,7 +18,7 @@
 .filter-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--spacing-sm);
-  padding-top: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+  padding-top: var(--spacing-xs);
   border-top: 1px solid var(--border-light);
 }

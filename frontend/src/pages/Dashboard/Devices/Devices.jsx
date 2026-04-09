@@ -2,11 +2,13 @@ import { useCallback } from 'react'
 import { useDataList, useModal } from '@/hooks/common'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { deviceService } from '@/services/deviceService'
-import { Button, Card } from '@/components/ui'
+import { Button, Card, PageHeader } from '@/components/ui'
 import { ItemCard } from '@/components/business'
+import { Radio, Plus } from 'lucide-react'
 import DeviceForm from './components/DeviceForm'
 import DeviceDetail from './components/DeviceDetail'
 import './Devices.css'
+import '../AdditionalStyles.css'
 
 const Devices = () => {
   const { user } = useAuth()
@@ -18,7 +20,6 @@ const Devices = () => {
 
   const {
     data: devices,
-    loading,
     initialLoading,
     error,
     refresh
@@ -90,17 +91,26 @@ const Devices = () => {
 
   return (
     <div className="dashboard-devices">
-      <div className="dashboard-header">
-        <h1>设备管理</h1>
-        <Button variant="primary" onClick={handleCreate}>
-          添加设备
-        </Button>
-      </div>
+      <PageHeader
+        icon={Radio}
+        title="设备管理"
+        description="管理多种类型的监测设备（卫星、无人机、传感器等）"
+        actions={
+          <Button variant="primary" onClick={handleCreate} icon={Plus}>
+            添加设备
+          </Button>
+        }
+      />
 
       {initialLoading && (
-        <Card className="loading-container">
-          <p>正在加载设备数据...</p>
-        </Card>
+        <div className="dashboard-loading">
+          <div className="dashboard-loading-dots">
+            <div className="dashboard-loading-dot"></div>
+            <div className="dashboard-loading-dot"></div>
+            <div className="dashboard-loading-dot"></div>
+          </div>
+          <div className="dashboard-loading-text">正在加载设备数据...</div>
+        </div>
       )}
 
       {error && (

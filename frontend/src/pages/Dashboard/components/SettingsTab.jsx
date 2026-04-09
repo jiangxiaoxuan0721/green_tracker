@@ -1,12 +1,16 @@
+import { Settings } from 'lucide-react'
+import { PageHeader } from '@/components/ui'
 import SettingItem from './SettingItem'
 import ThemeSelector from './ThemeSelector'
 
 const SettingsTab = () => {
   return (
     <div className="settings-container">
-      <div className="dashboard-header">
-        <h1>系统设置</h1>
-      </div>
+      <PageHeader
+        icon={Settings}
+        title="系统设置"
+        description="配置系统参数、告警规则和界面偏好"
+      />
       
       <div className="settings-content">
         <div className="settings-section">

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Button, Select, Input, ImageUpload } from '@/components/ui'
+import { Upload } from 'lucide-react'
+import { Button, Select, Input, ImageUpload, PageHeader } from '@/components/ui'
 import { collectionSessionService } from '@/services/collectionSessionService'
 import { rawDataService } from '@/services/rawDataService'
 import apiKeyService from '@/services/apiKeyService'
 import { useAuth } from '@/hooks/auth/useAuth'
 import useToast from '@/hooks/useToast'
 import KeyManagement from '../KeyManagement'
+import '../AdditionalStyles.css'
 import './DataUpload.css'
 
 const DataUpload = () => {
@@ -262,9 +264,12 @@ const DataUpload = () => {
 
   return (
     <div className="data-upload-page dashboard-data-upload">
-      <div className="dashboard-header">
-        <h1>数据上传</h1>
-        <div>
+      <PageHeader
+        icon={Upload}
+        title="数据上传"
+        description="上传采集数据，支持图像、视频、环境和土壤数据"
+        actions={
+          <>
           <Button 
             variant="primary" 
             onClick={handleDataUploadClick}
@@ -280,8 +285,9 @@ const DataUpload = () => {
           >
             密钥管理
           </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
       
       <div className="main-content">
         {activeView === 'empty' && (

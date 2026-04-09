@@ -2,11 +2,13 @@ import { useCallback } from 'react'
 import { useDataList, useModal } from '@/hooks/common'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { fieldService } from '@/services/fieldService'
-import { Button, Card } from '@/components/ui'
+import { Button, Card, PageHeader } from '@/components/ui'
 import { ItemCard } from '@/components/business'
+import { Grid3X3, Plus } from 'lucide-react'
 import FieldForm from './components/FieldForm'
 import FieldDetail from './components/FieldDetail'
 import './Fields.css'
+import '../AdditionalStyles.css'
 
 const Fields = () => {
   const { user } = useAuth()
@@ -68,17 +70,26 @@ const Fields = () => {
 
   return (
     <div className="dashboard-fields">
-      <div className="dashboard-header">
-        <h1>地块管理</h1>
-        <Button variant="primary" onClick={handleCreate}>
-          添加地块
-        </Button>
-      </div>
+      <PageHeader
+        icon={Grid3X3}
+        title="地块管理"
+        description="管理您的农田地块，跟踪作物和土壤信息"
+        actions={
+          <Button variant="primary" onClick={handleCreate} icon={Plus}>
+            添加地块
+          </Button>
+        }
+      />
 
       {initialLoading && (
-        <Card className="loading-container">
-          <p>正在加载地块数据...</p>
-        </Card>
+        <div className="dashboard-loading">
+          <div className="dashboard-loading-dots">
+            <div className="dashboard-loading-dot"></div>
+            <div className="dashboard-loading-dot"></div>
+            <div className="dashboard-loading-dot"></div>
+          </div>
+          <div className="dashboard-loading-text">正在加载地块数据...</div>
+        </div>
       )}
 
       {error && (

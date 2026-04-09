@@ -1,0 +1,231 @@
+/* Overview 概览页面样式 - 紧凑版 */
+.dashboard-overview {
+  padding: var(--spacing-sm);
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* 统计卡片网格 - 紧凑 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+/* 增强的统计卡片 */
+.stat-card.enhanced {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--bg-component);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-light);
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition-fast);
+}
+
+.stat-card.enhanced:hover {
+  border-color: var(--stat-color, var(--primary-color));
+  box-shadow: var(--shadow-hover);
+}
+
+.stat-card.enhanced::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--stat-color, var(--primary-color));
+}
+
+.stat-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* 概览区域 - 紧凑 */
+.overview-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+}
+
+.overview-section {
+  background: var(--bg-component);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+  padding: var(--spacing-sm);
+  box-shadow: var(--shadow-light);
+}
+
+.overview-section h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.overview-section h2 svg {
+  color: var(--primary-color);
+  width: 16px;
+  height: 16px;
+}
+
+/* 增强的活动列表 */
+.activity-list.enhanced {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.activity-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.activity-time {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  min-width: 48px;
+}
+
+.activity-content {
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 增强的系统状态 */
+.system-status.enhanced {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.status-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.status-good .status-icon-wrapper {
+  background: rgba(var(--success-color-rgb, 16, 185, 129), 0.15);
+  color: var(--success-color);
+}
+
+.status-warning .status-icon-wrapper {
+  background: rgba(var(--warning-color-rgb, 245, 158, 11), 0.15);
+  color: var(--warning-color);
+}
+
+.status-error .status-icon-wrapper {
+  background: rgba(var(--error-color-rgb, 239, 68, 68), 0.15);
+  color: var(--error-color);
+}
+
+.status-icon-wrapper svg {
+  width: 14px;
+  height: 14px;
+}
+
+.status-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  flex: 1;
+}
+
+.status-good .status-label { color: var(--success-color); }
+.status-warning .status-label { color: var(--warning-color); }
+.status-error .status-label { color: var(--error-color); }
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .overview-sections {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-card.enhanced {
+    padding: var(--spacing-xs);
+  }
+
+  .stat-icon-wrapper {
+    width: 28px;
+    height: 28px;
+  }
+
+  .stat-number {
+    font-size: 1rem;
+  }
+}
+
+/* 无障碍动画设置由全局控制 */

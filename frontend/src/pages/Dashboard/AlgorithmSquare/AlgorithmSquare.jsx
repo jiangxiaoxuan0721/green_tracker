@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Upload, Download, Play, Star, User, PlayCircle, PauseCircle, RotateCw, Trash2, MoreVertical } from 'lucide-react'
+import { Search, Upload, Download, Play, Star, User, PlayCircle, PauseCircle, RotateCw, Trash2, MoreVertical, Cpu } from 'lucide-react'
 import axios from 'axios'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { PageHeader } from '@/components/ui'
 import './AlgorithmSquare.css'
+import '../AdditionalStyles.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6130'
 
@@ -344,13 +346,17 @@ const AlgorithmSquare = () => {
 
   return (
     <div className="algorithm-square">
-      <div className="algorithm-square-header">
-        <h1>算法广场</h1>
-        <button className="upload-btn" onClick={() => setShowUpload(true)}>
-          <Upload size={18} />
-          分享算法
-        </button>
-      </div>
+      <PageHeader
+        icon={Cpu}
+        title="算法广场"
+        description="浏览和分享智能农业算法，一键部署到您的设备"
+        actions={
+          <button className="upload-btn" onClick={() => setShowUpload(true)}>
+            <Upload size={18} />
+            分享算法
+          </button>
+        }
+      />
 
       <div className="search-section">
         <div className="search-input-wrapper">
@@ -375,8 +381,13 @@ const AlgorithmSquare = () => {
       </div>
 
       {loading ? (
-        <div className="loading-state">
-          <span>加载中...</span>
+        <div className="dashboard-loading">
+          <div className="dashboard-loading-dots">
+            <div className="dashboard-loading-dot"></div>
+            <div className="dashboard-loading-dot"></div>
+            <div className="dashboard-loading-dot"></div>
+          </div>
+          <div className="dashboard-loading-text">正在加载算法...</div>
         </div>
       ) : algorithms.length === 0 ? (
         <div className="empty-state">
@@ -602,8 +613,13 @@ const AlgorithmSquare = () => {
       {buildingAlgorithm && (
         <div className="modal-overlay">
           <div className="modal-content build-status-modal">
-            <div className="build-status-icon">
-              <RotateCw size={48} className="spin" />
+            <div className="dashboard-loading">
+              <div className="dashboard-loading-dots">
+                <div className="dashboard-loading-dot"></div>
+                <div className="dashboard-loading-dot"></div>
+                <div className="dashboard-loading-dot"></div>
+              </div>
+              <div className="dashboard-loading-text">正在构建算法...</div>
             </div>
             <h3>正在构建算法</h3>
             <p className="build-status-message">{buildStatus}</p>

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { Eye } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { rawDataService } from '@/services/rawDataService'
 import { collectionSessionService } from '@/services/collectionSessionService'
-import { Button } from '@/components/ui'
+import { Button, PageHeader } from '@/components/ui'
 import { DataTable, FilterPanel, FilterSelect } from '@/components/business'
 import ImageThumbnail from '@/components/ui/ImageThumbnail'
+import '../AdditionalStyles.css'
 import './DataView.css'
 
 const DataView = () => {
@@ -363,43 +365,47 @@ const DataView = () => {
 
   return (
     <div className="dashboard-data-view">
-      <div className="dashboard-header">
-        <h1>数据查看</h1>
-        <div className="export-wrapper">
-          <Button
-            variant="primary"
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            disabled={loading || exporting}
-          >
-            {exporting ? '导出中...' : '导出数据 ▼'}
-          </Button>
-          {showExportMenu && (
-            <div className="export-menu">
-              <div className="export-menu-item" onClick={() => handleExport('csv')}>
-                <span className="export-icon">📊</span>
-                <div className="export-info">
-                  <span className="export-title">CSV 表格</span>
-                  <span className="export-desc">适合Excel分析，包含所有数值数据</span>
+      <PageHeader
+        icon={Eye}
+        title="数据查看"
+        description="查看和导出采集数据，支持多种格式"
+        actions={
+          <div className="export-wrapper">
+            <Button
+              variant="primary"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={loading || exporting}
+            >
+              {exporting ? '导出中...' : '导出数据 ▼'}
+            </Button>
+            {showExportMenu && (
+              <div className="export-menu">
+                <div className="export-menu-item" onClick={() => handleExport('csv')}>
+                  <span className="export-icon">📊</span>
+                  <div className="export-info">
+                    <span className="export-title">CSV 表格</span>
+                    <span className="export-desc">适合Excel分析，包含所有数值数据</span>
+                  </div>
+                </div>
+                <div className="export-menu-item" onClick={() => handleExport('json')}>
+                  <span className="export-icon">📋</span>
+                  <div className="export-info">
+                    <span className="export-title">JSON 数据</span>
+                    <span className="export-desc">完整数据格式，包含元数据</span>
+                  </div>
+                </div>
+                <div className="export-menu-item" onClick={() => handleExport('zip')}>
+                  <span className="export-icon">📦</span>
+                  <div className="export-info">
+                    <span className="export-title">ZIP 压缩包</span>
+                    <span className="export-desc">图片/视频文件 + CSV元数据</span>
+                  </div>
                 </div>
               </div>
-              <div className="export-menu-item" onClick={() => handleExport('json')}>
-                <span className="export-icon">📋</span>
-                <div className="export-info">
-                  <span className="export-title">JSON 数据</span>
-                  <span className="export-desc">完整数据格式，包含元数据</span>
-                </div>
-              </div>
-              <div className="export-menu-item" onClick={() => handleExport('zip')}>
-                <span className="export-icon">📦</span>
-                <div className="export-info">
-                  <span className="export-title">ZIP 压缩包</span>
-                  <span className="export-desc">图片/视频文件 + CSV元数据</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+        }
+      />
 
       <FilterPanel>
         <FilterSelect

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
+import { BarChart3 } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { rawDataService } from '@/services/rawDataService'
 import { deviceService } from '@/services/deviceService'
 import { collectionSessionService } from '@/services/collectionSessionService'
-import { Select } from '@/components/ui'
+import { Select, PageHeader } from '@/components/ui'
 import { getMinioUrl } from '@/config/environment'
 import '../Dashboard.css'
+import '../AdditionalStyles.css'
 import './DataAnalyze.css'
 
 const DataAnalyze = () => {
@@ -245,9 +247,11 @@ const DataAnalyze = () => {
 
   return (
     <div className="dashboard-data-analyze">
-      <div className="dashboard-header">
-        <h1>数据分析</h1>
-      </div>
+      <PageHeader
+        icon={BarChart3}
+        title="数据分析"
+        description="多维度分析农业数据，生成可视化报表"
+      />
 
       {/* 控制面板 */}
       <div className="analysis-controls">

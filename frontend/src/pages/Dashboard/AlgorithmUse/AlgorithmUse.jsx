@@ -216,8 +216,14 @@ const AlgorithmUse = () => {
 
       {loading && (
         <div className="loading-overlay">
-          <div className="loading-spinner"></div>
-          <div className="loading-text">正在处理...</div>
+          <div className="dashboard-loading">
+            <div className="dashboard-loading-dots">
+              <div className="dashboard-loading-dot"></div>
+              <div className="dashboard-loading-dot"></div>
+              <div className="dashboard-loading-dot"></div>
+            </div>
+            <div className="dashboard-loading-text">正在处理...</div>
+          </div>
         </div>
       )}
     </div>

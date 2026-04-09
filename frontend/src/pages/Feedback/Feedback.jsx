@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { MessageSquare, Clock, User, Mail, ChevronRight, Inbox } from 'lucide-react'
 import { feedbackService } from '@/services/feedbackService'
 import Navbar from '@/components/Navbar'
+import { fadeInUp, listContainer, listItem } from '@/utils/animations'
 import './Feedback.css'
 
 const Feedback = () => {
@@ -40,12 +43,12 @@ const Feedback = () => {
     }
   }
 
-  const getStatusClass = (status) => {
+  const getStatusConfig = (status) => {
     switch (status) {
-      case 'pending': return 'status-pending'
-      case 'reviewed': return 'status-reviewed'
-      case 'resolved': return 'status-resolved'
-      default: return 'status-pending'
+      case 'pending': return { class: 'status-pending', label: '待处理', color: 'var(--warning-color)' }
+      case 'reviewed': return { class: 'status-reviewed', label: '已查看', color: 'var(--info-color)' }
+      case 'resolved': return { class: 'status-resolved', label: '已解决', color: 'var(--success-color)' }
+      default: return { class: 'status-pending', label: '待处理', color: 'var(--warning-color)' }
     }
   }
 
@@ -57,54 +60,130 @@ const Feedback = () => {
     <>
       <Navbar />
       <div className="feedback-container">
-        <div className="feedback-content">
-          <div className="feedback-header">
+        <div className="feedback-background-pattern"></div>
+        <motion.div 
+          className="feedback-content"
+          initial="hidden"
+          animate="visible"
+          variants={fadeInUp}
+        >
+          <motion.div className="feedback-header" variants={fadeInUp}>
+            <div className="header-icon">
+              <MessageSquare size={28} />
+            </div>
             <h1>用户反馈</h1>
             <span className="feedback-count">{feedbacks.length} 条</span>
-          </div>
+          </motion.div>
           
           {loading ? (
-            <div className="feedback-loading">加载中...</div>
+            <motion.div 
+              className="feedback-loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <div className="dashboard-loading-dots">
+                <div className="dashboard-loading-dot"></div>
+                <div className="dashboard-loading-dot"></div>
+                <div className="dashboard-loading-dot"></div>
+              </div>
+              <p className="dashboard-loading-text">正在加载反馈...</p>
+            </motion.div>
           ) : error ? (
-            <div className="feedback-error">{error}</div>
+            <motion.div 
+              className="feedback-error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <MessageSquare size={24} />
+              <p>{error}</p>
+            </motion.div>
           ) : feedbacks.length === 0 ? (
-            <div className="feedback-empty">
-              <span className="empty-icon">📭</span>
+            <motion.div 
+              className="feedback-empty"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <div className="empty-icon-wrapper">
+                <Inbox size={48} />
+              </div>
               <span>暂无反馈</span>
-            </div>
+              <p>用户反馈将显示在这里</p>
+            </motion.div>
           ) : (
-            <div className="feedback-list">
-              {feedbacks.map((feedback) => (
-                <div 
-                  key={feedback.id} 
-                  className={`feedback-item ${expandedId === feedback.id ? 'expanded' : ''}`}
-                  onClick={() => toggleExpand(feedback.id)}
-                >
-                  <div className="feedback-item-main">
-                    <div className="feedback-item-left">
-                      <span className={`status-dot ${getStatusClass(feedback.status)}`}></span>
-                      <div className="feedback-item-info">
-                        <span className="feedback-name">{feedback.name || '匿名用户'}</span>
-                        <span className="feedback-email">{feedback.email}</span>
+            <motion.div 
+              className="feedback-list"
+              variants={listContainer}
+              initial="hidden"
+              animate="visible"
+            >
+              {feedbacks.map((feedback) => {
+                const statusConfig = getStatusConfig(feedback.status)
+                const isExpanded = expandedId === feedback.id
+                return (
+                  <motion.div 
+                    key={feedback.id}
+                    className={`feedback-item ${isExpanded ? 'expanded' : ''}`}
+                    variants={listItem}
+                    layout
+                  >
+                    <div 
+                      className="feedback-item-main"
+                      onClick={() => toggleExpand(feedback.id)}
+                    >
+                      <div className="feedback-status-indicator" style={{ background: statusConfig.color }}>
+                        {statusConfig.label}
+                      </div>
+                      
+                      <div className="feedback-item-left">
+                        <div className="user-avatar">
+                          <User size={18} />
+                        </div>
+                        <div className="feedback-item-info">
+                          <span className="feedback-name">{feedback.name || '匿名用户'}</span>
+                          <span className="feedback-email">
+                            <Mail size={12} /> {feedback.email}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="feedback-item-center">
+                        <span className="feedback-subject">{feedback.subject}</span>
+                      </div>
+                      
+                      <div className="feedback-item-right">
+                        <span className="feedback-date">
+                          <Clock size={14} /> {formatDate(feedback.created_at)}
+                        </span>
+                        <motion.span 
+                          className={`expand-icon ${isExpanded ? 'rotated' : ''}`}
+                          animate={{ rotate: isExpanded ? 90 : 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <ChevronRight size={20} />
+                        </motion.span>
                       </div>
                     </div>
-                    <div className="feedback-item-right">
-                      <span className="feedback-subject">{feedback.subject}</span>
-                      <span className="feedback-date">{formatDate(feedback.created_at)}</span>
-                    </div>
-                    <span className={`expand-icon ${expandedId === feedback.id ? 'rotated' : ''}`}>›</span>
-                  </div>
-                  
-                  {expandedId === feedback.id && (
-                    <div className="feedback-item-content">
-                      {feedback.content}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                    
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div 
+                          className="feedback-item-content"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <div className="content-divider"></div>
+                          <p>{feedback.content}</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
           )}
-        </div>
+        </motion.div>
       </div>
     </>
   )

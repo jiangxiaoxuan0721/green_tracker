@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { FileText, Download } from 'lucide-react'
+import { PageHeader } from '@/components/ui'
+import { Button } from '@/components/ui'
 import '../Dashboard.css'
 import '../AdditionalStyles.css'
 
@@ -99,10 +102,16 @@ const Logs = () => {
   
   return (
     <div className="dashboard-logs">
-      <div className="dashboard-header">
-        <h1>日志查看</h1>
-        <button className="primary-btn">导出日志</button>
-      </div>
+      <PageHeader
+        icon={FileText}
+        title="日志查看"
+        description="查看系统操作日志，追踪设备状态和任务执行记录"
+        actions={
+          <Button variant="primary" icon={Download}>
+            导出日志
+          </Button>
+        }
+      />
       
       <div className="log-filters">
         <div className="filter-group">

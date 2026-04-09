@@ -109,7 +109,7 @@
   background: var(--bg-subtle);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
+  padding: 12px;
   transition: var(--transition-normal);
   cursor: pointer;
 }
@@ -148,7 +148,7 @@
 .algorithm-description {
   font-size: 0.875rem;
   color: var(--text-medium);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -160,7 +160,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
 
 .algorithm-tag {
@@ -183,13 +183,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: var(--spacing-md);
+  padding-top: 6px;
   border-top: 1px solid var(--border-primary);
 }
 
 .algorithm-status-tag {
   font-size: 0.6875rem;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: var(--radius-sm);
   margin-left: var(--spacing-xs);
   display: inline-block;
@@ -227,8 +227,8 @@
 
 .algorithm-stats {
   display: flex;
-  gap: var(--spacing-md);
-  font-size: 0.8125rem;
+  gap: 8px;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
@@ -236,13 +236,16 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  border: none;
+  background: none;
+  padding: 0;
 }
 
 /* 卡片操作按钮 */
 .algorithm-actions {
   display: flex;
   gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
+  margin-top: var(--spacing-xs);
   align-items: center;
 }
 

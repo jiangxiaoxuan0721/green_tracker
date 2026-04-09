@@ -1,99 +1,205 @@
 /* Contact CSS - 使用全局变量 */
 .contact-container {
-  max-width: 900px;
+  max-width: 700px;
   margin: 0 auto;
   padding: var(--spacing-xxl) var(--spacing-xl);
   background: var(--bg-main);
   min-height: calc(100vh - 8rem);
+  position: relative;
+  overflow: hidden;
+}
+
+.contact-background-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 30%, var(--primary-subtle) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, var(--info-subtle) 0%, transparent 40%);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .contact-content {
   max-width: 600px;
   margin: 0 auto;
   text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.contact-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.contact-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  border-radius: 22px;
+  color: white;
+  margin-bottom: var(--spacing-lg);
+  box-shadow: 0 8px 32px var(--primary-medium);
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 8px 32px var(--primary-medium); }
+  50% { box-shadow: 0 8px 48px var(--primary-light); }
 }
 
 .contact-content h1 {
   color: var(--text-primary);
   font-size: 2.5rem;
-  font-weight: 300;
+  font-weight: 700;
   margin-bottom: var(--spacing-md);
   letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--text-primary), var(--primary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .contact-content p {
   color: var(--text-medium);
   font-size: 1.1rem;
   line-height: 1.7;
-  margin-bottom: var(--spacing-xxl);
-  font-weight: 300;
+  margin-bottom: var(--spacing-xl);
+  font-weight: 400;
 }
 
 .contact-info-card {
-  margin-bottom: var(--spacing-xxl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
 }
 
-.info-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95rem;
-}
-
-.info-table th {
-  color: var(--text-secondary);
-  font-weight: 400;
-  padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--border-primary);
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
   text-align: left;
-  width: 80px;
 }
 
-.info-table td {
+.info-item:hover {
+  border-color: var(--primary-medium);
+  background: var(--primary-subtle);
+}
+
+.info-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--primary-color);
+  border-radius: var(--radius-md);
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px var(--primary-medium);
+}
+
+.info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info-label {
+  font-size: 0.8rem;
   color: var(--text-muted);
-  padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--primary-subtle);
-  font-weight: 300;
+  font-weight: 500;
 }
 
-.info-table tr:last-child th,
-.info-table tr:last-child td {
-  border-bottom: none;
+.info-value {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .contact-form {
   text-align: left;
   margin-top: var(--spacing-xl);
+  padding: var(--spacing-xl);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
 }
 
 .form-error {
   padding: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
-  background-color: rgba(var(--error-color-rgb), 0.1);
+  background-color: var(--error-bg);
   color: var(--error-color);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border-left: 4px solid var(--error-color);
   font-size: 0.9rem;
+  font-weight: 500;
+  overflow: hidden;
 }
 
 .form-success {
   padding: var(--spacing-xxl);
   text-align: center;
-  color: var(--text-primary);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+}
+
+.success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, var(--success-color), var(--primary-color));
+  border-radius: 50%;
+  color: white;
+  margin-bottom: var(--spacing-lg);
+  box-shadow: 0 4px 16px var(--success-medium);
+  animation: success-bounce 0.5s ease-out;
+}
+
+@keyframes success-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 .form-success h3 {
   margin: 0 0 var(--spacing-md);
-  color: var(--primary-light);
-  font-size: 1.8rem;
-  font-weight: 300;
+  color: var(--success-color);
+  font-size: 1.5rem;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 .form-success p {
   margin: 0;
   color: var(--text-medium);
-  font-size: 1.1rem;
-  font-weight: 300;
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.submit-btn {
+  width: 100%;
+  justify-content: center;
 }
 
 @media (max-width: 768px) {
@@ -105,22 +211,37 @@
     font-size: 2rem;
   }
 
-  .contact-content p {
-    font-size: 1rem;
-    margin-bottom: var(--spacing-xl);
+  .contact-icon {
+    width: 72px;
+    height: 72px;
   }
 
-  .submit-btn {
-    width: 100%;
+  .contact-content p {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .contact-info-card {
     padding: var(--spacing-md);
   }
 
-  .info-table th {
-    width: 60px;
-    font-size: 0.85rem;
+  .contact-form {
+    padding: var(--spacing-lg);
   }
 
-  .info-table td {
-    font-size: 0.85rem;
+  .info-item {
+    padding: var(--spacing-sm);
+  }
+
+  .info-icon-wrapper {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-icon,
+  .success-icon {
+    animation: none;
   }
 }

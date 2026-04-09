@@ -1,0 +1,108 @@
+/* PageHeader 组件样式 - 紧凑版 */
+.page-header {
+  margin-bottom: var(--spacing-md);
+}
+
+.page-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+}
+
+.page-header-main {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.page-header-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  border-radius: var(--radius-sm);
+  color: white;
+  box-shadow: 0 2px 8px var(--primary-medium);
+  flex-shrink: 0;
+}
+
+.page-header-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.page-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.page-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.page-description {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin: 0;
+  font-weight: 400;
+  max-width: 400px;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.page-header-line {
+  height: 2px;
+  background: linear-gradient(90deg, 
+    var(--primary-color) 0%, 
+    var(--primary-light) 50%, 
+    transparent 100%
+  );
+  border-radius: 1px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .page-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  
+  .page-header-main {
+    width: 100%;
+  }
+  
+  .page-header-icon {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .page-header-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .page-title {
+    font-size: 1rem;
+  }
+  
+  .page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

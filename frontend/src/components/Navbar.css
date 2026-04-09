@@ -1,12 +1,13 @@
 /* Navbar CSS - 使用全局变量 */
 .navbar {
-  background: var(--bg-main);
+  background: var(--bg-component);
   padding: 0;
   box-shadow: var(--shadow-default);
   position: sticky;
   top: 0;
   z-index: 100;
   border-bottom: 1px solid var(--border-primary);
+  backdrop-filter: blur(10px);
 }
 
 .nav-container {
@@ -15,16 +16,47 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 var(--spacing-lg);
+  padding: 0 var(--spacing-xl);
   height: 64px;
 }
 
 .nav-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
   color: var(--text-primary);
   text-decoration: none;
-  font-size: 1.1rem;
-  font-weight: 400;
+  font-size: 1rem;
+  font-weight: 600;
   letter-spacing: -0.01em;
+  transition: var(--transition-normal);
+}
+
+.nav-logo:hover {
+  color: var(--primary-color);
+}
+
+.logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px var(--primary-medium);
+}
+
+.logo-emoji {
+  font-size: 1.2rem;
+  filter: grayscale(100%) brightness(200%);
+}
+
+.logo-text {
+  background: linear-gradient(135deg, var(--text-primary), var(--primary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .nav-menu {
@@ -32,41 +64,58 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  gap: var(--spacing-xs);
 }
 
 .nav-item {
-  margin-left: var(--spacing-xl);
+  margin: 0;
 }
 
 .nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
   color: var(--text-medium);
   text-decoration: none;
-  font-weight: 400;
-  font-size: 0.95rem;
-  padding: var(--spacing-sm) 0;
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: var(--spacing-sm) var(--spacing-md);
   position: relative;
   transition: var(--transition-normal);
+  border-radius: var(--radius-md);
 }
 
-.nav-link:hover,
-.nav-link.active {
+.nav-icon {
+  transition: transform 0.3s ease;
+}
+
+.nav-link:hover {
   color: var(--text-primary);
+  background: var(--primary-subtle);
 }
 
-.nav-link::after {
-  content: '';
+.nav-link:hover .nav-icon {
+  transform: scale(1.1);
+}
+
+.nav-link.active {
+  color: var(--primary-color);
+  background: var(--primary-subtle);
+}
+
+.nav-link.active .nav-icon {
+  transform: scale(1.1);
+}
+
+.nav-link-indicator {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background-color: var(--primary-light);
-  transition: width var(--transition-normal);
-}
-
-.nav-link:hover::after,
-.nav-link.active::after {
-  width: 100%;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 3px 3px 0 0;
 }
 
 /* 响应式导航栏 */
@@ -75,11 +124,20 @@
     padding: 0 var(--spacing-md);
   }
   
-  .nav-item {
-    margin-left: var(--spacing-lg);
+  .logo-text {
+    display: none;
+  }
+  
+  .nav-link span {
+    display: none;
   }
   
   .nav-link {
-    font-size: 0.9rem;
+    padding: var(--spacing-sm);
+  }
+  
+  .nav-icon {
+    width: 20px;
+    height: 20px;
   }
 }

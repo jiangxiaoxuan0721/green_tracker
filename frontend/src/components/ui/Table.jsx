@@ -12,7 +12,14 @@ const Table = ({
   if (loading) {
     return (
       <div className={`table-container ${className}`}>
-        <div className="table-loading">加载中...</div>
+        <div className="table-loading">
+          <div className="table-loading-dots">
+            <div className="table-loading-dot"></div>
+            <div className="table-loading-dot"></div>
+            <div className="table-loading-dot"></div>
+          </div>
+          <div className="table-loading-text">正在加载...</div>
+        </div>
       </div>
     )
   }

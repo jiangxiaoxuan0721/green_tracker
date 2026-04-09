@@ -1,9 +1,9 @@
-/* 设备管理页面特定样式 */
+/* 设备管理页面特定样式 - 紧凑版 */
 
-/* 网格布局 - 使用通用卡片组件 */
+/* 网格布局 */
 .devices-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--spacing-md);
   margin-top: var(--spacing-md);
 }
@@ -14,46 +14,46 @@
   box-shadow: var(--shadow-light);
   border: 1px solid var(--border-primary);
   overflow: hidden;
-  transition: var(--transition-normal);
+  transition: var(--transition-fast);
 }
 
 .device-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-medium);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-hover);
 }
 
 .device-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-sm);
   background-color: var(--bg-header);
   border-bottom: 1px solid var(--border-primary);
+  gap: var(--spacing-xs);
 }
 
 .device-title h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 0.9375rem;
   color: var(--text-primary);
 }
 
 .device-manufacturer {
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
   color: var(--text-secondary);
-  margin-top: var(--spacing-xs);
+  margin-top: 2px;
 }
 
 .status-badge {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-pill);
-  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 0.625rem;
   font-weight: 500;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .status-badge.active {
-  background-color: var(--success-light);
+  background-color: rgba(var(--success-color-rgb, 16, 185, 129), 0.15);
   color: var(--success-color);
 }
 
@@ -63,13 +63,14 @@
 }
 
 .device-info {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-sm);
 }
 
 .info-item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 2px;
+  font-size: 0.75rem;
 }
 
 .info-label {
@@ -85,100 +86,24 @@
 
 .device-actions {
   display: flex;
-  padding: 0 var(--spacing-lg) var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-md);
   gap: var(--spacing-sm);
-}
-
-/* 设备详情样式 */
-.device-detail-content {
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.device-overview {
-  padding-bottom: var(--spacing-lg);
-  border-bottom: 1px solid var(--border-primary);
-}
-
-.device-name {
-  margin: 0 0 var(--spacing-sm) 0;
-  font-size: 1.3rem;
-  color: var(--text-primary);
-}
-
-.device-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.device-type, .device-platform {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background-color: var(--bg-light);
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.device-status.active {
-  background-color: var(--success-light);
-  color: var(--success-color);
-}
-
-.device-status.inactive {
-  background-color: var(--bg-disabled);
-  color: var(--text-muted);
-}
-
-.device-description {
-  margin: 0;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-/* 传感器和执行机构列表样式 */
-.sensor-list, .actuator-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.sensor-item, .actuator-item {
-  display: flex;
-  justify-content: space-between;
-  padding: var(--spacing-sm);
-  background-color: var(--bg-light);
-  border-radius: var(--radius-sm);
-}
-
-.sensor-name, .actuator-name {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.sensor-status.enabled, .actuator-status.enabled {
-  color: var(--success-color);
-}
-
-.sensor-status.disabled, .actuator-status.disabled {
-  color: var(--text-muted);
 }
 
 /* 设备表单样式 */
 .device-form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
 }
 
 /* 表单分组样式 */
 .section-title {
-  font-size: 1.1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: var(--spacing-md);
-  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+  padding-bottom: var(--spacing-xs);
   border-bottom: 1px solid var(--border-primary);
   display: flex;
   align-items: center;
@@ -187,24 +112,22 @@
 /* 网格式复选框样式 */
 .checkbox-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-sm);
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--spacing-xs);
 }
 
 .checkbox-card {
   background-color: var(--bg-component);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-sm);
-  transition: var(--transition-normal);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs);
+  transition: var(--transition-fast);
   position: relative;
 }
 
 .checkbox-card:hover {
   background-color: var(--bg-hover);
   border-color: var(--primary-light);
-  box-shadow: var(--shadow-light);
 }
 
 .checkbox-input {
@@ -218,21 +141,21 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
+  gap: 2px;
   cursor: pointer;
-  padding: var(--spacing-sm) 0;
+  padding: var(--spacing-xs) 0;
   position: relative;
 }
 
 .checkmark {
   position: absolute;
-  top: var(--spacing-xs);
-  right: var(--spacing-xs);
-  height: 20px;
-  width: 20px;
+  top: 2px;
+  right: 2px;
+  height: 16px;
+  width: 16px;
   background-color: var(--bg-light);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-sm);
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -241,8 +164,8 @@
 .checkmark::after {
   content: "";
   display: none;
-  width: 6px;
-  height: 10px;
+  width: 4px;
+  height: 8px;
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
@@ -257,88 +180,43 @@
   display: block;
 }
 
-.checkbox-input:checked ~ .checkbox-label {
-  color: var(--primary-color);
-}
-
-
-
-.sensor-name, .actuator-name {
-  font-size: 0.9rem;
+.sensor-name {
+  font-size: 0.75rem;
   text-align: center;
   color: var(--text-secondary);
   font-weight: 500;
 }
 
-.checkbox-input:checked ~ .checkbox-label .sensor-name,
-.checkbox-input:checked ~ .checkbox-label .actuator-name {
+.checkbox-input:checked ~ .checkbox-label .sensor-name {
   color: var(--text-primary);
 }
 
-/* 旧版复选框样式保持兼容性 */
-.checkbox-group {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--spacing-sm);
-}
-
-.checkbox-item {
+/* 空状态 - 紧凑版 */
+.dashboard-devices .empty-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--spacing-xs);
-}
-
-.checkbox-item input {
-  margin: 0;
-}
-
-.checkbox-item label {
-  margin: 0;
-  font-weight: normal;
-}
-
-/* 空状态图标 */
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: var(--spacing-lg);
-  opacity: 0.7;
-}
-
-.empty-state h3 {
-  margin-bottom: var(--spacing-md);
-  color: var(--text-primary);
-  font-size: 1.5rem;
-}
-
-.empty-state > p {
-  margin-bottom: var(--spacing-xl);
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-}
-
-.empty-state-tips {
-  background-color: var(--bg-component);
-  border-radius: var(--radius-md);
+  justify-content: center;
   padding: var(--spacing-lg);
-  margin-top: var(--spacing-lg);
-  border: 1px solid var(--border-primary);
-  text-align: left;
+  text-align: center;
+  color: var(--text-muted);
+  min-height: 200px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-primary);
 }
 
-.empty-state-tips p {
-  margin: 0 0 var(--spacing-sm) 0;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.empty-state-tips ul {
-  margin: 0;
-  padding-left: var(--spacing-lg);
-}
-
-.empty-state-tips li {
+.dashboard-devices .empty-state h3 {
   margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.dashboard-devices .empty-state > p {
+  margin-bottom: var(--spacing-sm);
   color: var(--text-secondary);
+  font-size: 0.875rem;
 }
 
 /* 响应式设计 */
@@ -351,19 +229,7 @@
     flex-direction: column;
   }
 
-  .device-meta {
-    flex-wrap: wrap;
-  }
-
-  .checkbox-group {
-    grid-template-columns: 1fr;
-  }
-
   .checkbox-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  }
-
-  .checkbox-card {
-    padding: var(--spacing-xs);
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 }

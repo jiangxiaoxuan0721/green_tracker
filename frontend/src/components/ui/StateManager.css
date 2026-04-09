@@ -1,0 +1,285 @@
+/* StateManager.css - 状态管理组件样式 */
+
+.state-manager-container {
+  width: 100%;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+}
+
+.state-manager-content {
+  text-align: center;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* 错误状态 */
+.state-error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: rgba(var(--error-color-rgb), 0.05);
+  border: 1px solid rgba(var(--error-color-rgb), 0.2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-default);
+}
+
+.state-error-icon {
+  font-size: 3rem;
+  opacity: 0.8;
+}
+
+.state-error-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.state-error-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--error-color);
+  margin: 0;
+}
+
+.state-error-message {
+  color: var(--text-medium);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 300px;
+}
+
+.state-error-button {
+  margin-top: 1rem;
+}
+
+/* 空状态 */
+.state-empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2.5rem;
+  background: rgba(var(--primary-color-rgb, 59, 130, 246), 0.03);
+  border: 1px solid rgba(var(--primary-color-rgb, 59, 130, 246), 0.1);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-default);
+}
+
+.state-empty-icon {
+  font-size: 3.5rem;
+  opacity: 0.7;
+}
+
+.state-empty-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.state-empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.state-empty-message {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 300px;
+}
+
+.state-empty-button {
+  margin-top: 1rem;
+}
+
+.state-content-wrapper {
+  width: 100%;
+  animation: content-fade-in 0.4s ease-out;
+}
+
+@keyframes content-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 数据表格状态 */
+.data-grid-state {
+  width: 100%;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  border-radius: var(--radius-md);
+}
+
+.data-grid-error-message {
+  color: var(--text-medium);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.data-grid-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 2.5rem;
+  max-width: 400px;
+}
+
+.data-grid-empty-icon {
+  font-size: 4rem;
+  opacity: 0.5;
+}
+
+.data-grid-empty-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.data-grid-empty-message {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  text-align: center;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 280px;
+}
+
+.data-grid-content {
+  width: 100%;
+}
+
+.data-grid-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.data-grid-count {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* 行内状态 */
+.inline-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid;
+  border-left-width: 3px;
+  animation: slide-in 0.3s ease-out;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.inline-state-icon {
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.inline-state-message {
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  flex: 1;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .state-manager-content {
+    padding: 1.5rem;
+  }
+  
+  .state-error-container,
+  .state-empty-container {
+    padding: 1.5rem;
+  }
+  
+  .state-error-icon,
+  .state-empty-icon {
+    font-size: 2.5rem;
+  }
+  
+  .data-grid-state {
+    padding: 2rem 1rem;
+  }
+  
+  .data-grid-empty {
+    padding: 1.5rem;
+  }
+  
+  .data-grid-empty-icon {
+    font-size: 3rem;
+  }
+}
+
+/* 悬停效果 */
+.state-error-container:hover,
+.state-empty-container:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow-hover);
+}
+
+/* 交互反馈 */
+.state-error-button:active,
+.state-empty-button:active {
+  transform: scale(0.98);
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .state-error-container,
+  .state-empty-container {
+    border-width: 2px;
+  }
+  
+  .inline-state {
+    border-width: 2px;
+    border-left-width: 4px;
+  }
+}
