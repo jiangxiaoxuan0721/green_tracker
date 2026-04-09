@@ -5,7 +5,6 @@
 import os
 import logging
 import asyncio
-import random
 from typing import Optional, List, Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
@@ -26,19 +25,19 @@ class ContainerManager:
         algorithm_uuid: str,
         image_name: str,
         port: int,
-        env: Dict[str, str] = None
-    ) -> Tuple[bool, str, str]:
+        env: Optional[Dict[str, str]] = None
+    ) -> Tuple[bool, str, int, str]:
         """
         启动算法容器
         
         Args:
             algorithm_uuid: 算法UUID
             image_name: 镜像名称
-            port: 端口
+            port: 端口（可能会被修改如果端口被占用）
             env: 环境变量
         
         Returns:
-            (成功标志, 容器ID, 错误信息)
+            (成功标志, 容器ID, 实际端口, 错误信息)
         """
         try:
             container_name = f"{CONTAINER_PREFIX}{algorithm_uuid[:8]}"
@@ -46,23 +45,23 @@ class ContainerManager:
             # 构建环境变量
             env_list = [f"-e {k}={v}" for k, v in (env or {}).items()]
             env_list.append(f"-e ALGORITHM_UUID={algorithm_uuid}")
-            env_list.append(f"-e PORT={port}")
 
             # 检查端口是否已被占用
+            original_port = port  # 保存原始端口用于日志
             if await self._is_port_in_use(port):
                 logger.warning(f"端口 {port} 已被占用，尝试寻找新端口")
                 port = await self._find_available_port()
                 if not port:
-                    return False, "", "无可用端口"
+                    return False, "", 0, "无可用端口"
 
             # 构建 docker run 命令
-            # 始终暴露 8001 端口（算法容器内固定端口）
-            # 容器内部使用 8001，与主机映射解耦
+            # 始终暴露 8000 端口（算法容器内固定端口）
+            # 容器内部使用 8000，与主机映射解耦
             cmd = [
                 'docker', 'run', '-d',
                 '--name', container_name,
                 '--restart', 'unless-stopped',
-                '-p', f'{port}:8001',  # 主机端口 -> 容器 8001
+                '-p', f'{port}:8000',  # 主机端口 -> 容器 8000
             ] + env_list + [
                 '--memory', '4g',
                 '--memory-swap', '4g',
@@ -82,36 +81,37 @@ class ContainerManager:
             if process.returncode != 0:
                 error_msg = stderr.decode() if stderr else "未知错误"
                 logger.error(f"容器启动失败: {error_msg}")
-                return False, "", error_msg
+                return False, "", port, error_msg
 
             container_id = stdout.decode().strip()
-            logger.info(f"容器启动成功: {container_id}, 端口: {port}")
+            logger.info(f"容器启动成功: {container_id}, 实际端口: {port} (原始端口: {original_port})")
 
             # 等待容器内服务启动（最多等待30秒）
-            # 容器内部固定使用 8001 端口
+            # 注意：容器内部是8000，但对外映射到主机端口 {port}
             logger.info(f"等待容器服务启动...")
             import httpx
-            container_url = "http://localhost:8001/health"
+            health_url = f"http://localhost:{port}/health"  # 使用主机端口访问容器服务
             for i in range(30):
                 try:
                     async with httpx.AsyncClient(timeout=5.0) as client:
-                        resp = await client.get(container_url)
+                        resp = await client.get(health_url)
                         if resp.status_code == 200:
                             logger.info(f"容器服务健康检查通过")
-                            return True, container_id, ""
-                except Exception:
-                    pass
+                            return True, container_id, port, ""
+                except Exception as e:
+                    if i % 5 == 0:  # 每5秒记录一次日志
+                        logger.debug(f"容器健康检查尝试 {i+1}/30 失败: {str(e)}")
                 await asyncio.sleep(1)
 
             # 如果健康检查失败，返回警告但仍然认为启动成功
             logger.warning(f"容器已启动但健康检查未通过，请检查容器日志")
-            return True, container_id, ""
+            return True, container_id, port, ""
 
         except FileNotFoundError:
-            return False, "", "Docker未安装或不在PATH中"
+            return False, "", port, "Docker未安装或不在PATH中"
         except Exception as e:
             logger.error(f"启动容器异常: {str(e)}")
-            return False, "", str(e)
+            return False, "", port, str(e)
 
     async def stop_container(self, algorithm_uuid: str) -> bool:
         """
@@ -278,7 +278,7 @@ class ContainerManager:
         """查找可用端口"""
         import random
         for _ in range(20):
-            port = random.randint(8001, 8100)
+            port = random.randint(8001, 9100)
             if not await self._is_port_in_use(port):
                 return port
         return None

@@ -1,3 +1,4 @@
+from database.db_models.meta_model import Algorithm
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from database.main_db import get_meta_db
@@ -449,11 +450,12 @@ async def get_reviews(
 @router.get("/{algorithm_id}/download")
 async def download_algorithm(
     algorithm_id: str,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_meta_db)
 ):
     """
     下载算法包用于本地部署
+    
+    公开下载，不需要认证。
     """
     try:
         algorithm = algorithm_service.get_algorithm_by_id(db, algorithm_id)
@@ -466,28 +468,80 @@ async def download_algorithm(
         # 增加下载次数
         algorithm_service.increment_downloads(db, algorithm_id)
         
-        # 获取文件
+        # 获取文件 - 使用流式传输避免内存问题
         from storage.minio_client import minio_client
-        file_data = minio_client.get_object(MINIO_BUCKET, algorithm.minio_path)
-        
-        from fastapi.responses import StreamingResponse
-        import io
+        from minio.datatypes import Object
         import urllib.parse
         
-        # 对中文文件名进行 RFC 5987 编码
+        # 对中文文件名进行 RFC 5987 编码（在try块之前定义，确保except块可用）
         filename = f"{algorithm.name}_v{algorithm.version}.zip"
         encoded_filename = urllib.parse.quote(filename)
         
         # 使用简化的 ASCII 文件名用于传统 filename，同时提供 RFC 5987 格式
         safe_filename = f"algorithm_{algorithm.uuid[:8]}_v{algorithm.version}.zip"
         
-        return StreamingResponse(
-            io.BytesIO(file_data),
-            media_type="application/zip",
-            headers={
-                "Content-Disposition": f"attachment; filename=\"{safe_filename}\"; filename*=utf-8''{encoded_filename}"
-            }
-        )
+        try:
+            # 获取文件信息和大小
+            import math
+            
+            # 创建流式响应
+            from fastapi.responses import StreamingResponse
+            import io
+            
+            # 获取文件流
+            response = minio_client._client.get_object(MINIO_BUCKET, algorithm.minio_path)
+            
+            # 创建流式响应，逐块传输数据
+            async def file_streamer():
+                try:
+                    # 使用较小的块大小，避免内存问题
+                    chunk_size = 1024 * 1024  # 1MB
+                    while True:
+                        chunk = response.read(chunk_size)
+                        if not chunk:
+                            break
+                        yield chunk
+                finally:
+                    response.close()
+                    response.release_conn()
+            
+            # 获取文件大小以设置Content-Length（如果知道）
+            try:
+                stat = minio_client._client.stat_object(MINIO_BUCKET, algorithm.minio_path)
+                content_length = stat.size
+                headers = {
+                    "Content-Disposition": f"attachment; filename=\"{safe_filename}\"; filename*=utf-8''{encoded_filename}",
+                    "Content-Length": str(content_length),
+                    "Content-Type": "application/zip"
+                }
+            except:
+                # 如果无法获取大小，使用默认头部
+                headers = {
+                    "Content-Disposition": f"attachment; filename=\"{safe_filename}\"; filename*=utf-8''{encoded_filename}",
+                    "Content-Type": "application/zip"
+                }
+            
+            return StreamingResponse(
+                file_streamer(),
+                media_type="application/zip",
+                headers=headers
+            )
+            
+        except Exception as e:
+            logger.error(f"获取或流式传输文件失败: {str(e)}")
+            # 回退到旧方法
+            file_data = minio_client.get_object(MINIO_BUCKET, algorithm.minio_path)
+            
+            from fastapi.responses import StreamingResponse
+            import io
+            
+            return StreamingResponse(
+                io.BytesIO(file_data),
+                media_type="application/zip",
+                headers={
+                    "Content-Disposition": f"attachment; filename=\"{safe_filename}\"; filename*=utf-8''{encoded_filename}"
+                }
+            )
     except HTTPException:
         raise
     except Exception as e:
@@ -511,7 +565,7 @@ async def predict_algorithm(
     将图片发送到算法容器进行推理，返回结果
     """
     try:
-        algorithm = algorithm_service.get_algorithm_by_id(db, algorithm_id)
+        algorithm: Algorithm | None = algorithm_service.get_algorithm_by_id(db, algorithm_id)
         if not algorithm:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -537,10 +591,18 @@ async def predict_algorithm(
         # 读取上传的图片
         image_data = await file.read()
         
-        # 构造目标容器URL
-        container_host = os.getenv("ALGORITHM_CONTAINER_HOST", "localhost")
-        container_port = algorithm.container_port or 8001
+        # 构造目标容器URL（后端和容器在同一服务器，使用localhost）
+        container_host = "localhost"
+        if not algorithm.container_port:
+            logger.error(f"[在线推理] 算法 {algorithm_id} 没有配置容器端口")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="算法容器端口未配置"
+            )
+        container_port = algorithm.container_port
         container_url = f"http://{container_host}:{container_port}/predict"
+        
+        logger.info(f"[在线推理] 算法ID: {algorithm_id}, 容器端口: {container_port}, URL: {container_url}")
 
         logger.info(f"[在线推理] 算法ID: {algorithm_id}, 容器URL: {container_url}")
 
@@ -651,11 +713,14 @@ async def trigger_build(
         
         # 获取可用端口
         port = generator.get_next_port()
+        logger.info(f"[构建算法] 算法ID: {algorithm_id}, 分配端口: {port}")
         
+        # 构建镜像时传递分配的端口，确保Dockerfile使用正确的内部端口
         success, docker_image, result = await build_service.build_image(
             algorithm_uuid=algorithm.uuid,
             minio_path=algorithm.minio_path,
-            minio_client=minio_client
+            minio_client=minio_client,
+            assigned_port=port  # 传递分配的主机端口
         )
         
         if not success:
@@ -669,11 +734,17 @@ async def trigger_build(
                 detail=f"镜像构建失败: {result}"
             )
         
-        # 判断result是端口还是错误
-        if isinstance(result, str) and result.isdigit():
+        # result应该是返回的主机端口号
+        if isinstance(result, int):
+            # result是端口号，我们可以使用它（但我们已经有了port变量）
+            logger.info(f"镜像构建成功，返回端口: {result}, 分配的端口: {port}")
+            # 我们使用分配的端口，保持一致性
+            port = result  # 使用返回的端口，确保与分配的一致
+        elif isinstance(result, str) and result.isdigit():
             port = int(result)
+            logger.info(f"转换字符串端口: {port}")
         elif isinstance(result, str):
-            # 错误信息
+            # result是错误信息
             algorithm_service.update_algorithm(
                 db, algorithm_id,
                 status='error',
@@ -683,10 +754,12 @@ async def trigger_build(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"镜像构建失败: {result}"
             )
+        else:
+            logger.warning(f"返回的result类型: {type(result)}, 值: {result}")
         
         # 2. 启动容器
         container_manager = get_container_manager()
-        container_success, container_id, error = await container_manager.start_container(
+        container_success, container_id, actual_port, error = await container_manager.start_container(
             algorithm_uuid=algorithm.uuid,
             image_name=docker_image,
             port=port,
@@ -698,7 +771,7 @@ async def trigger_build(
                 db, algorithm_id,
                 status='error',
                 docker_image=docker_image,
-                container_port=port,
+                container_port=port,  # 如果启动失败，仍然使用原始端口
                 build_log=f"容器启动失败: {error}"
             )
             raise HTTPException(
@@ -706,20 +779,20 @@ async def trigger_build(
                 detail=f"容器启动失败: {error}"
             )
         
-        # 3. 更新算法状态为运行中
+        # 3. 更新算法状态为运行中，使用实际端口
         algorithm_service.update_algorithm(
             db, algorithm_id,
             status='running',
             docker_image=docker_image,
-            container_port=port,
-            build_log='构建并部署成功'
+            container_port=actual_port,  # 使用容器管理器返回的实际端口
+            build_log=f'构建并部署成功，容器端口: {actual_port}'
         )
         
         return {
             "message": "算法构建并部署成功",
             "algorithm_id": algorithm_id,
             "docker_image": docker_image,
-            "container_port": port,
+            "container_port": actual_port,  # 返回实际端口给前端
             "status": "running"
         }
         
@@ -810,14 +883,21 @@ async def restart_algorithm(
         from storage.container_manager import get_container_manager
         container_manager = get_container_manager()
         
-        await container_manager.stop_container(algorithm.uuid)
+        # 先删除已存在的容器（即使已停止），然后重新创建
+        await container_manager.remove_container(algorithm.uuid)
         
         if algorithm.docker_image and algorithm.container_port:
-            await container_manager.start_container(
+            success, container_id, actual_port, error = await container_manager.start_container(
                 algorithm_uuid=algorithm.uuid,
                 image_name=algorithm.docker_image,
                 port=algorithm.container_port
             )
+            if not success:
+                logger.error(f"重启容器失败: {error}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"重启容器失败: {error}"
+                )
         
         # 更新状态
         algorithm_service.update_algorithm(db, algorithm_id, status='running')

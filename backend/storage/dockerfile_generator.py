@@ -5,7 +5,7 @@ Dockerfile 生成器 - 根据算法包自动生成 Dockerfile
 import os
 import yaml
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +44,8 @@ class DockerfileGenerator:
         self,
         algorithm_dir: str,
         algorithm_uuid: str,
-        framework: str = "python",
-        port: int = None
-    ) -> str:
+        framework: str = "python"
+    ) -> Tuple[str, None]:
         """
         生成 Dockerfile 内容
         
@@ -54,14 +53,10 @@ class DockerfileGenerator:
             algorithm_dir: 算法解压后的目录
             algorithm_uuid: 算法UUID
             framework: 框架类型
-            port: 容器端口
         
         Returns:
             Dockerfile 内容字符串
         """
-        if port is None:
-            port = self.get_next_port()
-
         # 选择基础镜像
         base_image = BASE_IMAGES.get(framework, BASE_IMAGES["python"])
 
@@ -80,7 +75,6 @@ WORKDIR /app
 
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1
-ENV PORT={port}
 
 # 安装系统依赖
 RUN apt-get update && apt-get install -y \\
@@ -98,17 +92,22 @@ RUN if [ -f /app/requirements.txt ]; then \\
     fi
 
 # 暴露端口
-EXPOSE 8001
+EXPOSE 8000
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \\
-    CMD curl -f http://localhost:8001/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# 启动命令 - 固定使用 8001 端口（与主机端口映射解耦）
-CMD ["sh", "-c", "python -m uvicorn src.predict:app --host 0.0.0.0 --port 8001"]
+# 安装 curl（用于健康检查）
+RUN if ! command -v curl &> /dev/null; then \\
+    apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*; \\
+    fi
+
+# 启动命令 - 容器内部端口固定为8000
+CMD ["python", "-m", "uvicorn", "src.predict:app", "--host", "0.0.0.0", "--port", "8000"]
 """
-        logger.info(f"生成 Dockerfile, 端口: {port}")
-        return dockerfile, port
+        logger.info(f"生成 Dockerfile，容器内部端口固定为8000")
+        return dockerfile, None  # 不再返回端口，容器内部固定为8000
 
     def _parse_requirements(self, algorithm_dir: str) -> Dict[str, Any]:
         """解析算法目录获取依赖信息"""
@@ -140,7 +139,7 @@ CMD ["sh", "-c", "python -m uvicorn src.predict:app --host 0.0.0.0 --port 8001"]
         algorithm_uuid: str,
         docker_image: str,
         port: int,
-        environment: Dict[str, str] = None
+        environment: Optional[Dict[str, str]] = None
     ) -> str:
         """
         生成 docker-compose.yml
@@ -167,12 +166,12 @@ services:
     image: {docker_image}
     container_name: algorithm_{algorithm_uuid[:8]}
     ports:
-      - "{port}:8001"
+      - "{port}:8000"
     environment:
 {env_str}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

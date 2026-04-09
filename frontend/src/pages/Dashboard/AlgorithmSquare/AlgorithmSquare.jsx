@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Upload, Download, Play, Star, User, PlayCircle, PauseCircle, RotateCw, Trash2 } from 'lucide-react'
+import { Search, Upload, Download, Play, Star, User, PlayCircle, PauseCircle, RotateCw, Trash2, MoreVertical } from 'lucide-react'
 import axios from 'axios'
 import { useAuth } from '@/hooks/auth/useAuth'
 import './AlgorithmSquare.css'
@@ -18,6 +18,7 @@ const AlgorithmSquare = () => {
   const [showUpload, setShowUpload] = useState(false)
   const [buildingAlgorithm, setBuildingAlgorithm] = useState(null) // 当前正在构建的算法
   const [buildStatus, setBuildStatus] = useState('') // 构建状态消息
+  const [showActionsForAlgorithm, setShowActionsForAlgorithm] = useState(null) // 控制哪个算法显示操作菜单
 
   // 加载算法列表
   const fetchAlgorithms = async () => {
@@ -59,48 +60,57 @@ const AlgorithmSquare = () => {
     fetchCategories()
   }, [search, category])
 
-  // 下载算法 - 使用 axios 与 API 服务保持一致
-  const handleDownload = async (algorithmId) => {
-    try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/algorithms/${algorithmId}/download`,
-        {
-          headers: getAuthHeaders(),
-          responseType: 'blob',
-          // 自定义验证状态码：只有 2xx 算成功
-          validateStatus: (status) => status >= 200 && status < 300
-        }
-      )
-      
-      // 解析文件名
-      const contentDisposition = response.headers['content-disposition']
-      let fileName = 'algorithm.zip'
-      if (contentDisposition) {
-        // 优先尝试 RFC 5987 格式
-        const rfcMatch = contentDisposition.match(/filename\*=(?:utf-8''|UTF-8'')([^;]+)/i)
-        if (rfcMatch) {
-          fileName = decodeURIComponent(rfcMatch[1])
-        } else {
-          // 回退到传统格式
-          const traditionalMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
-          if (traditionalMatch) {
-            fileName = traditionalMatch[1]
-          }
+  // 监听全局点击，用于关闭操作菜单
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showActionsForAlgorithm) {
+        // 如果点击的不是菜单按钮或菜单内容，关闭菜单
+        if (!event.target.closest('.action-menu-wrapper')) {
+          setShowActionsForAlgorithm(null)
         }
       }
+    }
+
+    document.addEventListener('click', handleClickOutside)
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showActionsForAlgorithm])
+
+  // 下载算法 - 使用 fetch API 直接下载，避免 axios blob 处理问题
+  const handleDownload = async (algorithmId) => {
+    try {
+      // 简单直接的下载方法
+      const downloadUrl = `${API_BASE_URL}/api/algorithms/${algorithmId}/download`
+      console.log('下载链接:', downloadUrl)
       
-      // 创建下载链接
-      const url = window.URL.createObjectURL(new Blob([response.data]))
+      // 方法1：创建一个不可见的a标签进行下载
       const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', fileName)
+      link.href = downloadUrl
+      link.setAttribute('download', '') // 告诉浏览器应该下载而不是打开
+      link.style.display = 'none'
       document.body.appendChild(link)
+      
+      // 触发点击
       link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
+      
+      // 清理
+      setTimeout(() => {
+        if (link.parentNode) {
+          document.body.removeChild(link)
+        }
+      }, 1000)
+      
+      // 显示提示告诉用户查看哪里
+      setTimeout(() => {
+        alert('下载已开始！请查看：\n1. 浏览器底部下载栏\n2. 浏览器下载管理器\n3. 如果没反应，请检查浏览器是否阻止了下载')
+      }, 500)
+      
     } catch (error) {
       console.error('下载失败:', error)
-      alert('下载失败: ' + (error.response?.data?.detail || error.message))
+      
+      // 提供备用方案
+      alert(`下载失败：${error.message || '未知错误'}\n\n您可以手动下载：\n右键复制链接 -> 在新标签页打开\n${API_BASE_URL}/api/algorithms/${algorithmId}/download`)
     }
   }
 
@@ -179,6 +189,93 @@ const AlgorithmSquare = () => {
         errorMessage = '服务器内部错误，请查看后端日志'
       }
       setBuildStatus(`构建失败: ${errorMessage}`)
+      setTimeout(() => {
+        setBuildingAlgorithm(null)
+        setBuildStatus('')
+      }, 5000)
+    }
+  }
+
+  // 重新构建算法（先清理再构建）
+  const handleRebuild = async (algorithmId, algorithmName) => {
+    // 防止重复点击
+    if (buildingAlgorithm) {
+      alert('已有算法正在构建中，请等待完成')
+      return
+    }
+    
+    // 确认重新构建（这是破坏性操作，会删除旧的容器和镜像）
+    if (!window.confirm(`确定要重新构建算法「${algorithmName}」吗？\n\n⚠️ 警告：重建会删除旧的算法容器和镜像，然后重新构建。\n整个过程可能需要几分钟时间。`)) {
+      return
+    }
+    
+    setBuildingAlgorithm(algorithmId)
+    setBuildStatus('正在清理旧容器和镜像...')
+    
+    try {
+      // 1. 先尝试停止容器
+      try {
+        await axios.post(
+          `${API_BASE_URL}/api/algorithms/${algorithmId}/stop`,
+          {},
+          { headers: getAuthHeaders() }
+        )
+      } catch (stopError) {
+        // 忽略停止失败的错误，可能容器已经不存在
+        console.log('停止容器失败（可能容器已不存在）:', stopError)
+      }
+      
+      // 2. 重新构建
+      setBuildStatus('正在重新构建镜像，请稍候...')
+      await axios.post(
+        `${API_BASE_URL}/api/algorithms/${algorithmId}/build`,
+        {},
+        { 
+          headers: getAuthHeaders(),
+          timeout: 600000  // 10分钟超时
+        }
+      )
+      
+      setBuildStatus('重新构建成功！正在启动服务...')
+      
+      // 刷新算法状态
+      await fetchAlgorithms()
+      
+      // 找到更新后的算法
+      const updatedAlgo = algorithms.find(a => a.id === algorithmId)
+      if (updatedAlgo?.status === 'running') {
+        setBuildStatus('部署成功！算法已上线运行。')
+        setTimeout(() => {
+          setBuildingAlgorithm(null)
+          setBuildStatus('')
+        }, 2000)
+      } else if (updatedAlgo?.status === 'error') {
+        setBuildStatus('重新构建失败，请查看日志')
+        setTimeout(() => {
+          setBuildingAlgorithm(null)
+          setBuildStatus('')
+        }, 3000)
+      } else {
+        setBuildStatus('重新构建完成，状态更新中...')
+        setTimeout(() => {
+          setBuildingAlgorithm(null)
+          setBuildStatus('')
+        }, 3000)
+      }
+    } catch (error) {
+      console.error('重新构建失败:', error)
+      // 提取详细错误信息
+      let errorMessage = '重新构建失败'
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      } else if (error.response?.status === 500) {
+        errorMessage = '服务器内部错误，请查看后端日志'
+      }
+      setBuildStatus(`重新构建失败: ${errorMessage}`)
       setTimeout(() => {
         setBuildingAlgorithm(null)
         setBuildStatus('')
@@ -341,67 +438,148 @@ const AlgorithmSquare = () => {
               </div>
 
               <div className="algorithm-actions">
-                {/* 在线使用按钮 - 所有用户可见 */}
-                <button
-                  className="action-btn primary"
-                  onClick={() => handleUseOnline(algo)}
-                  disabled={algo.status !== 'running'}
-                >
-                  <Play size={14} />
-                  在线使用
-                </button>
-                <button
-                  className="action-btn secondary"
-                  onClick={() => handleDownload(algo.id)}
-                >
-                  <Download size={14} />
-                  本地部署
-                </button>
-                
-                {/* 以下按钮仅算法所有者可见 */}
-                {user?.id === algo.author_id && (
-                  <>
-                    {algo.status === 'running' ? (
-                      <button
-                        className="action-btn warning"
-                        onClick={() => handleStop(algo.id)}
-                      >
-                        <PauseCircle size={14} />
-                        停止
-                      </button>
-                    ) : algo.status === 'pending' || algo.status === 'error' ? (
-                      <button
-                        className="action-btn primary"
-                        onClick={() => handleBuild(algo.id, algo.name)}
-                        disabled={buildingAlgorithm !== null}
-                      >
-                        <PlayCircle size={14} />
-                        {buildingAlgorithm === algo.id ? '构建中...' : '构建部署'}
-                      </button>
-                    ) : algo.status === 'building' ? (
-                      <button className="action-btn" disabled>
-                        <RotateCw size={14} className="spin" />
-                        构建中...
-                      </button>
-                    ) : algo.status === 'stopped' ? (
-                      <button
-                        className="action-btn primary"
-                        onClick={() => handleRestart(algo.id)}
-                      >
-                        <RotateCw size={14} />
-                        启动
-                      </button>
-                    ) : null}
-                    
-                    {/* 删除按钮 - 仅所有者可见 */}
+                {/* 主操作按钮 - 根据状态显示 */}
+                <div className="primary-actions">
+                  {algo.status === 'running' ? (
                     <button
-                      className="action-btn danger"
-                      onClick={() => handleDelete(algo.id, algo.name)}
-                      title="删除算法"
+                      className="action-btn primary"
+                      onClick={() => handleUseOnline(algo)}
                     >
-                      <Trash2 size={14} />
+                      <Play size={14} />
+                      在线使用
                     </button>
-                  </>
+                  ) : (algo.status === 'pending' || algo.status === 'error' || algo.status === 'stopped') && user?.id === algo.author_id ? (
+                    <button
+                      className="action-btn primary"
+                      onClick={() => handleBuild(algo.id, algo.name)}
+                      disabled={buildingAlgorithm !== null}
+                    >
+                      <PlayCircle size={14} />
+                      {buildingAlgorithm === algo.id ? '构建中...' : (algo.status === 'stopped' ? '启动' : '构建部署')}
+                    </button>
+                  ) : algo.status === 'building' && user?.id === algo.author_id ? (
+                    <button className="action-btn primary" disabled>
+                      <RotateCw size={14} className="spin" />
+                      构建中...
+                    </button>
+                  ) : (
+                    <button
+                      className="action-btn primary"
+                      onClick={() => handleUseOnline(algo)}
+                      disabled={algo.status !== 'running'}
+                    >
+                      <Play size={14} />
+                      在线使用
+                    </button>
+                  )}
+                  
+                  <button
+                    className="action-btn secondary"
+                    onClick={() => handleDownload(algo.id)}
+                  >
+                    <Download size={14} />
+                    本地部署
+                  </button>
+                </div>
+                
+                {/* 操作菜单按钮 - 仅在所有者可见或需要额外操作时显示 */}
+                {(user?.id === algo.author_id || algo.status === 'running') && (
+                  <div className="action-menu-wrapper">
+                    <button
+                      className="action-menu-btn"
+                      onClick={() => setShowActionsForAlgorithm(showActionsForAlgorithm === algo.id ? null : algo.id)}
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                    
+                    {/* 操作菜单下拉 */}
+                    {showActionsForAlgorithm === algo.id && (
+                      <div className="action-menu-dropdown">
+                        {/* 通用操作 */}
+                        <button
+                          className="menu-item"
+                          onClick={() => {
+                            handleDownload(algo.id)
+                            setShowActionsForAlgorithm(null)
+                          }}
+                        >
+                          <Download size={14} />
+                          本地部署
+                        </button>
+                        
+                        {/* 所有者专属操作 */}
+                        {user?.id === algo.author_id && (
+                          <>
+                            {algo.status === 'running' && (
+                              <>
+                                <button
+                                  className="menu-item"
+                                  onClick={() => {
+                                    handleStop(algo.id)
+                                    setShowActionsForAlgorithm(null)
+                                  }}
+                                >
+                                  <PauseCircle size={14} />
+                                  停止
+                                </button>
+                                <button
+                                  className="menu-item"
+                                  onClick={() => {
+                                    handleRebuild(algo.id, algo.name)
+                                    setShowActionsForAlgorithm(null)
+                                  }}
+                                  disabled={buildingAlgorithm !== null}
+                                >
+                                  <RotateCw size={14} />
+                                  重新构建
+                                </button>
+                              </>
+                            )}
+                            
+                            {algo.status === 'stopped' && (
+                              <button
+                                className="menu-item"
+                                onClick={() => {
+                                  handleRestart(algo.id)
+                                  setShowActionsForAlgorithm(null)
+                                }}
+                              >
+                                <RotateCw size={14} />
+                                启动
+                              </button>
+                            )}
+                            
+                            {(algo.status === 'pending' || algo.status === 'error') && (
+                              <button
+                                className="menu-item"
+                                onClick={() => {
+                                  handleBuild(algo.id, algo.name)
+                                  setShowActionsForAlgorithm(null)
+                                }}
+                                disabled={buildingAlgorithm !== null}
+                              >
+                                <PlayCircle size={14} />
+                                构建部署
+                              </button>
+                            )}
+                            
+                            <div className="menu-divider" />
+                            
+                            <button
+                              className="menu-item danger"
+                              onClick={() => {
+                                handleDelete(algo.id, algo.name)
+                                setShowActionsForAlgorithm(null)
+                              }}
+                            >
+                              <Trash2 size={14} />
+                              删除算法
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

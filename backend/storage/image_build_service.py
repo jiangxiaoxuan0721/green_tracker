@@ -29,7 +29,8 @@ class ImageBuildService:
         self,
         algorithm_uuid: str,
         minio_path: str,
-        minio_client
+        minio_client,
+        assigned_port: int = None
     ) -> Tuple[bool, str, Optional[str]]:
         """
         构建算法镜像
@@ -38,9 +39,10 @@ class ImageBuildService:
             algorithm_uuid: 算法UUID
             minio_path: MinIO存储路径
             minio_client: MinIO客户端
+            assigned_port: 分配的主机端口（可选）
         
         Returns:
-            (成功标志, 镜像名, 错误信息)
+            (成功标志, 镜像名, 主机端口号或错误信息)
         """
         try:
             logger.info(f"开始构建算法镜像: {algorithm_uuid}")
@@ -91,11 +93,15 @@ class ImageBuildService:
                     src_dir = item_path
                     break
 
-            dockerfile_content, port = generator.generate_dockerfile(
+            # 生成Dockerfile，容器内部端口固定为8000
+            dockerfile_content, _ = generator.generate_dockerfile(
                 algorithm_dir=extract_dir,
                 algorithm_uuid=algorithm_uuid,
                 framework=framework
             )
+            
+            # 如果传入了分配端口，使用它作为主机端口
+            port = assigned_port if assigned_port is not None else generator.get_next_port()
 
             # 写入 Dockerfile
             dockerfile_path = os.path.join(extract_dir, 'Dockerfile')
