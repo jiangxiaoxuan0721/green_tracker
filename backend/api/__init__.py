@@ -12,7 +12,8 @@ from .routes import (
     field_router,
     raw_data_router,
     api_key_router,
-    admin_database_router
+    admin_database_router,
+    algorithm_router
 )
 
 # 导出所有 Schemas
@@ -73,6 +74,7 @@ __all__ = [
     "raw_data_router",
     "api_key_router",
     "admin_database_router",
+    "algorithm_router",
     # Schemas - Auth
     "UserRegister",
     "UserLogin",

@@ -23,6 +23,8 @@ const DataView = () => {
   const [total, setTotal] = useState(0)
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
 
   // 翻译映射：将英文value翻译为中文label
   const dataTypeTranslations = {
@@ -39,13 +41,19 @@ const DataView = () => {
     'rgb': 'RGB图像',
     'nir': '近红外图像',
     'red_edge': '红边图像',
+    'multispectral': '多光谱图像',
     'thermal': '热成像',
+    'video': '视频',
     'temperature': '温度',
     'humidity': '湿度',
     'pressure': '气压',
     'wind_speed': '风速',
+    'co2': 'CO2浓度',
+    'light': '光照强度',
     'ph': 'pH值',
     'moisture': '土壤湿度',
+    'ec': '电导率',
+    'temperature_soil': '土壤温度',
     'nutrients': '土壤养分',
     'ndvi': 'NDVI',
     'evi': 'EVI',
@@ -257,20 +265,25 @@ const DataView = () => {
     fetchData(newPage)
   }
 
-  const handleExport = async () => {
+  const handleExport = async (format) => {
     if (!user?.id) return
-    
+
+    setExporting(true)
+    setShowExportMenu(false)
+
     try {
       await rawDataService.exportRawData({
         user_id: user.id,
         session_id: filters.sessionId !== 'all' ? filters.sessionId : undefined,
         data_type: filters.dataType !== 'all' ? filters.dataType : undefined,
         data_subtype: filters.dataSubtype !== 'all' ? filters.dataSubtype : undefined,
-        format: 'csv'
+        format
       })
     } catch (err) {
       console.error('导出数据失败:', err)
-      alert('导出失败，请稍后再试')
+      alert(`导出失败: ${err.message || '请稍后再试'}`)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -352,9 +365,40 @@ const DataView = () => {
     <div className="dashboard-data-view">
       <div className="dashboard-header">
         <h1>数据查看</h1>
-        <Button variant="primary" onClick={handleExport} disabled={loading}>
-          导出数据
-        </Button>
+        <div className="export-wrapper">
+          <Button
+            variant="primary"
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            disabled={loading || exporting}
+          >
+            {exporting ? '导出中...' : '导出数据 ▼'}
+          </Button>
+          {showExportMenu && (
+            <div className="export-menu">
+              <div className="export-menu-item" onClick={() => handleExport('csv')}>
+                <span className="export-icon">📊</span>
+                <div className="export-info">
+                  <span className="export-title">CSV 表格</span>
+                  <span className="export-desc">适合Excel分析，包含所有数值数据</span>
+                </div>
+              </div>
+              <div className="export-menu-item" onClick={() => handleExport('json')}>
+                <span className="export-icon">📋</span>
+                <div className="export-info">
+                  <span className="export-title">JSON 数据</span>
+                  <span className="export-desc">完整数据格式，包含元数据</span>
+                </div>
+              </div>
+              <div className="export-menu-item" onClick={() => handleExport('zip')}>
+                <span className="export-icon">📦</span>
+                <div className="export-info">
+                  <span className="export-title">ZIP 压缩包</span>
+                  <span className="export-desc">图片/视频文件 + CSV元数据</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <FilterPanel>

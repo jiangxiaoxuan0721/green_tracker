@@ -17,6 +17,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  getAuthHeaders: () => { Authorization: string };
 }
 
 // 创建认证上下文
@@ -150,6 +151,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     localStorage.removeItem('isLoggedIn');
     setUser(null);
   };
+
+  // 获取认证请求头
+  const getAuthHeaders = (): { Authorization: string } => {
+    const token = localStorage.getItem('token');
+    return {
+      Authorization: token ? `Bearer ${token}` : ''
+    };
+  };
   
   // 返回上下文提供者
   return (
@@ -162,7 +171,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         isAuthenticated: !!user,
         login,
         register,
-        logout
+        logout,
+        getAuthHeaders
       }}
     >
       {children}

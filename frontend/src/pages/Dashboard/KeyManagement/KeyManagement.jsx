@@ -241,12 +241,13 @@ const KeyManagement = () => {
       <div className="key-list">
         <div className="list-header">
           <h2>API密钥管理</h2>
-          <button 
+          <span style={{ flex: 8 }} />
+          <button
             className="primary-btn create-btn"
             onClick={() => setShowCreateModal(true)}
             disabled={loading}
           >
-            + 新建密钥
+            + 新建
           </button>
         </div>
         

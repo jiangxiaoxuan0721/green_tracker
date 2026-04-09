@@ -46,6 +46,7 @@ const Dashboard = () => {
     { id: 'data-upload', label: '数据上传', path: '/dashboard/data-upload' },
     { id: 'data-view', label: '数据查看', path: '/dashboard/data-view' },
     { id: 'data-analyze', label: '数据分析', path: '/dashboard/data-analyze' },
+    { id: 'algorithm-square', label: '算法广场', path: '/dashboard/algorithm-square' },
     { id: 'system', label: '系统设置', path: '/dashboard/system' },
     { id: 'logs', label: '日志查看', path: '/dashboard/logs' }
   ]

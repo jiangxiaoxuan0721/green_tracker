@@ -46,8 +46,10 @@
   color: var(--text-primary);
   border: 1px solid var(--info-color);
   border-radius: var(--radius-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-xs) var(--spacing-md);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   font-size: 0.875rem;
   transition: var(--transition-normal);
   font-weight: 500;

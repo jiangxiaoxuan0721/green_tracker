@@ -1,12 +1,12 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './hooks/auth/useAuth'
-import { Home, About, Contact, Login, Register, Dashboard, Feedback, MapTest, NotFound, DashboardPages } from './pages'
+import { Home, About, Contact, Login, Register, Dashboard, Feedback, NotFound, DashboardPages } from './pages'
 import { ToastContainer } from './components/ui'
 import './App.css'
 
 // 解构Dashboard子页面
-const { Overview, Fields, Devices, Sessions, DataUpload, DataView, DataAnalyze, System, Logs } = DashboardPages
+const { Overview, Fields, Devices, Sessions, DataUpload, DataView, DataAnalyze, System, Logs, AlgorithmSquare, AlgorithmUse } = DashboardPages
 
 function AppContent() {
   const location = useLocation()
@@ -39,7 +39,6 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/feedback" element={<Feedback />} />
-          <Route path="/map-test" element={<MapTest />} />
           
           {/* Dashboard 路由及其子路由 */}
           <Route path="/dashboard" element={<Dashboard />}>
@@ -52,6 +51,8 @@ function AppContent() {
             <Route path="data-analyze" element={<DataAnalyze />} />
             <Route path="system" element={<System />} />
             <Route path="logs" element={<Logs />} />
+            <Route path="algorithm-square" element={<AlgorithmSquare />} />
+            <Route path="algorithm-use/:algorithmId" element={<AlgorithmUse />} />
           </Route>
           
           <Route path="*" element={<NotFound />} />

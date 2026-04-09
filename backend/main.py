@@ -19,7 +19,7 @@ app = FastAPI(
 )
 
 # 配置CORS - 从环境变量读取
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3010,http://127.0.0.1:3010").split(',')
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3010,http://127.0.0.1:3010,http://green-tracker.cn:3010").split(',')
 cors_methods = os.getenv("CORS_METHODS", "GET,POST,PUT,DELETE,OPTIONS").split(',')
 cors_headers = os.getenv("CORS_HEADERS", "Content-Type,Authorization").split(',')
 
@@ -95,7 +95,8 @@ from api import (
     field_router,
     raw_data_router,
     api_key_router,
-    admin_database_router
+    admin_database_router,
+    algorithm_router
 )
 
 # 注册认证路由
@@ -121,6 +122,9 @@ app.include_router(api_key_router, prefix="/api") # /api/api-keys
 
 # 注册数据库管理路由（管理员专用）
 app.include_router(admin_database_router, prefix="/api") # /api/admin/database
+
+# 注册算法路由
+app.include_router(algorithm_router, prefix="/api") # /api/algorithms
 
 
 # 健康检查端点

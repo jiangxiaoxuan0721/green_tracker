@@ -12,16 +12,20 @@ const MapDisplay = ({
   center = [116.397428, 39.90923],
   zoom = 10,
   showControls = true,
-  visible = true
+  visible = true,
+  initialMapType = 'satellite' // 'normal' | 'satellite'
 }) => {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
   const polygonRef = useRef(null)
   const markerRef = useRef(null)
+  const satelliteLayerRef = useRef(null)
+  const labelLayerRef = useRef(null)
   const initTimerRef = useRef(null)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [mapType, setMapType] = useState(initialMapType)
 
   const isKeyConfigured = AMapKey && !AMapKey.includes('your_') && AMapKey.length > 10
 
@@ -86,6 +90,38 @@ const MapDisplay = ({
     }
   }
 
+  // 切换底图类型
+  const toggleMapType = () => {
+    if (!mapRef.current) return
+
+    const newType = mapType === 'satellite' ? 'normal' : 'satellite'
+
+    // 先移除现有图层
+    if (satelliteLayerRef.current) {
+      mapRef.current.removeLayer(satelliteLayerRef.current)
+      satelliteLayerRef.current = null
+    }
+    if (labelLayerRef.current) {
+      mapRef.current.removeLayer(labelLayerRef.current)
+      labelLayerRef.current = null
+    }
+
+    if (newType === 'satellite') {
+      // 卫星模式：添加卫星图层 + 标注图层
+      satelliteLayerRef.current = new window.AMap.TileLayer.Satellite()
+      mapRef.current.addLayer(satelliteLayerRef.current)
+      labelLayerRef.current = new window.AMap.TileLayer.RoadNet({ opacity: 0.8 })
+      mapRef.current.addLayer(labelLayerRef.current)
+      mapRef.current.setMapStyle('amap://styles/light')
+    } else {
+      // 普通模式：使用标准底图
+      mapRef.current.setMapStyle('amap://styles/normal')
+    }
+
+    // 延迟更新状态
+    setTimeout(() => setMapType(newType), 50)
+  }
+
   // 初始化/更新地图
   useEffect(() => {
     if (!mapContainerRef.current || !window.AMap || !isKeyConfigured) return
@@ -99,10 +135,13 @@ const MapDisplay = ({
       if (rect.width === 0 || rect.height === 0) {
         // 容器不可见，延迟重试
         initTimerRef.current = setTimeout(() => {
+          // 销毁地图和清理图层引用
           if (mapRef.current) {
             mapRef.current.destroy()
             mapRef.current = null
           }
+          satelliteLayerRef.current = null
+          labelLayerRef.current = null
           // 触发重新渲染
           setLoading(true)
           setTimeout(() => setLoading(false), 100)
@@ -114,19 +153,33 @@ const MapDisplay = ({
 
       if (!mapRef.current) {
         const mapCenter = coords.length > 0 ? (coords.length === 1 ? coords[0] : getCenter(coords)) : center
-        
         const map = new window.AMap.Map(mapContainerRef.current, {
           zoom: coords.length > 0 ? (coords.length === 1 ? 15 : 12) : zoom,
           center: mapCenter,
           viewMode: '2D',
           mapStyle: 'amap://styles/normal',
           resizeEnable: true,
-          showLabel: false
+          showLabel: true
         })
 
+        // 添加底图图层
+        if (mapType === 'satellite') {
+          // 卫星图层
+          satelliteLayerRef.current = new window.AMap.TileLayer.Satellite()
+          map.addLayer(satelliteLayerRef.current)
+          // 标注图层（显示地名、道路等）
+          labelLayerRef.current = new window.AMap.TileLayer.RoadNet({
+            opacity: 0.8
+          })
+          map.addLayer(labelLayerRef.current)
+        }
+
         if (showControls) {
-          map.addControl(new window.AMap.Scale())
-          map.addControl(new window.AMap.ToolBar({ position: 'RB' }))
+          // 加载控件插件
+          window.AMap.plugin(['AMap.Scale', 'AMap.ToolBar'], () => {
+            map.addControl(new window.AMap.Scale())
+            map.addControl(new window.AMap.ToolBar({ position: 'RB' }))
+          })
         }
         
         // 地图加载完成后触发 resize
@@ -151,6 +204,7 @@ const MapDisplay = ({
 
       // 添加新覆盖物
       if (coords.length > 0) {
+        console.log('[MapDisplay] 添加覆盖物, 类型:', coords.length === 1 ? 'POINT' : 'POLYGON', '坐标:', coords)
         if (coords.length === 1) {
           // POINT
           markerRef.current = new window.AMap.Marker({
@@ -162,17 +216,25 @@ const MapDisplay = ({
             })
           })
           mapRef.current.add(markerRef.current)
+          mapRef.current.setCenter(coords[0])
+          mapRef.current.setZoom(15)
         } else {
-          // POLYGON
+          // POLYGON - 设置多边形并定位到区域
           polygonRef.current = new window.AMap.Polygon({
             path: coords,
             fillColor: '#00b4d8',
-            fillOpacity: 0.3,
-            strokeColor: '#0077b6',
-            strokeWeight: 2
+            fillOpacity: 0.4,
+            strokeColor: '#ff0000',
+            strokeWeight: 3,
+            zIndex: 100
           })
           mapRef.current.add(polygonRef.current)
-          mapRef.current.setFitView([polygonRef.current])
+          // 延迟设置视野，确保地图已准备好
+          setTimeout(() => {
+            if (mapRef.current && polygonRef.current) {
+              mapRef.current.setFitView([polygonRef.current])
+            }
+          }, 100)
         }
       }
     }, 500)
@@ -185,7 +247,7 @@ const MapDisplay = ({
         mapRef.current = null
       }
     }
-  }, [isKeyConfigured, wkt, zoom, center, showControls, visible])
+  }, [isKeyConfigured, wkt, zoom, center, showControls, visible, mapType])
 
   // 计算中心点
   const getCenter = (coords) => {
@@ -218,11 +280,23 @@ const MapDisplay = ({
           {error}
         </div>
       ) : (
-        <div
-          ref={mapContainerRef}
-          className="map-container"
-          style={{ height: `${height}px` }}
-        />
+        <>
+          <div
+            ref={mapContainerRef}
+            className="map-container"
+            style={{ height: `${height}px` }}
+          />
+          {/* 图层切换按钮 */}
+          <div className="map-type-toggle">
+            <button
+              onClick={toggleMapType}
+              className="map-type-btn"
+              title={mapType === 'satellite' ? '切换到普通地图' : '切换到卫星图'}
+            >
+              {mapType === 'satellite' ? '🗺️ 普通地图' : '🛰️ 卫星地图'}
+            </button>
+          </div>
+        </>
       )}
     </div>
   )

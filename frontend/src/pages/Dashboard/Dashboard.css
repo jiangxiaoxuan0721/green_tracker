@@ -10,7 +10,9 @@
 .dashboard-data-view,
 .dashboard-data-analyze,
 .dashboard-fields,
-.dashboard-devices {
+.dashboard-devices,
+.dashboard-algorithm-square,
+.dashboard-algorithm-use {
   padding: var(--spacing-sm);
   max-width: 100%;
 }

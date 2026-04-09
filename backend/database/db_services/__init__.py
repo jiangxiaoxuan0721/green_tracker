@@ -55,6 +55,20 @@ from .raw_data_service import (
     get_raw_data_tags
 )
 
+from .algorithm_service import (
+    create_algorithm,
+    get_algorithm_by_id,
+    get_algorithm_by_uuid,
+    get_algorithm_list,
+    update_algorithm,
+    delete_algorithm,
+    increment_downloads,
+    increment_calls,
+    add_review,
+    get_algorithm_reviews,
+    get_categories
+)
+
 __all__ = [
     "create_user",
     "verify_user",
@@ -90,5 +104,16 @@ __all__ = [
     "update_ai_status",
     "delete_raw_data",
     "add_raw_data_tag",
-    "get_raw_data_tags"
+    "get_raw_data_tags",
+    "create_algorithm",
+    "get_algorithm_by_id",
+    "get_algorithm_by_uuid",
+    "get_algorithm_list",
+    "update_algorithm",
+    "delete_algorithm",
+    "increment_downloads",
+    "increment_calls",
+    "add_review",
+    "get_algorithm_reviews",
+    "get_categories"
 ]

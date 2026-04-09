@@ -109,7 +109,7 @@ class DatabaseInitializer:
 
             # 4. 连接到元数据库创建表结构
             from database.main_db import Base, SessionLocal
-            from database.db_models.meta_model import User, UserDatabase, SchemaVersion, ApiKey, Feedback
+            from database.db_models.meta_model import User, UserDatabase, SchemaVersion, ApiKey, Feedback, Algorithm, AlgorithmReview
 
             # 创建所有表（使用 checkfirst=True 避免重复创建）
             with SessionLocal() as db:
@@ -123,6 +123,18 @@ class DatabaseInitializer:
                     logger.info("Meta tables created successfully")
                 else:
                     logger.info(f"Meta tables already exist: {', '.join(existing_tables)}")
+
+                    # 检查并创建 algorithms 表（如果不存在）
+                    if 'algorithms' not in existing_tables:
+                        logger.info("Creating algorithms table...")
+                        Algorithm.__table__.create(bind=db.bind, checkfirst=True)
+                        logger.info("Algorithms table created successfully")
+
+                    # 检查并创建 algorithm_reviews 表（如果不存在）
+                    if 'algorithm_reviews' not in existing_tables:
+                        logger.info("Creating algorithm_reviews table...")
+                        AlgorithmReview.__table__.create(bind=db.bind, checkfirst=True)
+                        logger.info("Algorithm_reviews table created successfully")
 
                     # 检查 users 表是否需要迁移（添加缺失的字段）
                     if 'users' in existing_tables and inspector:

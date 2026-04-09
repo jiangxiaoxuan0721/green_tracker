@@ -310,7 +310,7 @@ export const rawDataService = {
   // 导出原始数据
   async exportRawData(params: {
     user_id: string;
-    format?: 'csv' | 'json';
+    format?: 'csv' | 'json' | 'zip';
     session_id?: string;
     data_type?: string;
     data_subtype?: string;
@@ -318,17 +318,48 @@ export const rawDataService = {
     console.log('[前端RawDataService] 发送导出原始数据请求');
     console.log('[前端RawDataService] 导出参数:', params);
 
+    const format = params.format || 'csv';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filenameMap = {
+      csv: `数据导出_${timestamp}.csv`,
+      json: `数据导出_${timestamp}.json`,
+      zip: `数据导出_${timestamp}.zip`
+    };
+
     try {
       const response = await api.get('/api/raw-data/export', {
         params,
-        responseType: 'blob'
+        responseType: 'blob',
+        // 自定义验证状态码：只有 2xx 算成功，其他都算失败
+        validateStatus: (status) => status >= 200 && status < 300
       });
+
+      // 对于 JSON 格式，2xx 响应直接信任（后端已设置 Content-Disposition header）
+      // 对于 CSV/ZIP，通过检查 content-type 来判断是否为错误
+      const status = response.status;
+      const contentType = response.headers['content-type'];
+
+      // 只有 CSV 和 ZIP 格式才需要检查 content-type（JSON 格式的 content-type 就是 application/json）
+      if (format !== 'json') {
+        if (contentType && contentType.includes('application/json')) {
+          const errorText = await response.data.text();
+          try {
+            const errorData = JSON.parse(errorText);
+            throw new Error(errorData.detail || '导出失败');
+          } catch (e) {
+            if (e instanceof Error && e.message !== '导出失败') {
+              throw new Error(errorText || '导出失败');
+            }
+            throw e;
+          }
+        }
+      }
 
       // 创建下载链接
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `raw_data_export.${params.format || 'csv'}`);
+      link.setAttribute('download', filenameMap[format]);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -336,9 +367,29 @@ export const rawDataService = {
 
       console.log('[前端RawDataService] 导出原始数据成功');
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('导出原始数据失败:', error);
-      throw error;
+      
+      // 尝试从错误响应中提取详细信息
+      let errorMessage = '导出失败，请稍后再试';
+      
+      if (error.response?.data instanceof Blob) {
+        // Blob 类型错误响应
+        try {
+          const errorText = await error.response.data.text();
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.detail || errorMessage;
+        } catch {
+          // 如果解析失败，使用默认消息
+        }
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      console.error('[前端RawDataService] 错误详情:', errorMessage);
+      throw new Error(errorMessage);
     }
   }
 };

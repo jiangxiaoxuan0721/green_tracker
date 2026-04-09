@@ -14,7 +14,8 @@ const FieldMapPicker = ({
   onChange,
   height = 400,
   center = [116.397428, 39.90923],
-  zoom = 10
+  zoom = 10,
+  initialMapType = 'satellite' // 'normal' | 'satellite'
 }) => {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
@@ -22,6 +23,9 @@ const FieldMapPicker = ({
   const polygonRef = useRef(null)
   const markerRef = useRef(null)
   const placeSearchRef = useRef(null)
+  const satelliteLayerRef = useRef(null)
+  const labelLayerRef = useRef(null)
+  const [mapType, setMapType] = useState(initialMapType)
 
   const [mapLoaded, setMapLoaded] = useState(false)
   const [mapError, setMapError] = useState('')
@@ -85,11 +89,34 @@ const FieldMapPicker = ({
         viewMode: '2D',
         mapStyle: 'amap://styles/normal',
         resizeEnable: true,
-        showLabel: false
+        showLabel: true
       })
 
-      map.addControl(new window.AMap.Scale())
-      map.addControl(new window.AMap.ToolBar({ position: 'RB' }))
+      // 添加底图图层
+      if (mapType === 'satellite') {
+        // 卫星图层
+        satelliteLayerRef.current = new window.AMap.TileLayer.Satellite()
+        map.addLayer(satelliteLayerRef.current)
+        // 标注图层（显示地名、道路等）
+        labelLayerRef.current = new window.AMap.TileLayer.RoadNet({
+          opacity: 0.8
+        })
+        map.addLayer(labelLayerRef.current)
+        
+        // 设置图层z-index，确保多边形显示在图层之上
+        if (satelliteLayerRef.current) {
+          satelliteLayerRef.current.setzIndex(0)
+        }
+        if (labelLayerRef.current) {
+          labelLayerRef.current.setzIndex(10)
+        }
+      }
+
+      // 加载控件插件
+      window.AMap.plugin(['AMap.Scale', 'AMap.ToolBar'], () => {
+        map.addControl(new window.AMap.Scale())
+        map.addControl(new window.AMap.ToolBar({ position: 'RB' }))
+      })
       
       // 地图加载完成后触发 resize，确保正确渲染
       map.on('complete', () => {
@@ -159,6 +186,38 @@ const FieldMapPicker = ({
     }
   }, [])
 
+  // 切换底图类型
+  const toggleMapType = useCallback(() => {
+    if (!mapRef.current) return
+
+    const newType = mapType === 'satellite' ? 'normal' : 'satellite'
+
+    // 先移除现有图层
+    if (satelliteLayerRef.current) {
+      mapRef.current.removeLayer(satelliteLayerRef.current)
+      satelliteLayerRef.current = null
+    }
+    if (labelLayerRef.current) {
+      mapRef.current.removeLayer(labelLayerRef.current)
+      labelLayerRef.current = null
+    }
+
+    if (newType === 'satellite') {
+      // 卫星模式：添加卫星图层 + 标注图层
+      satelliteLayerRef.current = new window.AMap.TileLayer.Satellite()
+      mapRef.current.addLayer(satelliteLayerRef.current)
+      labelLayerRef.current = new window.AMap.TileLayer.RoadNet({ opacity: 0.8 })
+      mapRef.current.addLayer(labelLayerRef.current)
+      mapRef.current.setMapStyle('amap://styles/light')
+    } else {
+      // 普通模式：使用标准底图
+      mapRef.current.setMapStyle('amap://styles/normal')
+    }
+
+    // 延迟更新状态，避免在切换过程中渲染
+    setTimeout(() => setMapType(newType), 50)
+  }, [mapType])
+
   const wktToCoords = useCallback((wkt) => {
     const coords = parseWKT(wkt)
     if (coords.length === 0) {
@@ -195,17 +254,24 @@ const FieldMapPicker = ({
       })
       mapRef.current.add(markerRef.current)
       mapRef.current.setCenter(coords[0])
+      mapRef.current.setZoom(15)
     } else {
       polygonRef.current = new window.AMap.Polygon({
         path: coords,
         fillColor: '#00b4d8',
-        fillOpacity: 0.3,
-        strokeColor: '#0077b6',
-        strokeWeight: 2,
-        extData: wkt
+        fillOpacity: 0.4,
+        strokeColor: '#ff0000',
+        strokeWeight: 3,
+        extData: wkt,
+        zIndex: 100
       })
       mapRef.current.add(polygonRef.current)
-      mapRef.current.setFitView([polygonRef.current])
+      // 延迟设置视野
+      setTimeout(() => {
+        if (mapRef.current && polygonRef.current) {
+          mapRef.current.setFitView([polygonRef.current])
+        }
+      }, 100)
     }
   }, [parseWKT])
 
@@ -230,15 +296,21 @@ const FieldMapPicker = ({
     // 使用 MouseTool 绘制多边形
     mouseToolRef.current.polygon({
       fillColor: '#00b4d8',
-      fillOpacity: 0.3,
-      strokeColor: '#0077b6',
-      strokeWeight: 2
+      fillOpacity: 0.4,
+      strokeColor: '#ff0000',
+      strokeWeight: 3,
+      zIndex: 100
     })
 
     // 监听绘制完成事件
     mouseToolRef.current.on('draw', (e) => {
       const path = e.obj.getPath()
       polygonRef.current = e.obj
+      
+      // 定位地图到绘制的区域
+      if (mapRef.current) {
+        mapRef.current.setFitView([e.obj])
+      }
       
       // 闭合多边形：添加首点到末尾
       const closedPath = [...path]
@@ -446,6 +518,14 @@ const FieldMapPicker = ({
           </button>
         </div>
         <div className="toolbar-right">
+          <button
+            type="button"
+            className="tool-btn"
+            onClick={toggleMapType}
+            title={mapType === 'satellite' ? '切换到普通地图' : '切换到卫星图'}
+          >
+            {mapType === 'satellite' ? '🗺️' : '🛰️'}
+          </button>
           {currentWKT && (
             <button type="button" className="tool-btn danger" onClick={clearOverlay}>
               清除

@@ -159,3 +159,81 @@ class Feedback(MetaBase):
 
     def __repr__(self):
         return f"<Feedback(id={self.id}, subject={self.subject})>"
+
+
+class Algorithm(MetaBase):
+    """
+    算法表
+    存储用户上传的算法元数据，支持 Replicate 模式
+    """
+    __tablename__ = "algorithms"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="算法ID")
+    uuid = Column(String(36), unique=True, nullable=False, index=True, comment="算法唯一标识")
+    name = Column(String(100), nullable=False, comment="算法名称")
+    description = Column(Text, nullable=True, comment="算法描述")
+    category = Column(String(50), nullable=True, comment="分类：目标检测/分类/分割")
+    tags = Column(Text, nullable=True, default='[]', comment="标签JSON数组")
+    author_id = Column(String(36), ForeignKey('users.userid', ondelete='CASCADE'), nullable=False, index=True, comment="发布者ID")
+    author_name = Column(String(100), nullable=True, comment="发布者名称")
+    version = Column(String(20), nullable=False, default='1.0.0', comment="版本号")
+
+    # 文件信息
+    minio_path = Column(String(500), nullable=True, comment="MinIO存储路径")
+    file_size = Column(Integer, nullable=True, comment="文件大小(字节)")
+    docker_image = Column(String(200), nullable=True, comment="生成的镜像名")
+    container_port = Column(Integer, nullable=True, comment="容器端口")
+
+    # 框架信息
+    framework = Column(String(50), nullable=True, comment="框架：pytorch/tensorflow/onnx/opencv")
+    input_type = Column(String(50), nullable=True, comment="输入类型：image/file")
+    output_type = Column(String(50), nullable=True, comment="输出类型：json/text")
+
+    # 统计
+    downloads = Column(Integer, nullable=False, default=0, comment="下载次数")
+    calls = Column(Integer, nullable=False, default=0, comment="API调用次数")
+    rating = Column(Integer, nullable=True, comment="评分(1-5)")
+
+    # 状态
+    status = Column(String(20), nullable=False, default='pending', comment="状态：pending/building/running/error/archived")
+    build_log = Column(Text, nullable=True, comment="构建日志")
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), comment="更新时间")
+
+    # 索引
+    __table_args__ = (
+        Index('idx_algorithms_author', 'author_id'),
+        Index('idx_algorithms_category', 'category'),
+        Index('idx_algorithms_status', 'status'),
+        Index('idx_algorithms_name', 'name'),
+        {'comment': '算法表'}
+    )
+
+    def __repr__(self):
+        return f"<Algorithm(id={self.id}, name={self.name}, status={self.status})>"
+
+
+class AlgorithmReview(MetaBase):
+    """
+    算法评论表
+    存储用户对算法的评价
+    """
+    __tablename__ = "algorithm_reviews"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="评论ID")
+    algorithm_id = Column(String(36), ForeignKey('algorithms.id', ondelete='CASCADE'), nullable=False, index=True, comment="算法ID")
+    user_id = Column(String(36), ForeignKey('users.userid', ondelete='CASCADE'), nullable=False, index=True, comment="用户ID")
+    rating = Column(Integer, nullable=False, comment="评分(1-5)")
+    comment = Column(Text, nullable=True, comment="评论内容")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
+
+    # 索引
+    __table_args__ = (
+        Index('idx_algorithm_reviews_algorithm', 'algorithm_id'),
+        Index('idx_algorithm_reviews_user', 'user_id'),
+        {'comment': '算法评论表'}
+    )
+
+    def __repr__(self):
+        return f"<AlgorithmReview(id={self.id}, algorithm_id={self.algorithm_id}, rating={self.rating})>"

@@ -174,13 +174,15 @@ const DataAnalyze = () => {
   // 数据类型配置
   const dataTypeConfig = {
     temperature: { label: '温度', unit: '°C', color: '#e74c3c' },
+    temperature_soil: { label: '土壤温度', unit: '°C', color: '#c0392b' },
     humidity: { label: '湿度', unit: '%', color: '#3498db' },
     moisture: { label: '土壤湿度', unit: '%', color: '#9b59b6' },
     ph: { label: '土壤pH', unit: '', color: '#1abc9c' },
     ec: { label: '电导率', unit: 'μS/cm', color: '#f39c12' },
     co2: { label: 'CO2', unit: 'ppm', color: '#2ecc71' },
     light: { label: '光照', unit: 'lux', color: '#f1c40f' },
-    pressure: { label: '气压', unit: 'hPa', color: '#34495e' }
+    pressure: { label: '气压', unit: 'hPa', color: '#34495e' },
+    wind_speed: { label: '风速', unit: 'm/s', color: '#95a5a6' }
   }
 
   // 处理设备变更
@@ -457,6 +459,21 @@ const DataAnalyze = () => {
                 <tbody>
                   {Object.entries(statistics.data_types).map(([key, count]) => {
                     const configInfo = dataTypeConfig[key] || { label: key }
+                    
+                    // 格式化数值并添加单位
+                    const formatValue = (value, unit) => {
+                      if (value === undefined || value === null) return '-'
+                      const strValue = String(value).trim()
+                      // 如果值已包含空格（后端已添加单位），直接返回
+                      if (strValue.includes(' ')) {
+                        return strValue
+                      }
+                      // 否则是纯数字，添加单位
+                      const numValue = parseFloat(strValue)
+                      if (isNaN(numValue)) return strValue
+                      return unit ? `${numValue.toFixed(2)} ${unit}` : numValue.toFixed(2)
+                    }
+                    
                     return (
                       <tr key={key}>
                         <td>
@@ -467,18 +484,9 @@ const DataAnalyze = () => {
                           {configInfo.label}
                         </td>
                         <td>{count}</td>
-                        <td>
-                          {statistics.average_values[key] || '-'}
-                          {configInfo.unit && ` ${configInfo.unit}`}
-                        </td>
-                        <td>
-                          {statistics.min_values[key] !== undefined ? statistics.min_values[key] : '-'}
-                          {configInfo.unit && statistics.min_values[key] !== undefined ? ` ${configInfo.unit}` : ''}
-                        </td>
-                        <td>
-                          {statistics.max_values[key] !== undefined ? statistics.max_values[key] : '-'}
-                          {configInfo.unit && statistics.max_values[key] !== undefined ? ` ${configInfo.unit}` : ''}
-                        </td>
+                        <td>{formatValue(statistics.average_values[key], configInfo.unit)}</td>
+                        <td>{formatValue(statistics.min_values[key], configInfo.unit)}</td>
+                        <td>{formatValue(statistics.max_values[key], configInfo.unit)}</td>
                       </tr>
                     )
                   })}
@@ -528,7 +536,10 @@ const DataAnalyze = () => {
                       ) : (
                         <>
                           <span className="value-text">{item.data_value}</span>
-                          {configInfo.unit && <span className="value-unit">{configInfo.unit}</span>}
+                          {/* 后端已添加单位，检查值是否已包含空格（带单位） */}
+                          {!String(item.data_value || '').includes(' ') && configInfo.unit && (
+                            <span className="value-unit">{configInfo.unit}</span>
+                          )}
                         </>
                       )}
                     </div>

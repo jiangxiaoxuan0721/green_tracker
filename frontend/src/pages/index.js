@@ -6,7 +6,6 @@ export { default as Login } from './Login/Login'
 export { default as Register } from './Register/Register'
 export { default as Dashboard } from './Dashboard/Dashboard'
 export { default as Feedback } from './Feedback/Feedback'
-export { default as MapTest } from './MapTest/MapTest'
 export { default as NotFound } from './NotFound/NotFound'
 
 // Dashboard 子页面统一导出

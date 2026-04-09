@@ -6,6 +6,7 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File, Form, Header
+from fastapi.responses import JSONResponse
 from typing import Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -18,8 +19,10 @@ from PIL import Image
 from ..routes.auth import get_current_user, get_current_user_from_api_key
 
 from database.db_models.meta_model import User
+from database.db_models.user_models import RawData, CollectionSession, Field, Device
 from database.user_db_manager import get_user_db, get_current_user_db
 from database.main_db import get_meta_db
+from sqlalchemy import desc
 from database.db_services.raw_data_service import (
     create_raw_data,
     get_raw_data_by_id,
@@ -273,6 +276,361 @@ async def get_overview_statistics_endpoint(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"获取概览统计失败: {str(e)}")
+    finally:
+        if db:
+            try:
+                db.close()
+            except:
+                pass
+
+
+# ============ 数据导出接口 ============
+
+@router.get("/export", summary="导出原始数据")
+async def export_raw_data(
+    format: str = Query('csv', description="导出格式: csv/json/zip"),
+    session_id: Optional[str] = Query(None, description="会话ID过滤"),
+    data_type: Optional[str] = Query(None, description="数据类型过滤"),
+    data_subtype: Optional[str] = Query(None, description="数据子类型过滤"),
+    user_id: str = Query(..., description="用户ID")
+):
+    """
+    导出原始数据
+
+    支持三种格式：
+    - csv: 数值数据CSV表格，适合Excel分析
+    - json: 完整数据JSON格式，包含所有字段
+    - zip: 文件数据打包，包含原始文件和CSV元数据
+
+    返回二进制数据流，自动设置正确的Content-Type和Content-Disposition
+    """
+    import csv
+    import io
+    import zipfile
+    import json
+    from typing import Dict, Any, List
+
+    logger.info(f"[导出数据] 开始导出，用户ID: {user_id}, 格式: {format}")
+    logger.info(f"[导出数据] 过滤条件: session_id={session_id}, data_type={data_type}, data_subtype={data_subtype}")
+
+    # 连接到用户数据库
+    try:
+        db = get_user_db(user_id)
+        logger.info(f"[导出数据] 数据库连接成功")
+    except Exception as e:
+        logger.error(f"[导出数据] 数据库连接失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"数据库连接失败: {str(e)}")
+
+    try:
+        # 构建查询
+        query = db.query(RawData)
+
+        if session_id:
+            query = query.filter(RawData.session_id == session_id)
+        if data_type:
+            query = query.filter(RawData.data_type == data_type)
+        if data_subtype:
+            query = query.filter(RawData.data_subtype == data_subtype)
+
+        # 按时间倒序
+        query = query.order_by(desc(RawData.capture_time))
+        raw_data_list = query.all()
+
+        logger.info(f"[导出数据] 共获取 {len(raw_data_list)} 条数据，格式: {format}")
+
+        if format == 'csv':
+            # 导出CSV格式
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # 写入表头
+            writer.writerow([
+                '数据ID', '采集时间', '任务名称', '地块名称', '设备名称',
+                '数据类型', '数据子类型', '数据值', '数据单位', '数据格式',
+                '质量评分', '位置', '高度(m)', '朝向(°)',
+                '处理状态', 'AI状态', '是否有效'
+            ])
+
+            # 写入数据行
+            for item in raw_data_list:
+                # 获取关联信息
+                session = db.query(CollectionSession).filter(
+                    CollectionSession.id == item.session_id
+                ).first() if item.session_id else None
+
+                field = None
+                device = None
+                if session:
+                    field = db.query(Field).filter(Field.id == session.field_id).first() if session.field_id else None
+                    device = db.query(Device).filter(Device.id == session.device_id).first() if session.device_id else None
+
+                writer.writerow([
+                    item.id,
+                    item.capture_time.strftime('%Y-%m-%d %H:%M:%S') if item.capture_time else '',
+                    session.mission_name if session else '',
+                    field.name if field else '',
+                    device.name if device else '',
+                    item.data_type,
+                    item.data_subtype or '',
+                    item.data_value or '',
+                    item.data_unit or '',
+                    item.data_format or '',
+                    f'{item.quality_score:.2f}' if item.quality_score else '',
+                    item.location_geom if item.location_geom else '',
+                    item.altitude_m if item.altitude_m else '',
+                    item.heading if item.heading else '',
+                    item.processing_status or '',
+                    item.ai_status or '',
+                    '是' if item.is_valid else '否'
+                ])
+
+            csv_content = output.getvalue()
+            output.close()
+
+            # 生成文件名
+            filename = f"raw_data_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+            return Response(
+                content=csv_content,
+                media_type='text/csv; charset=utf-8-sig',
+                headers={
+                    'Content-Disposition': f'attachment; filename*=UTF-8\'\'{filename}',
+                    'Content-Type': 'text/csv; charset=utf-8-sig'
+                }
+            )
+
+        elif format == 'json':
+            # 导出JSON格式
+            export_data = []
+
+            # 安全序列化函数（放在循环外部复用）
+            def safe_isoformat(val):
+                if val is None:
+                    return None
+                try:
+                    if hasattr(val, 'isoformat'):
+                        return val.isoformat()
+                    return str(val)
+                except Exception:
+                    return str(val)
+
+            def safe_value(val):
+                if val is None:
+                    return None
+                try:
+                    if isinstance(val, (str, int, float, bool)):
+                        return val
+                    if hasattr(val, 'isoformat'):  # datetime
+                        return val.isoformat()
+                    if isinstance(val, dict):
+                        return {k: safe_value(v) for k, v in val.items()}
+                    if isinstance(val, (list, tuple)):
+                        return [safe_value(v) for v in val]
+                    return str(val)
+                except Exception:
+                    return str(val)
+
+            for item in raw_data_list:
+                try:
+                    # 获取关联信息
+                    session = db.query(CollectionSession).filter(
+                        CollectionSession.id == item.session_id
+                    ).first() if item.session_id else None
+
+                    field = None
+                    device = None
+                    if session:
+                        field = db.query(Field).filter(Field.id == session.field_id).first() if session.field_id else None
+                        device = db.query(Device).filter(Device.id == session.device_id).first() if session.device_id else None
+
+                    export_data.append({
+                        'id': str(item.id) if item.id else None,
+                        'capture_time': safe_isoformat(item.capture_time),
+                        'session': {
+                            'id': str(session.id) if session else None,
+                            'mission_name': session.mission_name if session else None,
+                            'mission_type': session.mission_type if session else None
+                        },
+                        'field': {
+                            'id': str(field.id) if field else None,
+                            'name': field.name if field else None
+                        },
+                        'device': {
+                            'id': str(device.id) if device else None,
+                            'name': device.name if device else None,
+                            'type': device.device_type if device else None
+                        },
+                        'data_type': str(item.data_type) if item.data_type else None,
+                        'data_subtype': str(item.data_subtype) if item.data_subtype else None,
+                        'data_value': str(item.data_value) if item.data_value else None,
+                        'data_unit': str(item.data_unit) if item.data_unit else None,
+                        'data_format': str(item.data_format) if item.data_format else None,
+                        'bucket_name': str(item.bucket_name) if item.bucket_name else None,
+                        'object_key': str(item.object_key) if item.object_key else None,
+                        'location': {
+                            'geom': str(item.location_geom) if item.location_geom else None,
+                            'altitude_m': float(item.altitude_m) if item.altitude_m else None,
+                            'heading': float(item.heading) if item.heading else None
+                        },
+                        'metadata': {
+                            'sensor_meta': safe_value(item.sensor_meta),
+                            'file_meta': safe_value(item.file_meta),
+                            'acquisition_meta': safe_value(item.acquisition_meta)
+                        },
+                        'quality': {
+                            'score': float(item.quality_score) if item.quality_score else None,
+                            'flags': safe_value(item.quality_flags),
+                            'is_valid': bool(item.is_valid) if item.is_valid is not None else None,
+                            'validation_notes': str(item.validation_notes) if item.validation_notes else None
+                        },
+                        'status': {
+                            'processing': str(item.processing_status) if item.processing_status else None,
+                            'ai': str(item.ai_status) if item.ai_status else None
+                        },
+                        'created_at': safe_isoformat(item.created_at)
+                    })
+                except Exception as e:
+                    logger.warning(f"[导出JSON] 处理单条数据失败: {e}, item_id={item.id}")
+                    continue  # 跳过有问题的记录
+
+            json_content = json.dumps({
+                'export_time': datetime.now().isoformat(),
+                'total_count': len(export_data),
+                'filters': {
+                    'session_id': session_id,
+                    'data_type': data_type,
+                    'data_subtype': data_subtype
+                },
+                'data': export_data
+            }, ensure_ascii=False, indent=2)
+
+            filename = f"raw_data_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+            return Response(
+                content=json_content,
+                media_type='application/json; charset=utf-8',
+                headers={
+                    'Content-Disposition': f'attachment; filename*=UTF-8\'\'{filename}',
+                    'Content-Type': 'application/json; charset=utf-8'
+                }
+            )
+
+        elif format == 'zip':
+            # 导出ZIP格式（包含文件数据+元数据）
+            output = io.BytesIO()
+
+            with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                # 1. 写入元数据CSV
+                csv_output = io.StringIO()
+                writer = csv.writer(csv_output)
+                writer.writerow([
+                    '数据ID', '文件名', '采集时间', '任务名称', '数据类型', '数据子类型',
+                    '质量评分', '原始路径', '新文件名'
+                ])
+
+                files_written = 0
+                for item in raw_data_list:
+                    session = db.query(CollectionSession).filter(
+                        CollectionSession.id == item.session_id
+                    ).first() if item.session_id else None
+
+                    # 如果有文件，下载并添加到ZIP
+                    if item.object_key and item.bucket_name:
+                        try:
+                            from storage.storage_manager import get_storage_manager
+                            storage = get_storage_manager()
+
+                            # 获取文件内容
+                            file_result = storage._get_file_bytes_direct(item.object_key)
+                            if file_result and file_result.get('success'):
+                                # 生成新文件名
+                                original_name = item.object_key.split('/')[-1] if item.object_key else f'{item.id}'
+                                ext = item.data_format or original_name.split('.')[-1] if '.' in original_name else 'bin'
+                                new_name = f"files/{item.data_subtype or item.data_type}_{files_written + 1}.{ext}"
+
+                                # 写入ZIP
+                                zip_file.writestr(new_name, file_result['data'])
+                                files_written += 1
+
+                                writer.writerow([
+                                    item.id,
+                                    original_name,
+                                    item.capture_time.strftime('%Y-%m-%d %H:%M:%S') if item.capture_time else '',
+                                    session.mission_name if session else '',
+                                    item.data_type,
+                                    item.data_subtype or '',
+                                    f'{item.quality_score:.2f}' if item.quality_score else '',
+                                    item.object_key,
+                                    new_name
+                                ])
+                        except Exception as e:
+                            logger.warning(f"[导出ZIP] 下载文件失败 {item.object_key}: {e}")
+                            writer.writerow([
+                                item.id,
+                                item.object_key.split('/')[-1] if item.object_key else '',
+                                item.capture_time.strftime('%Y-%m-%d %H:%M:%S') if item.capture_time else '',
+                                session.mission_name if session else '',
+                                item.data_type,
+                                item.data_subtype or '',
+                                f'{item.quality_score:.2f}' if item.quality_score else '',
+                                item.object_key,
+                                '[文件下载失败]'
+                            ])
+
+                # 将CSV写入ZIP
+                zip_file.writestr('metadata.csv', csv_output.getvalue())
+                csv_output.close()
+
+                # 2. 写入摘要JSON
+                summary = {
+                    'export_time': datetime.now().isoformat(),
+                    'total_records': len(raw_data_list),
+                    'files_included': files_written,
+                    'filters': {
+                        'session_id': session_id,
+                        'data_type': data_type,
+                        'data_subtype': data_subtype
+                    },
+                    'data_types': {},
+                    'data_subtypes': {}
+                }
+
+                for item in raw_data_list:
+                    dt = item.data_type or 'unknown'
+                    dst = item.data_subtype or 'unknown'
+                    summary['data_types'][dt] = summary['data_types'].get(dt, 0) + 1
+                    summary['data_subtypes'][dst] = summary['data_subtypes'].get(dst, 0) + 1
+
+                zip_file.writestr('summary.json', json.dumps(summary, ensure_ascii=False, indent=2))
+
+            zip_content = output.getvalue()
+            output.close()
+
+            filename = f"raw_data_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+
+            return Response(
+                content=zip_content,
+                media_type='application/zip',
+                headers={
+                    'Content-Disposition': f'attachment; filename*=UTF-8\'\'{filename}',
+                    'Content-Type': 'application/zip'
+                }
+            )
+
+        else:
+            raise HTTPException(status_code=400, detail=f"不支持的导出格式: {format}，支持的格式: csv/json/zip")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[导出数据] 失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        error_detail = f"导出数据失败: {str(e)}"
+        return JSONResponse(
+            status_code=500,
+            content={"detail": error_detail}
+        )
     finally:
         if db:
             try:
@@ -964,3 +1322,4 @@ async def upload_file_data(
         raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
     finally:
         db.close()  # pyright: ignore[reportPossiblyUnboundVariable, reportOptionalMemberAccess]
+
