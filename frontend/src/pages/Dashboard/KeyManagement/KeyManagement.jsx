@@ -236,7 +236,16 @@ const KeyManagement = () => {
 
   return (
     <div className="key-management">
-      {loading && <div className="loading">加载中...</div>}
+      {loading && (
+        <div className="loading">
+          <div className="dashboard-loading-dots">
+            <div className="dashboard-loading-dot"></div>
+            <div className="dashboard-loading-dot"></div>
+            <div className="dashboard-loading-dot"></div>
+          </div>
+          <span style={{ fontSize: '0.8125rem' }}>加载中...</span>
+        </div>
+      )}
 
       <div className="key-list">
         <div className="list-header">
