@@ -11,41 +11,47 @@ import '../AdditionalStyles.css'
 import './DataUpload.css'
 
 // 数据类型配置
+// 参考后端 data_type 定义：image/video/environmental/soil/spectral/multispectral/thermal
+// 整合为三大类：文件、环境、土壤
 const dataTypeConfig = {
   file: {
     icon: FileImage,
-    label: '图像/视频',
+    label: '文件',
     color: '#3b82f6',
+    // 后端 data_type 值映射
+    dataTypes: ['image', 'video', 'spectral', 'multispectral'],
     subtypes: [
-      { value: 'rgb', label: 'RGB图像', unit: '' },
-      { value: 'nir', label: '近红外图像', unit: '' },
-      { value: 'red_edge', label: '红边图像', unit: '' },
-      { value: 'thermal', label: '热成像', unit: '' },
-      { value: 'multispectral', label: '多光谱', unit: '' },
-      { value: 'video', label: '视频', unit: '' }
+      { value: 'rgb', label: 'RGB图像', unit: '', dataType: 'image' },
+      { value: 'nir', label: '近红外图像', unit: '', dataType: 'image' },
+      { value: 'red_edge', label: '红边图像', unit: '', dataType: 'image' },
+      { value: 'thermal', label: '热成像图像', unit: '', dataType: 'image' },
+      { value: 'multispectral', label: '多光谱图像', unit: '', dataType: 'multispectral' },
+      { value: 'video', label: '视频', unit: '', dataType: 'video' }
     ]
   },
   environmental: {
     icon: Thermometer,
-    label: '环境数据',
+    label: '环境',
     color: '#f59e0b',
+    dataTypes: ['environmental'],
     subtypes: [
-      { value: 'temperature', label: '温度', unit: '°C' },
-      { value: 'humidity', label: '湿度', unit: '%' },
-      { value: 'co2', label: 'CO₂浓度', unit: 'ppm' },
-      { value: 'light', label: '光照强度', unit: 'lux' },
-      { value: 'pressure', label: '气压', unit: 'hPa' }
+      { value: 'temperature', label: '温度', unit: '°C', dataType: 'environmental' },
+      { value: 'humidity', label: '湿度', unit: '%', dataType: 'environmental' },
+      { value: 'co2', label: 'CO₂浓度', unit: 'ppm', dataType: 'environmental' },
+      { value: 'light', label: '光照强度', unit: 'lux', dataType: 'environmental' },
+      { value: 'pressure', label: '气压', unit: 'hPa', dataType: 'environmental' }
     ]
   },
   soil: {
     icon: Droplets,
-    label: '土壤数据',
+    label: '土壤',
     color: '#8b5cf6',
+    dataTypes: ['soil'],
     subtypes: [
-      { value: 'moisture', label: '土壤湿度', unit: '%' },
-      { value: 'ph', label: '酸碱度', unit: 'pH' },
-      { value: 'ec', label: '电导率', unit: 'μS/cm' },
-      { value: 'temperature_soil', label: '土壤温度', unit: '°C' }
+      { value: 'moisture', label: '土壤湿度', unit: '%', dataType: 'soil' },
+      { value: 'ph', label: '酸碱度', unit: 'pH', dataType: 'soil' },
+      { value: 'ec', label: '电导率', unit: 'μS/cm', dataType: 'soil' },
+      { value: 'temperature_soil', label: '土壤温度', unit: '°C', dataType: 'soil' }
     ]
   }
 }
@@ -142,9 +148,13 @@ const DataUpload = () => {
 
     setIsUploading(true)
     try {
+      // 获取子类型对应的后端 data_type
+      const subtypeConfigItem = dataTypeConfig[selectedDataType]?.subtypes?.find(s => s.value === selectedSubtype)
+      const dataType = subtypeConfigItem?.dataType || selectedSubtype
+
       const data = {
         session_id: selectedSession.id,
-        data_type: selectedDataType,
+        data_type: dataType,
         data_subtype: selectedSubtype,
         data_value: formData.value
       }
@@ -193,9 +203,27 @@ const DataUpload = () => {
         description="快速上传采集数据"
       />
 
+      {/* 视图切换标签 - 放在头部，确保两个视图都能看到 */}
+      <div className="view-tabs">
+        <button
+          className={`view-tab ${activeView === 'data-upload' ? 'active' : ''}`}
+          onClick={() => setActiveView('data-upload')}
+        >
+          <Upload size={16} />
+          数据上传
+        </button>
+        <button
+          className={`view-tab ${activeView === 'key-management' ? 'active' : ''}`}
+          onClick={() => setActiveView('key-management')}
+        >
+          <Key size={16} />
+          密钥管理
+        </button>
+      </div>
+
       {activeView === 'data-upload' && (
         <div className="upload-container">
-          {/* 步骤条 - 放在最上方 */}
+          {/* 步骤条 - 放在视图切换标签下方 */}
           <div className="stepper">
             {steps.map((step, index) => (
               <div
@@ -209,24 +237,6 @@ const DataUpload = () => {
                 {index < steps.length - 1 && <ChevronRight size={16} className="step-arrow" />}
               </div>
             ))}
-          </div>
-
-          {/* 视图切换标签 */}
-          <div className="view-tabs">
-            <button
-              className={`view-tab ${activeView === 'data-upload' ? 'active' : ''}`}
-              onClick={() => setActiveView('data-upload')}
-            >
-              <Upload size={16} />
-              数据上传
-            </button>
-            <button
-              className={`view-tab ${activeView === 'key-management' ? 'active' : ''}`}
-              onClick={() => setActiveView('key-management')}
-            >
-              <Key size={16} />
-              密钥管理
-            </button>
           </div>
 
           {/* 步骤1：选择会话 */}
@@ -317,7 +327,7 @@ const DataUpload = () => {
 
               {/* 上传区域 */}
               {selectedSubtype && (
-                <div className="upload-area">
+                <div className="upload-box">
                   {isFileType ? (
                     <div className="file-upload-section">
                       <ImageUpload
@@ -327,7 +337,8 @@ const DataUpload = () => {
                         maxFiles={1}
                         uploadOptions={{
                           session_id: selectedSession.id,
-                          data_subtype: selectedSubtype
+                          data_subtype: selectedSubtype,
+                          data_type: dataTypeConfig[selectedDataType]?.subtypes?.find(s => s.value === selectedSubtype)?.dataType || 'image'
                         }}
                       />
                     </div>
@@ -359,17 +370,6 @@ const DataUpload = () => {
                 </div>
               )}
 
-              {/* 已选信息 */}
-              <div className="selected-info">
-                <div className="info-item">
-                  <span className="info-label">会话</span>
-                  <span className="info-value">{selectedSession?.mission_name}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">类型</span>
-                  <span className="info-value">{dataTypeConfig[selectedDataType]?.label}</span>
-                </div>
-              </div>
             </div>
           )}
         </div>

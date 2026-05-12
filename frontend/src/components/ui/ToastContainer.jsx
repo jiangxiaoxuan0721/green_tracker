@@ -3,7 +3,7 @@ import Toast from './Toast'
 
 const ToastContainer = () => {
   const { toasts, removeToast } = useToast()
-  
+
   return (
     <div className="toast-container">
       {toasts.map(toast => (

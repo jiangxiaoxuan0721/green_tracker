@@ -33,11 +33,29 @@
   - 文件上传下载
   - 最佳实践
 
+### 算法开发
+
+- **[algorithm_development_guide.md](algorithm_development_guide.md)**
+  - 算法包结构规范
+  - algorithm.yaml 配置详解
+  - predict.py 服务入口编写规范
+  - requirements.txt 依赖管理
+  - 完整示例和常见问题
+
+### 其他文档
+
+- **[thumbnail_feature_guide.md](thumbnail_feature_guide.md)**
+  - 缩略图功能指南
+
+- **[cleanup_report_2026-01-27.md](cleanup_report_2026-01-27.md)**
+  - 代码清理报告
+
 ## 🔧 快速链接
 
 - [项目 README](../README.md)
 - [环境配置](../ENV_CONFIG.md)
 - [更新日志](../CHANGELOG.md)
+- [界面截图指南](../screen_guide.md)
 
 ## 📝 文档维护
 

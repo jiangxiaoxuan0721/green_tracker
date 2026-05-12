@@ -294,15 +294,23 @@
 }
 
 /* ========== 上传区域 ========== */
-.upload-area {
-  background: var(--bg-primary);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-lg);
+.upload-box {
   margin-bottom: var(--spacing-lg);
 }
 
 .file-upload-section {
   text-align: center;
+}
+
+/* 调整 ImageUpload 内部样式 */
+.file-upload-section .image-upload .upload-area {
+  border: 2px dashed var(--border-primary);
+  background: var(--bg-primary);
+}
+
+.file-upload-section .image-upload .upload-content {
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
 }
 
 .value-upload-section {
@@ -334,35 +342,6 @@
   min-width: 40px;
 }
 
-/* ========== 已选信息 ========== */
-.selected-info {
-  display: flex;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-md);
-  background: var(--bg-primary);
-  border-radius: var(--radius-md);
-  border: 1px dashed var(--border-primary);
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.info-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.info-value {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
 /* ========== 响应式 ========== */
 @media (max-width: 640px) {
   .stepper {
@@ -383,10 +362,5 @@
 
   .data-type-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .selected-info {
-    flex-direction: column;
-    gap: var(--spacing-sm);
   }
 }

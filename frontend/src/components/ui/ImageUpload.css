@@ -29,11 +29,16 @@
   background-color: rgba(var(--primary-rgb), 0.05);
 }
 
+/* 上传内容区域 - 给文字区域加边框 */
 .upload-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
+  border: 1px solid var(--border-primary, var(--border-color));
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  background-color: var(--surface-color);
 }
 
 .upload-icon {
@@ -55,16 +60,17 @@
 /* 预览区域 */
 .preview-area {
   margin-top: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
 }
 
 .preview-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background-color: var(--surface-color);
-  border-radius: var(--border-radius);
+  padding: 0.75rem 1rem;
+  background-color: var(--surface-hover);
   font-weight: 500;
 }
 
@@ -165,7 +171,7 @@
 
 /* 上传操作 */
 .upload-actions {
-  margin-top: 1.5rem;
+  margin-top: 1rem;
   display: flex;
   gap: 1rem;
   justify-content: flex-end;

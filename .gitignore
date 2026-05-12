@@ -125,3 +125,6 @@ dmypy.json
 
 # codebuddy
 .codebuddy/
+
+# 报告协助文件
+/reports
