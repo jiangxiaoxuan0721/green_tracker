@@ -10,7 +10,7 @@ from .collection_session import (
     CollectionSessionResponse,
     CollectionSessionWithFieldResponse
 )
-from .device import DeviceCreate, DeviceResponse, DeviceUpdate, DeviceListParams, DeviceProvisionResponse
+from .device import DeviceCreate, DeviceResponse, DeviceUpdate, DeviceListParams
 from .feedback import FeedbackCreate, FeedbackResponse
 from .field import FieldCreate, FieldResponse, FieldUpdate, FieldListParams
 from .raw_data import (
@@ -54,7 +54,6 @@ __all__ = [
     "DeviceResponse",
     "DeviceUpdate",
     "DeviceListParams",
-    "DeviceProvisionResponse",
     # Feedback
     "FeedbackCreate",
     "FeedbackResponse",

@@ -2,17 +2,19 @@ import { useCallback, useState } from 'react'
 import { useDataList, useModal } from '@/hooks/common'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { deviceService } from '@/services/deviceService'
-import { Button, Card, PageHeader } from '@/components/ui'
+import { mqttService } from '@/services/mqttService'
+import useToast from '@/hooks/useToast'
+import { Button, Card, Modal, PageHeader } from '@/components/ui'
 import { ItemCard } from '@/components/business'
-import { Radio, Plus } from 'lucide-react'
+import { Radio, Plus, Copy, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import DeviceForm from './components/DeviceForm'
 import DeviceDetail from './components/DeviceDetail'
-import ProvisionModal from './components/ProvisionModal'
 import './Devices.css'
 import '../AdditionalStyles.css'
 
 const Devices = () => {
   const { user } = useAuth()
+  const { success: showSuccess, error: showError } = useToast()
 
   const fetchDevices = useCallback(async () => {
     if (!user?.id) return []
@@ -34,8 +36,13 @@ const Devices = () => {
 
   const { isOpen: isFormOpen, modalData: formDevice, openModal: openForm, closeModal: closeForm } = useModal()
   const { isOpen: isDetailOpen, modalData: detailDevice, openModal: openDetail, closeModal: closeDetail } = useModal()
-  const [provisionData, setProvisionData] = useState(null)
-  const [provisionLoading, setProvisionLoading] = useState(false)
+  const {
+    isOpen: isCredentialOpen, modalData: credentialData,
+    openModal: openCredential, closeModal: closeCredential
+  } = useModal()
+  const [credentialLoading, setCredentialLoading] = useState(false)
+  const [showCredential, setShowCredential] = useState(false)
+  const [currentCredentialDeviceId, setCurrentCredentialDeviceId] = useState(null)
 
   const getPlatformLevelText = (platformLevel) => {
     const platformMap = {
@@ -92,42 +99,69 @@ const Devices = () => {
     openForm(device)
   }
 
-  const handleProvision = async (device) => {
-    setProvisionLoading(true)
+  const handleProvision = async (deviceId) => {
+    setCredentialLoading(true)
+    setCurrentCredentialDeviceId(deviceId)
     try {
-      const result = await deviceService.provisionDevice(device.id)
-      setProvisionData(result)
-      // 立即更新详情弹窗的绑定状态，确保关闭凭证弹窗后状态同步
-      if (detailDevice && detailDevice.id === device.id) {
-        openDetail({ ...device, provisioned: true })
-      }
+      const result = await mqttService.provisionDevice(deviceId)
+      openCredential(result)
+      showSuccess('MQTT 凭证配置成功')
     } catch (err) {
-      console.error('生成设备凭证失败:', err)
-      alert(err.response?.data?.detail || '生成凭证失败，请稍后重试')
+      showError(err?.response?.data?.detail || '凭证配置失败')
     } finally {
-      setProvisionLoading(false)
+      setCredentialLoading(false)
     }
   }
 
-  const handleCloseProvision = () => {
-    setProvisionData(null)
-    refresh()
-  }
-
-  const handleDeprovision = async (device) => {
-    if (!window.confirm('确定要清空该设备的绑定凭证吗？\n\n清空后设备将无法连接MQTT Broker，如需重新连接需重新生成凭证。')) {
-      return
-    }
+  const handleGetCredentials = async (deviceId) => {
+    setCredentialLoading(true)
+    setCurrentCredentialDeviceId(deviceId)
     try {
-      await deviceService.deprovisionDevice(device.id)
-      // 更新详情弹窗状态
-      if (detailDevice && detailDevice.id === device.id) {
-        openDetail({ ...device, provisioned: false, mqtt_secret_hash: null })
-      }
-      refresh()
+      const result = await mqttService.getDeviceCredentials(deviceId)
+      openCredential(result)
+      showSuccess('已获取 MQTT 凭证')
     } catch (err) {
-      console.error('清空凭证失败:', err)
-      alert(err.response?.data?.detail || '清空凭证失败，请稍后重试')
+      showError(err?.response?.data?.detail || '获取凭证失败')
+    } finally {
+      setCredentialLoading(false)
+    }
+  }
+
+  const handleRegenerate = async () => {
+    if (!currentCredentialDeviceId) return
+    setCredentialLoading(true)
+    try {
+      const result = await mqttService.regenerateDeviceCredentials(currentCredentialDeviceId)
+      openCredential(result)
+      showSuccess('MQTT 凭证已重新生成')
+    } catch (err) {
+      showError(err?.response?.data?.detail || '重新生成凭证失败')
+    } finally {
+      setCredentialLoading(false)
+    }
+  }
+
+  const copyToClipboard = (text) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => showSuccess('已复制到剪贴板')).catch(() => {
+        showError('复制失败，请手动复制')
+      })
+    } else {
+      // fallback: 使用 textarea + execCommand
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      try {
+        document.execCommand('copy')
+        showSuccess('已复制到剪贴板')
+      } catch {
+        showError('复制失败，请手动复制')
+      } finally {
+        document.body.removeChild(textarea)
+      }
     }
   }
 
@@ -188,6 +222,22 @@ const Devices = () => {
               onView={handleView}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              actions={(item) => (
+                <div className="item-card-actions">
+                  <Button size="small" variant="outline" onClick={() => handleView(item)}>
+                    详情
+                  </Button>
+                  <Button size="small" variant="primary" onClick={() => handleEdit(item)}>
+                    编辑
+                  </Button>
+                  <Button size="small" variant="outline" onClick={() => handleProvision(item.id)}>
+                    凭证
+                  </Button>
+                  <Button size="small" variant="danger" onClick={() => handleDelete(item)}>
+                    删除
+                  </Button>
+                </div>
+              )}
               customInfo={(item) => (
                 <>
                   <div className="item-info-row">
@@ -195,13 +245,6 @@ const Devices = () => {
                     <span className={`status-badge ${item.online ? 'status-completed' : 'status-failed'}`}
                           style={{ display: 'inline-flex', padding: '1px 6px', fontSize: '0.625rem' }}>
                       {item.online ? '在线' : '离线'}
-                    </span>
-                  </div>
-                  <div className="item-info-row">
-                    <span>凭证</span>
-                    <span className={`status-badge ${item.provisioned ? 'status-completed' : 'status-pending'}`}
-                          style={{ display: 'inline-flex', padding: '1px 6px', fontSize: '0.625rem' }}>
-                      {item.provisioned ? '已下发' : '未下发'}
                     </span>
                   </div>
                   <div className="item-info-row">
@@ -254,17 +297,67 @@ const Devices = () => {
           device={detailDevice}
           onClose={closeDetail}
           onEdit={() => handleDetailEdit(detailDevice)}
-          onProvision={() => handleProvision(detailDevice)}
-          onDeprovision={() => handleDeprovision(detailDevice)}
-          provisionLoading={provisionLoading}
         />
       )}
 
-      <ProvisionModal
-        isOpen={!!provisionData}
-        provision={provisionData}
-        onClose={handleCloseProvision}
-      />
+      {/* MQTT 凭证 Modal */}
+      {isCredentialOpen && (
+        <Modal
+          isOpen={isCredentialOpen}
+          onClose={() => { closeCredential(); setCredentialLoading(false); setShowCredential(false); setCurrentCredentialDeviceId(null) }}
+          title="MQTT 连接凭证"
+          size="medium"
+        >
+          {credentialLoading ? (
+            <div className="dashboard-loading">
+              <div className="dashboard-loading-dots">
+                <div className="dashboard-loading-dot"></div>
+                <div className="dashboard-loading-dot"></div>
+                <div className="dashboard-loading-dot"></div>
+              </div>
+              <div className="dashboard-loading-text">正在获取凭证...</div>
+            </div>
+          ) : credentialData ? (
+            <div className="mqtt-credential">
+              <div className="credential-block">
+                {showCredential ? (
+                  <pre>{`MQTT_DEVICE_ID=${credentialData.mqtt_username}
+MQTT_DEVICE_SECRET=${credentialData.mqtt_secret}
+MQTT_BROKER_HOST=${credentialData.mqtt_broker_host || '-'}
+MQTT_BROKER_PORT=${credentialData.mqtt_broker_port || '-'}`}</pre>
+                ) : (
+                  <div className="credential-masked">
+                    <p>凭证内容已隐藏，点击"显示"按钮查看</p>
+                  </div>
+                )}
+                <div className="credential-actions">
+                  <Button
+                    variant="outline"
+                    size="small"
+                    icon={showCredential ? EyeOff : Eye}
+                    onClick={() => setShowCredential(!showCredential)}
+                  >
+                    {showCredential ? '隐藏' : '显示'}
+                  </Button>
+                  <Button variant="outline" size="small" icon={Copy} onClick={() => {
+                    const text = `MQTT_DEVICE_ID=${credentialData.mqtt_username}
+MQTT_DEVICE_SECRET=${credentialData.mqtt_secret}
+MQTT_BROKER_HOST=${credentialData.mqtt_broker_host || '-'}
+MQTT_BROKER_PORT=${credentialData.mqtt_broker_port || '-'}`
+                    copyToClipboard(text)
+                  }}>
+                    复制
+                  </Button>
+                  <Button variant="outline" size="small" icon={RefreshCw} onClick={handleRegenerate}>
+                    重新生成凭证
+                  </Button>
+                </div>
+                <p className="credential-warning">重新生成后旧凭证将立即失效，已连接的设备需更新凭证后重新连接。</p>
+              </div>
+            </div>
+          ) : null}
+        </Modal>
+      )}
     </div>
   )
 }

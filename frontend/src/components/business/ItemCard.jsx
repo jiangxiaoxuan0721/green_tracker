@@ -9,28 +9,32 @@ const ItemCard = ({
   onEdit,
   onDelete,
   customInfo,
+  actions,
   className = ''
 }) => {
   const getTitle = () => {
     if (type === 'device') return item.name || item.model || item.manufacturer || '未命名设备'
     if (type === 'field') return item.field_name || item.name || '未命名地块'
+    if (type === 'mqtt') return item.name || item.device_id || '未知设备'
     return item.name || '未命名'
   }
 
   const getSubtitle = () => {
     if (type === 'device') return item.device_type || item.type
     if (type === 'field') return item.crop_type || item.type
+    if (type === 'mqtt') return item.name || item.device_id || 'MQTT 设备'
     return item.type
   }
 
   const getStatus = () => {
     if (type === 'device') return item.status
     if (type === 'field') return item.status
+    if (type === 'mqtt') return item.status || 'offline'
     return null
   }
 
   const hasInfo = () => {
-    return customInfo || (type === 'device' || type === 'field')
+    return customInfo || (type === 'device' || type === 'field' || type === 'mqtt')
   }
 
   const renderDefaultInfo = () => {
@@ -72,20 +76,24 @@ const ItemCard = ({
       </div>
 
       <div className="item-card-actions">
-        {onView && (
-          <Button size="small" variant="outline" onClick={() => onView(item)}>
-            详情
-          </Button>
-        )}
-        {onEdit && (
-          <Button size="small" variant="primary" onClick={() => onEdit(item)}>
-            编辑
-          </Button>
-        )}
-        {onDelete && (
-          <Button size="small" variant="danger" onClick={() => onDelete(item)}>
-            删除
-          </Button>
+        {actions ? actions(item) : (
+          <>
+            {onView && (
+              <Button size="small" variant="outline" onClick={() => onView(item)}>
+                详情
+              </Button>
+            )}
+            {onEdit && (
+              <Button size="small" variant="primary" onClick={() => onEdit(item)}>
+                编辑
+              </Button>
+            )}
+            {onDelete && (
+              <Button size="small" variant="danger" onClick={() => onDelete(item)}>
+                删除
+              </Button>
+            )}
+          </>
         )}
       </div>
     </Card>

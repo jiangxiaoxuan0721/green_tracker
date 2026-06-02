@@ -1,7 +1,7 @@
 # Green Tracker 项目 Makefile
 # 用于启动和管理前端和后端服务
 
-.PHONY: help install start stop dev dev-frontend dev-backend clean restart check-env
+.PHONY: help install start stop dev dev-frontend dev-backend clean restart check-env mqtt-start mqtt-stop mqtt-status mqtt-logs
 
 # 默认目标
 help:
@@ -15,6 +15,10 @@ help:
 	@echo "  stop             - 停止所有服务"
 	@echo "  restart          - 重启所有服务"
 	@echo "  clean            - 清理临时文件和容器"
+	@echo "  mqtt-start       - 启动 MQTT Broker (Docker)"
+	@echo "  mqtt-stop        - 停止 MQTT Broker"
+	@echo "  mqtt-status      - MQTT Broker 状态"
+	@echo "  mqtt-logs        - MQTT Broker 日志"
 
 # 检查环境配置
 check-env:
@@ -80,3 +84,20 @@ clean:
 	@docker stop minio || true
 	@docker rm minio || true
 	@echo "清理完成 ✓"
+
+# ============================================================
+# MQTT Broker 管理
+# ============================================================
+mqtt-start: check-env
+	@echo "启动 MQTT Broker..."
+	@cd mqtt && bash deploy_mqtt.sh start
+
+mqtt-stop:
+	@echo "停止 MQTT Broker..."
+	@cd mqtt && bash deploy_mqtt.sh stop
+
+mqtt-status:
+	@cd mqtt && bash deploy_mqtt.sh status
+
+mqtt-logs:
+	@cd mqtt && bash deploy_mqtt.sh logs

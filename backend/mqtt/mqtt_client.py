@@ -1,335 +1,215 @@
 """
-MQTT 客户端管理器
-- 连接 MQTT Broker，订阅设备心跳通配符主题
-- 处理心跳消息，更新设备 last_seen_at
-- 提供指令下发接口
-"""
-import json
-import logging
-import os
-from datetime import datetime, timezone
-from threading import Thread
-from typing import Optional
+MQTT 云端客户端
 
-import paho.mqtt.client as mqtt
-from dotenv import load_dotenv
+功能:
+- 连接 MQTT Broker（使用管理员账号）
+- 订阅所有设备的状态/响应/遗嘱 Topic
+- 向指定设备下发命令
+- 自动重连
+"""
+
+import os
+import json
+import time
+import logging
+import threading
+import secrets
+from datetime import datetime, timezone
+from typing import Dict, Optional
 from pathlib import Path
 
-# 加载环境变量
-project_root = Path(__file__).parent.parent.parent
-load_dotenv(os.path.join(project_root, '.env'))
+from dotenv import load_dotenv
+import paho.mqtt.client as mqtt
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("MQTT.Client")
 
-# =============================================================================
-# MQTT 配置
-# =============================================================================
-MQTT_BROKER_HOST = os.getenv("MQTT_BROKER_HOST", "localhost")
-MQTT_BROKER_PORT = int(os.getenv("MQTT_BROKER_PORT", "1883"))
-MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", "60"))
-MQTT_USERNAME = os.getenv("MQTT_USERNAME", "")
-MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
+# ============================================================
+# 环境变量加载（确保从项目根目录 .env 加载）
+# ============================================================
+_project_root = Path(__file__).parent.parent.parent
+load_dotenv(os.path.join(_project_root, '.env'))
 
-# 心跳主题通配符：device/+/heartbeat（兼容旧设备）
-HEARTBEAT_TOPIC = "device/+/heartbeat"
-# MQTT Will Message 状态主题：device/+/status
-STATUS_TOPIC = "device/+/status"
-# 心跳超时判定离线时间（秒）
-HEARTBEAT_TIMEOUT_SECONDS = 120
-# 指令下发主题模板
-CMD_TOPIC_TEMPLATE = "device/{device_id}/cmd"
+BROKER_HOST = os.getenv("MQTT_BROKER_HOST", "localhost")
+BROKER_PORT = int(os.getenv("MQTT_BROKER_PORT", "1883"))
+BROKER_USERNAME = os.getenv("MQTT_BROKER_USERNAME", "admin")
+BROKER_PASSWORD = os.getenv("MQTT_BROKER_PASSWORD", "admin123")
+LOG_LEVEL = os.getenv("MQTT_LOG_LEVEL", "INFO").upper()
+
+# ============================================================
+# Topic 定义（与物理设备客户端编码规则一致）
+# ============================================================
+TOPIC_PREFIX = "green-tracker"
+TOPIC_STATUS   = f"{TOPIC_PREFIX}/device/+/status"
+TOPIC_RESPONSE = f"{TOPIC_PREFIX}/device/+/response"
+TOPIC_LWT      = f"{TOPIC_PREFIX}/device/+/lwt"
+TOPIC_COMMAND  = f"{TOPIC_PREFIX}/device/{{device_id}}/command"
 
 
-class MQTTClientManager:
+class CloudMQTTClient:
     """
-    MQTT 客户端管理器（单例模式）
-    在后台线程中运行，监听设备心跳并更新在线状态
+    云端 MQTT 客户端
+
+    作为 MQTT Client 连接到 Broker，负责：
+    1. 订阅所有设备的状态/响应/遗嘱消息
+    2. 向设备发布命令
+    3. 维护与 Broker 的稳定连接
     """
 
     def __init__(self):
-        self.client: Optional[mqtt.Client] = None
-        self._thread: Optional[Thread] = None
+        self.client_id = f"green-tracker-cloud-{int(time.time())}"
+        self.client = mqtt.Client(
+            client_id=self.client_id,
+            protocol=mqtt.MQTTv311,
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+        )
 
-    # -------------------------------------------------------------------------
-    # 连接回调
-    # -------------------------------------------------------------------------
+        # 使用管理员账号认证
+        self.client.username_pw_set(BROKER_USERNAME, BROKER_PASSWORD)
+
+        # 绑定回调
+        self.client.on_connect = self._on_connect
+        self.client.on_message = self._on_message
+        self.client.on_disconnect = self._on_disconnect
+
+        self.connected = False
+        self._message_handler = None  # 外部消息处理器
+        self._mqtt_thread: Optional[threading.Thread] = None
+
+    def set_message_handler(self, handler):
+        """设置外部消息处理回调: handler(topic: str, payload: dict)"""
+        self._message_handler = handler
+
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
-            logger.info(
-                f"[MQTT] 已连接 Broker: {MQTT_BROKER_HOST}:{MQTT_BROKER_PORT}"
-            )
-            # 订阅设备心跳（兼容旧设备客户端）
-            result = client.subscribe(HEARTBEAT_TOPIC, qos=1)
-            if result[0] == mqtt.MQTT_ERR_SUCCESS:
-                logger.info(f"[MQTT] 已订阅心跳: {HEARTBEAT_TOPIC}")
-            # 订阅设备在线状态（Will Message / status 主题）
-            result2 = client.subscribe(STATUS_TOPIC, qos=1)
-            if result2[0] == mqtt.MQTT_ERR_SUCCESS:
-                logger.info(f"[MQTT] 已订阅状态: {STATUS_TOPIC}")
+            self.connected = True
+            logger.info(f"✅ MQTT Broker 连接成功 (client_id={self.client_id})")
+
+            # 订阅设备状态
+            client.subscribe(TOPIC_STATUS, qos=1)
+            logger.info(f"  已订阅: {TOPIC_STATUS}")
+
+            # 订阅命令响应
+            client.subscribe(TOPIC_RESPONSE, qos=1)
+            logger.info(f"  已订阅: {TOPIC_RESPONSE}")
+
+            # 订阅遗嘱消息
+            client.subscribe(TOPIC_LWT, qos=1)
+            logger.info(f"  已订阅: {TOPIC_LWT}")
         else:
-            logger.error(f"[MQTT] 连接失败, rc={rc}")
+            logger.error(f"❌ MQTT 连接失败! rc={rc}")
 
-    def _on_disconnect(self, client, userdata, rc, properties=None, reason=None):
-        if rc != 0:
-            logger.warning(
-                f"[MQTT] 意外断开连接 (rc={rc})，将自动重连..."
-            )
-
-    # -------------------------------------------------------------------------
-    # 消息回调
-    # -------------------------------------------------------------------------
     def _on_message(self, client, userdata, msg):
-        """接收 MQTT 消息并分发处理"""
-        topic = msg.topic
         try:
-            payload = msg.payload.decode('utf-8', errors='ignore')
-        except Exception:
-            logger.warning(f"[MQTT] 无法解码消息 payload: {msg.topic}")
-            return
+            topic = msg.topic
+            payload = json.loads(msg.payload.decode())
+            logger.debug(f"📥 收到消息: topic={topic}")
 
-        logger.debug(f"[MQTT] 收到消息: topic={topic} payload={payload[:100]}")
+            if self._message_handler:
+                self._message_handler(topic, payload)
 
-        # 状态主题（Will Message / online/offline）
-        if self._is_status_topic(topic):
-            self._handle_status(topic, payload)
-        # 心跳主题（兼容旧设备）
-        elif self._is_heartbeat_topic(topic):
-            self._handle_heartbeat(topic, payload)
-
-    # -------------------------------------------------------------------------
-    # 状态处理（Will Message / online-offline）
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _is_status_topic(topic: str) -> bool:
-        """判断 topic 是否为设备状态主题"""
-        parts = topic.split('/')
-        return (
-            len(parts) == 3
-            and parts[0] == 'device'
-            and parts[2] == 'status'
-        )
-
-    def _handle_status(self, topic: str, payload: str):
-        """
-        处理设备在线状态变更（Will Message 或主动上报）
-
-        消息格式: "online" 或 "offline"（纯文本）
-        Broker Will Message 在设备异常断开时自动发布 "offline"
-        """
-        from database.db_services.device_service import set_device_mqtt_online_status
-
-        device_id = self._extract_device_id_from_topic(topic)
-        if not device_id:
-            logger.warning(f"[MQTT] 无法从 status topic 提取设备ID: {topic}")
-            return
-
-        status = payload.strip().lower()
-        if status == 'online':
-            set_device_mqtt_online_status(device_id, True)
-            self._update_device_last_seen(device_id)
-            logger.info(f"[MQTT] 设备上线: {device_id[:8]}...")
-        elif status == 'offline':
-            set_device_mqtt_online_status(device_id, False)
-            logger.info(f"[MQTT] 设备离线: {device_id[:8]}...")
-        else:
-            logger.debug(f"[MQTT] 未知状态消息: {status}")
-
-    # -------------------------------------------------------------------------
-    # 心跳处理
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _is_heartbeat_topic(topic: str) -> bool:
-        """判断 topic 是否为设备心跳主题"""
-        parts = topic.split('/')
-        return (
-            len(parts) == 3
-            and parts[0] == 'device'
-            and parts[2] == 'heartbeat'
-        )
-
-    @staticmethod
-    def _extract_device_id_from_topic(topic: str) -> Optional[str]:
-        """从 topic 提取设备 UUID（device/{uuid}/heartbeat）"""
-        parts = topic.split('/')
-        if len(parts) >= 2:
-            return parts[1]
-        return None
-
-    def _handle_heartbeat(self, topic: str, payload: str):
-        """
-        处理设备心跳消息
-        预期格式: {"device_id": "uuid", "type": "heartbeat", "timestamp": ...}
-        """
-        device_id = self._extract_device_id_from_topic(topic)
-        if not device_id:
-            logger.warning(f"[MQTT] 无法从 topic 提取设备ID: {topic}")
-            return
-
-        try:
-            data = json.loads(payload)
-        except json.JSONDecodeError:
-            logger.error(f"[MQTT] 心跳消息 JSON 解析失败: {payload[:200]}")
-            return
-
-        # 校验消息类型
-        if data.get('type') != 'heartbeat':
-            logger.debug(f"[MQTT] 非心跳消息, type={data.get('type')}")
-            return
-
-        # 校验 device_id 一致性（防御性校验）
-        msg_device_id = data.get('device_id')
-        if msg_device_id and msg_device_id != device_id:
-            logger.warning(
-                f"[MQTT] device_id 不一致: topic={device_id}, "
-                f"payload={msg_device_id}"
-            )
-            return
-
-        # 更新 last_seen_at
-        self._update_device_last_seen(device_id)
-
-    def _get_all_user_ids_from_meta(self) -> list[str]:
-        """从元数据库获取所有拥有数据库的用户ID列表"""
-        from database.main_db import SessionLocal
-        from database.db_models.meta_model import UserDatabase
-
-        try:
-            with SessionLocal() as meta_db:
-                user_dbs = meta_db.query(UserDatabase.user_id).filter(
-                    UserDatabase.is_active == True
-                ).all()
-                return [row.user_id for row in user_dbs]
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON 解码失败: {e}, raw={msg.payload[:200]}")
         except Exception as e:
-            logger.error(f"[MQTT] 查询元数据库失败: {e}")
-            return []
+            logger.error(f"消息处理异常: {e}")
 
-    def _update_device_last_seen(self, device_id: str):
-        """在对应各用户数据库中查找设备并更新 last_seen_at"""
-        from database.user_db_manager import db_manager
-        from database.db_models.user_models import Device
+    def _on_disconnect(self, client, userdata, rc, properties=None):
+        self.connected = False
+        if rc != 0:
+            logger.warning(f"⚠️ MQTT 意外断开! rc={rc}，将自动重连")
 
-        # 先从已缓存的 engine 中查找（快速路径）
-        cached_users = db_manager.get_active_users()
-        # 再从元数据库获取所有活跃用户（兜底路径，覆盖未触发懒加载的用户）
-        all_user_ids = set(self._get_all_user_ids_from_meta())
-
-        # 合并：已缓存的优先，再试元数据库中的其他用户
-        user_ids_to_try = list(cached_users) + [
-            uid for uid in all_user_ids if uid not in cached_users
-        ]
-
-        now_utc = datetime.now(timezone.utc)
-        found = False
-
-        for user_id in user_ids_to_try:
-            try:
-                db = db_manager.get_db(user_id)
-                try:
-                    device = db.query(Device).filter(
-                        Device.id == device_id
-                    ).first()
-                    if device:
-                        device.last_seen_at = now_utc  # type: ignore[attr-defined]
-                        db.commit()
-                        logger.debug(
-                            f"[MQTT] 设备 {device_id[:8]}... 心跳更新 "
-                            f"user={user_id}, last_seen_at={now_utc}"
-                        )
-                        found = True
-                        break
-                finally:
-                    db.close()
-            except Exception as e:
-                logger.debug(
-                    f"[MQTT] 查询用户 {user_id} 数据库跳过: {e}"
-                )
-                continue
-
-        if not found:
-            logger.debug(
-                f"[MQTT] 设备 {device_id[:8]}... 未在任何用户数据库中找到"
-            )
-
-    # -------------------------------------------------------------------------
-    # 指令下发
-    # -------------------------------------------------------------------------
-    def dispatch_command(self, device_id: str, command: dict) -> bool:
-        """
-        向指定设备下发 MQTT 指令
-
-        Args:
-            device_id: 目标设备 UUID
-            command: 指令内容（dict，会被序列化为 JSON）
-
-        Returns:
-            bool: 是否成功发布
-        """
-        if not self.client or not self.client.is_connected():
-            logger.error("[MQTT] 客户端未连接，无法下发指令")
-            return False
-
-        topic = CMD_TOPIC_TEMPLATE.format(device_id=device_id)
+    def _loop_thread(self):
         try:
-            payload = json.dumps(command)
-            msg_info = self.client.publish(topic, payload, qos=1)
-            msg_info.wait_for_publish(timeout=5)
-
-            if msg_info.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.info(
-                    f"[MQTT] 指令已下发 → {device_id[:8]}... "
-                    f"cmd={command.get('command', 'unknown')}"
-                )
-                return True
-            else:
-                logger.error(f"[MQTT] 指令下发失败, rc={msg_info.rc}")
-                return False
+            self.client.loop_forever()
         except Exception as e:
-            logger.error(f"[MQTT] 指令下发异常: {e}")
-            return False
+            logger.error(f"MQTT 循环异常退出: {e}")
 
-    # -------------------------------------------------------------------------
-    # 生命周期
-    # -------------------------------------------------------------------------
     def start(self):
-        """启动 MQTT 客户端（后台线程）"""
+        """启动 MQTT 客户端"""
+        logger.info(f"正在连接 MQTT Broker: {BROKER_HOST}:{BROKER_PORT}")
         try:
-            client_id = f"green-tracker-backend-{os.getpid()}"
-            client = mqtt.Client(
-                client_id=client_id,
-                protocol=mqtt.MQTTv5,
-                callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+            self.client.connect(BROKER_HOST, BROKER_PORT, keepalive=60)
+            self._mqtt_thread = threading.Thread(
+                target=self._loop_thread, daemon=False, name="mqtt-loop"
             )
-
-            if MQTT_USERNAME and MQTT_PASSWORD:
-                client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-
-            client.on_connect = self._on_connect
-            client.on_disconnect = self._on_disconnect
-            client.on_message = self._on_message
-
-            client.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, MQTT_KEEPALIVE)
-
-            self.client = client
-            self._thread = Thread(target=client.loop_forever, daemon=True)
-            self._thread.start()
-            logger.info(
-                f"[MQTT] MQTT 客户端已启动 "
-                f"({MQTT_BROKER_HOST}:{MQTT_BROKER_PORT}), "
-                f"监听 {HEARTBEAT_TOPIC}, {STATUS_TOPIC}"
-            )
+            self._mqtt_thread.start()
+            logger.info("MQTT 客户端已启动")
         except Exception as e:
-            logger.error(f"[MQTT] 启动失败: {e}")
+            logger.error(f"连接 Broker 失败: {e}")
+            raise
 
     def stop(self):
         """停止 MQTT 客户端"""
-        if self.client:
-            try:
-                self.client.disconnect()
-                self.client.loop_stop()
-                logger.info("[MQTT] MQTT 客户端已停止")
-            except Exception as e:
-                logger.error(f"[MQTT] 停止异常: {e}")
+        self.client.disconnect()
+        if self._mqtt_thread and self._mqtt_thread.is_alive():
+            self._mqtt_thread.join(timeout=5)
+        logger.info("MQTT 客户端已停止")
+
+    def send_command(self, device_id: str, command: str,
+                     params: Optional[Dict] = None) -> Optional[str]:
+        """
+        向指定设备下发命令
+
+        Args:
+            device_id: 目标设备ID（DB 中的逻辑设备 id）
+            command: 命令名称
+            params: 命令参数
+
+        Returns:
+            command_id 或 None
+        """
+        if not self.connected:
+            logger.error("MQTT 未连接，无法发送命令")
+            return None
+
+        command_id = f"cmd_{int(time.time() * 1000)}_{secrets.token_hex(3)}"
+        message = {
+            "command_id": command_id,
+            "command": command,
+            "params": params or {},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "source": "green-tracker-cloud",
+        }
+
+        topic = TOPIC_COMMAND.format(device_id=device_id)
+        result = self.client.publish(topic, json.dumps(message), qos=1)
+
+        if result.rc == mqtt.MQTT_ERR_SUCCESS:
+            logger.info(f"📤 命令已发送: {command} -> {device_id} (cmd_id={command_id})")
+            return command_id
+        else:
+            logger.error(f"命令发送失败: rc={result.rc}")
+            return None
 
 
-# 全局单例
-mqtt_manager = MQTTClientManager()
+# ============================================================
+# 全局实例管理
+# ============================================================
+
+_mqtt_client_instance: Optional[CloudMQTTClient] = None
+_lock = threading.Lock()
+
+
+def get_mqtt_client() -> Optional[CloudMQTTClient]:
+    """获取全局 MQTT 客户端实例"""
+    return _mqtt_client_instance
+
+
+def init_mqtt_client() -> CloudMQTTClient:
+    """初始化并启动全局 MQTT 客户端"""
+    global _mqtt_client_instance
+    with _lock:
+        if _mqtt_client_instance is not None:
+            return _mqtt_client_instance
+
+        _mqtt_client_instance = CloudMQTTClient()
+        _mqtt_client_instance.start()
+        return _mqtt_client_instance
+
+
+def shutdown_mqtt_client():
+    """关闭全局 MQTT 客户端"""
+    global _mqtt_client_instance
+    with _lock:
+        if _mqtt_client_instance:
+            _mqtt_client_instance.stop()
+            _mqtt_client_instance = None

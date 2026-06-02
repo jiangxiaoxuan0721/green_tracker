@@ -15,7 +15,6 @@ export interface Device {
   is_active: boolean;
   online?: boolean;
   last_seen_at?: string | null;
-  provisioned?: boolean;
   created_at: string;
   updated_at?: string;
 }
@@ -53,18 +52,6 @@ export interface DeviceListParams {
   has_actuator?: string;
   limit?: number;
   offset?: number;
-}
-
-export interface DeviceProvision {
-  device_id: string;
-  device_name: string;
-  mqtt_broker_host: string;
-  mqtt_broker_port: number;
-  mqtt_username: string;
-  mqtt_password: string;
-  heartbeat_topic: string;
-  cmd_topic: string;
-  status_topic: string;
 }
 
 // 设备相关的API服务
@@ -169,26 +156,5 @@ export const deviceService = {
     
     console.log('[前端DeviceService] 恢复设备成功:', response.data);
     return response.data;
-  },
-
-  // 生成设备绑定凭证（MQTT 凭据下发）
-  async provisionDevice(deviceId: string): Promise<DeviceProvision> {
-    console.log('[前端DeviceService] 发送设备绑定请求');
-    console.log('[前端DeviceService] 设备ID:', deviceId);
-    
-    const response = await api.post<DeviceProvision>(`/api/devices/${deviceId}/provision`);
-    
-    console.log('[前端DeviceService] 设备绑定成功:', response.data);
-    return response.data;
-  },
-
-  // 清空设备绑定凭证（解除 MQTT 绑定）
-  async deprovisionDevice(deviceId: string): Promise<void> {
-    console.log('[前端DeviceService] 发送清空凭证请求');
-    console.log('[前端DeviceService] 设备ID:', deviceId);
-    
-    await api.delete(`/api/devices/${deviceId}/provision`);
-    
-    console.log('[前端DeviceService] 凭证清空成功');
   }
 };

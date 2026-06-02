@@ -1,0 +1,344 @@
+/* MQTT 设备管理页面样式 */
+/* 使用项目全局 CSS 变量，与 Devices/Fields 风格统一 */
+
+/* 页面头部操作区 */
+.mqtt-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.mqtt-auto-refresh {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.mqtt-auto-refresh input[type="checkbox"] {
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+/* 统计卡片网格 */
+.mqtt-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.mqtt-stat-card .card-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.mqtt-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mqtt-stat-icon.broker {
+  background: var(--primary-subtle);
+  color: var(--primary-color);
+}
+
+.mqtt-stat-icon.online {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success-color);
+}
+
+.mqtt-stat-icon.offline {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning-color);
+}
+
+.mqtt-stat-icon.pending {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--info-color);
+}
+
+.mqtt-stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mqtt-stat-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mqtt-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.text-success { color: var(--success-color); }
+.text-error { color: var(--error-color); }
+
+/* 设备网格 - 复用 Devices 的 grid */
+.dashboard-mqtt .devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+/* 详情 Modal 内容 */
+.mqtt-detail {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.mqtt-detail .detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.mqtt-detail .detail-item {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.mqtt-detail .detail-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.mqtt-detail .detail-value {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.mqtt-detail .detail-value.mono {
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+/* 命令控制台区域 */
+.mqtt-command-section {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-light);
+}
+
+/* 连接历史 */
+.mqtt-history {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.mqtt-history h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.history-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px var(--spacing-sm);
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-time {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* 凭证 Modal */
+.mqtt-credential {
+  padding-top: var(--spacing-xs);
+}
+
+.credential-block pre {
+  padding: var(--spacing-sm);
+  background: var(--bg-header);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  font-family: monospace;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  overflow-x: auto;
+  margin: 0 0 var(--spacing-sm) 0;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.credential-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.credential-warning {
+  color: var(--warning-color);
+  font-size: 0.75rem;
+  margin-top: var(--spacing-sm);
+  line-height: 1.4;
+}
+
+.tip-warning {
+  color: var(--warning-color) !important;
+  font-size: 0.8125rem;
+}
+
+/* 命令控制台 (CommandConsole) */
+.command-console {
+  padding: var(--spacing-xs) 0;
+}
+
+.command-console-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.command-console-header h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.command-device-id {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.command-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.command-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.command-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.command-item-name {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.command-item-desc {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.spinning-inline {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 空状态 */
+.dashboard-mqtt .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  text-align: center;
+  color: var(--text-muted);
+  min-height: 200px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-primary);
+}
+
+.dashboard-mqtt .empty-state h3 {
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.dashboard-mqtt .empty-state > p {
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* 错误卡片 */
+.dashboard-mqtt .error-card {
+  text-align: center;
+  padding: var(--spacing-lg);
+}
+
+.dashboard-mqtt .error-card p {
+  color: var(--error-color);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .mqtt-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-mqtt .devices-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mqtt-detail .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

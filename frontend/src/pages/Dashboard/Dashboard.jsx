@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { 
   LayoutDashboard, Grid3X3, Radio, ListTodo, Upload, Eye, BarChart3, 
-  Cpu, Settings, FileText, LogOut 
+  Cpu, Settings, FileText, LogOut, Wifi 
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import './Dashboard.css'
@@ -47,6 +47,7 @@ const Dashboard = () => {
     { id: 'overview', label: '概览', path: '/dashboard', icon: LayoutDashboard },
     { id: 'fields', label: '地块管理', path: '/dashboard/fields', icon: Grid3X3 },
     { id: 'devices', label: '设备管理', path: '/dashboard/devices', icon: Radio },
+    { id: 'mqtt', label: 'MQTT管理', path: '/dashboard/mqtt', icon: Wifi },
     { id: 'sessions', label: '任务管理', path: '/dashboard/sessions', icon: ListTodo },
     { id: 'data-upload', label: '数据上传', path: '/dashboard/data-upload', icon: Upload },
     { id: 'data-view', label: '数据查看', path: '/dashboard/data-view', icon: Eye },

@@ -287,6 +287,18 @@ class DatabaseInitializer:
                 else:
                     logger.info(f"Table {table_name} already exists, skipping")
 
+            # 迁移：为已存在的 devices 表添加 mqtt_secret 列
+            if 'devices' in existing_tables and inspector:
+                devices_columns = {col['name'] for col in inspector.get_columns('devices') or []}
+                if 'mqtt_secret' not in devices_columns:
+                    logger.info("Migrating devices table: adding mqtt_secret column...")
+                    with template_engine.connect() as migration_conn:
+                        migration_conn.execute(text(
+                            "ALTER TABLE devices ADD COLUMN mqtt_secret VARCHAR(64)"
+                        ))
+                        migration_conn.commit()
+                    logger.info("Added mqtt_secret column to devices table")
+
             logger.info("Template tables created successfully")
 
             template_engine.dispose()
@@ -301,6 +313,56 @@ class DatabaseInitializer:
             logger.error(f"Failed to initialize template database: {e}")
             if conn:
                 conn.close()
+            raise
+
+    @staticmethod
+    def migrate_user_databases():
+        """
+        为所有已存在的用户数据库执行迁移（如添加 mqtt_secret 列）
+        读取 meta 数据库中的 user_dbs 表，逐一迁移
+        """
+        logger.info("Migrating user databases...")
+
+        try:
+            from database.main_db import SessionLocal
+            from database.db_models.meta_model import UserDatabase
+            from sqlalchemy import create_engine, inspect, text
+            from sqlalchemy.exc import ProgrammingError
+
+            # 1. 获取所有用户数据库信息
+            with SessionLocal() as db:
+                user_dbs = db.query(UserDatabase).all()
+                logger.info(f"Found {len(user_dbs)} user database(s) to migrate")
+
+                for user_db in user_dbs:
+                    db_name = user_db.database_name
+                    engine = create_engine(
+                        f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{db_name}"
+                    )
+                    try:
+                        inspector = inspect(engine)
+                        if 'devices' not in (inspector.get_table_names() or []):
+                            logger.info(f"[{db_name}] No devices table, skipping")
+                            continue
+
+                        columns = {col['name'] for col in inspector.get_columns('devices') or []}
+                        if 'mqtt_secret' not in columns:
+                            logger.info(f"[{db_name}] Adding mqtt_secret column...")
+                            with engine.connect() as conn:
+                                conn.execute(text("ALTER TABLE devices ADD COLUMN mqtt_secret VARCHAR(64)"))
+                                conn.commit()
+                            logger.info(f"[{db_name}] mqtt_secret column added")
+                        else:
+                            logger.info(f"[{db_name}] mqtt_secret column already exists")
+                    except ProgrammingError as pe:
+                        logger.warning(f"[{db_name}] Migration skipped (DB may not exist): {pe}")
+                    finally:
+                        engine.dispose()
+
+            logger.info("User database migration completed")
+
+        except Exception as e:
+            logger.error(f"Failed to migrate user databases: {e}")
             raise
 
     @staticmethod

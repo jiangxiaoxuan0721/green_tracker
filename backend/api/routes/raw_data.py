@@ -258,7 +258,16 @@ async def get_overview_statistics_endpoint(
 
         # 获取概览统计信息
         result = get_overview_statistics(db)
-        print(f"[概览API] 统计结果: total_devices={result.get('total_devices')}, total_data_records={result.get('total_data_records')}")
+
+        # 用 MQTT 设备管理器的实时在线数覆盖静态字段
+        try:
+            from mqtt.device_manager import get_device_manager
+            real_online = get_device_manager().get_online_count()
+            result["active_devices"] = real_online
+        except Exception:
+            pass  # MQTT 模块未启动时使用静态值
+
+        print(f"[概览API] 统计结果: total_devices={result.get('total_devices')}, active_devices={result.get('active_devices')}, total_data_records={result.get('total_data_records')}")
 
         return {
             "code": 200,

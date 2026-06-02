@@ -8,6 +8,7 @@ const Button = ({
   disabled = false,
   loading = false,
   onClick,
+  icon: IconComponent,
   className = '',
   ...props
 }) => {
@@ -29,6 +30,7 @@ const Button = ({
       {...props}
     >
       {loading && <span className="btn-spinner"></span>}
+      {IconComponent && <IconComponent size={14} className="btn-icon" />}
       {children}
     </button>
   )

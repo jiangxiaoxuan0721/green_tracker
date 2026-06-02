@@ -31,10 +31,10 @@ app.add_middleware(
     allow_headers=cors_headers,
 )
 
-# 启动时初始化数据库和 MQTT
+# 启动时初始化数据库和MQTT
 @app.on_event("startup")
 async def startup_event():
-    """启动时初始化数据库和 MQTT 客户端"""
+    """启动时初始化数据库和MQTT"""
     try:
         from database.database_initializer import DatabaseInitializer
         logger.info("Initializing meta database...")
@@ -45,30 +45,38 @@ async def startup_event():
         DatabaseInitializer.init_template_database()
         logger.info("Template database initialized successfully")
 
+        # 迁移已有用户数据库（添加新字段如 mqtt_secret）
+        logger.info("Migrating user databases...")
+        DatabaseInitializer.migrate_user_databases()
+        logger.info("User database migration completed")
+
         logger.info("Database initialization completed")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         logger.warning("Continuing with application startup...")
 
-    # 启动 MQTT 客户端（后台线程）
+    # 初始化 MQTT 客户端（非阻塞，失败不影响主服务）
     try:
-        from mqtt.mqtt_client import mqtt_manager
-        mqtt_manager.start()
-        logger.info("MQTT client started")
-    except Exception as e:
-        logger.error(f"MQTT client startup failed: {e}")
-        logger.warning("Application will continue without MQTT support")
+        from mqtt.mqtt_client import init_mqtt_client
+        from mqtt.device_manager import get_device_manager
 
-# 关闭时停止 MQTT 客户端
+        mqtt_client = init_mqtt_client()
+        dm = get_device_manager()
+        mqtt_client.set_message_handler(dm.handle_mqtt_message)
+        logger.info("MQTT Cloud Client started successfully")
+    except Exception as e:
+        logger.error(f"MQTT initialization failed: {e}")
+        logger.warning("MQTT service unavailable, continuing without MQTT...")
+
 @app.on_event("shutdown")
 async def shutdown_event():
-    """关闭时清理资源"""
+    """关闭时清理MQTT连接"""
     try:
-        from mqtt.mqtt_client import mqtt_manager
-        mqtt_manager.stop()
-        logger.info("MQTT client stopped")
+        from mqtt.mqtt_client import shutdown_mqtt_client
+        shutdown_mqtt_client()
+        logger.info("MQTT Cloud Client stopped")
     except Exception as e:
-        logger.error(f"MQTT client shutdown failed: {e}")
+        logger.error(f"MQTT shutdown error: {e}")
 
 
 # 添加请求日志中间件
@@ -116,7 +124,8 @@ from api import (
     raw_data_router,
     api_key_router,
     admin_database_router,
-    algorithm_router
+    algorithm_router,
+    mqtt_router,
 )
 
 # 注册认证路由
@@ -145,6 +154,9 @@ app.include_router(admin_database_router, prefix="/api") # /api/admin/database
 
 # 注册算法路由
 app.include_router(algorithm_router, prefix="/api") # /api/algorithms
+
+# 注册MQTT管理路由
+app.include_router(mqtt_router, prefix="/api") # /api/mqtt/*
 
 
 # 健康检查端点

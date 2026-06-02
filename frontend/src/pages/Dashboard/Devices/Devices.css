@@ -219,6 +219,49 @@
   font-size: 0.875rem;
 }
 
+/* MQTT 凭证 Modal 样式 */
+.mqtt-credential {
+  padding-top: var(--spacing-xs);
+}
+
+.credential-masked {
+  padding: var(--spacing-md);
+  background: var(--bg-header);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.credential-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.credential-warning {
+  color: var(--warning-color);
+  font-size: 0.75rem;
+  margin-top: var(--spacing-sm);
+  line-height: 1.4;
+}
+
+.credential-block pre {
+  padding: var(--spacing-sm);
+  background: var(--bg-header);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  font-family: monospace;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  overflow-x: auto;
+  margin: 0 0 var(--spacing-sm) 0;
+  line-height: 1.6;
+  white-space: pre;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .devices-grid {

@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { rawDataService } from '@/services/rawDataService'
-import { useAuth } from '@/hooks/auth/useAuth'
 import { 
   Radio, Activity, ListTodo, Database, 
-  CheckCircle, AlertCircle, XCircle, Clock 
+  CheckCircle, AlertCircle, XCircle, Clock, RefreshCw 
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui'
 import { fadeInUp, listContainer, listItem, cardHover } from '@/utils/animations'
@@ -13,7 +12,6 @@ import '../AdditionalStyles.css'
 import './Overview.css'
 
 const Overview = () => {
-  const { user } = useAuth()
   const [stats, setStats] = useState({
     totalDevices: 0,
     activeDevices: 0,
@@ -27,6 +25,8 @@ const Overview = () => {
     disk_usage: '未知'
   })
   const [loading, setLoading] = useState(true)
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const intervalRef = useRef(null)
 
   const statItems = [
     { key: 'totalDevices', label: '设备总数', icon: Radio, color: 'var(--primary-color)' },
@@ -35,22 +35,12 @@ const Overview = () => {
     { key: 'totalDataRecords', label: '总数据记录', icon: Database, color: 'var(--warning-color)' }
   ]
 
-  useEffect(() => {
-    fetchOverviewData()
-  }, [user])
-
-  const fetchOverviewData = async () => {
+  const fetchOverviewData = useCallback(async () => {
     try {
-      setLoading(true)
-      console.log('[概览页面] 准备调用API')
-      
       const response = await rawDataService.getOverviewStatistics()
-
-      console.log('[概览页面] API响应:', response)
 
       if (response && response.data) {
         const data = response.data
-        console.log('[概览页面] 数据内容:', data)
         setStats({
           totalDevices: data.total_devices || 0,
           activeDevices: data.active_devices || 0,
@@ -63,15 +53,27 @@ const Overview = () => {
           message_queue: '未知',
           disk_usage: '未知'
         })
-      } else {
-        console.log('[概览页面] 响应或数据为空')
       }
     } catch (error) {
       console.error('[概览页面] 获取概览数据失败:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  // 初始加载 + 定时刷新
+  useEffect(() => {
+    fetchOverviewData()
+  }, [fetchOverviewData])
+
+  useEffect(() => {
+    if (!autoRefresh) {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      return
+    }
+    intervalRef.current = setInterval(fetchOverviewData, 10000)
+    return () => clearInterval(intervalRef.current)
+  }, [autoRefresh, fetchOverviewData])
 
   const getStatusIcon = (status) => {
     if (status === '正常') return <CheckCircle size={18} className="status-good-icon" />
@@ -91,6 +93,17 @@ const Overview = () => {
         icon={Activity}
         title="数据概览"
         description="实时了解系统运行状态和数据统计"
+        actions={
+          <div className="mqtt-header-actions">
+            <label className="mqtt-auto-refresh">
+              <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+              <span>自动刷新</span>
+            </label>
+            <button className="refresh-btn" onClick={fetchOverviewData} title="手动刷新">
+              <RefreshCw size={16} />
+            </button>
+          </div>
+        }
       />
 
       {loading ? (

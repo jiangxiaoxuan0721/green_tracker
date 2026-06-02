@@ -64,8 +64,8 @@ class Device(UserBase):
     actuators = Column(JSON, nullable=True, comment="执行机构配置")
     description = Column(Text, nullable=True, comment="设备说明")
     is_active = Column(Boolean, nullable=False, default=True, index=True, comment="是否在用")
-    mqtt_secret_hash = Column(String(256), nullable=True, comment="MQTT 设备密钥哈希（SHA-256）")
     last_seen_at = Column(DateTime, nullable=True, comment="最后在线时间")
+    mqtt_secret = Column(String(64), nullable=True, comment="MQTT连接密钥（物理设备认证用）")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
 

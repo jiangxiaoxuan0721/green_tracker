@@ -22,6 +22,8 @@ const MapDisplay = ({
   const satelliteLayerRef = useRef(null)
   const labelLayerRef = useRef(null)
   const initTimerRef = useRef(null)
+  const retryRef = useRef(0)
+  const resizeObserverRef = useRef(null)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -126,33 +128,30 @@ const MapDisplay = ({
   useEffect(() => {
     if (!mapContainerRef.current || !window.AMap || !isKeyConfigured) return
 
-    // 等待容器可见后再初始化
-    const timer = setTimeout(() => {
-      if (!mapContainerRef.current) return
-      
-      // 检查容器是否可见
+    retryRef.current = 0
+    let cancelled = false
+
+    const tryInit = () => {
+      if (cancelled || !mapContainerRef.current) return
+
       const rect = mapContainerRef.current.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) {
-        // 容器不可见，延迟重试
-        initTimerRef.current = setTimeout(() => {
-          // 销毁地图和清理图层引用
-          if (mapRef.current) {
-            mapRef.current.destroy()
-            mapRef.current = null
-          }
-          satelliteLayerRef.current = null
-          labelLayerRef.current = null
-          // 触发重新渲染
-          setLoading(true)
-          setTimeout(() => setLoading(false), 100)
-        }, 300)
+        // 容器不可见，递归重试
+        if (retryRef.current < 15) {
+          retryRef.current++
+          initTimerRef.current = setTimeout(tryInit, 300)
+        } else {
+          console.warn('[MapDisplay] 地图容器重试已达上限，放弃初始化')
+        }
         return
       }
-      
+
       const coords = parseWKT(wkt)
 
       if (!mapRef.current) {
-        const mapCenter = coords.length > 0 ? (coords.length === 1 ? coords[0] : getCenter(coords)) : center
+        const mapCenter = coords.length > 0
+          ? (coords.length === 1 ? coords[0] : getCenter(coords))
+          : center
         const map = new window.AMap.Map(mapContainerRef.current, {
           zoom: coords.length > 0 ? (coords.length === 1 ? 15 : 12) : zoom,
           center: mapCenter,
@@ -162,32 +161,42 @@ const MapDisplay = ({
           showLabel: true
         })
 
-        // 添加底图图层
         if (mapType === 'satellite') {
-          // 卫星图层
           satelliteLayerRef.current = new window.AMap.TileLayer.Satellite()
           map.addLayer(satelliteLayerRef.current)
-          // 标注图层（显示地名、道路等）
-          labelLayerRef.current = new window.AMap.TileLayer.RoadNet({
-            opacity: 0.8
-          })
+          labelLayerRef.current = new window.AMap.TileLayer.RoadNet({ opacity: 0.8 })
           map.addLayer(labelLayerRef.current)
         }
 
         if (showControls) {
-          // 加载控件插件
           window.AMap.plugin(['AMap.Scale', 'AMap.ToolBar'], () => {
-            map.addControl(new window.AMap.Scale())
-            map.addControl(new window.AMap.ToolBar({ position: 'RB' }))
+            if (!cancelled) {
+              map.addControl(new window.AMap.Scale())
+              map.addControl(new window.AMap.ToolBar({ position: 'RB' }))
+            }
           })
         }
-        
-        // 地图加载完成后触发 resize
+
+        // 地图加载完成后，多次触发 resize 确保瓦片正确渲染
+        const doResize = () => {
+          if (cancelled || !mapRef.current) return
+          map.resize()
+        }
         map.on('complete', () => {
-          setTimeout(() => {
-            map.resize()
-          }, 100)
+          // 弹窗场景下需要多次 resize 才能确保瓦片正确填充
+          setTimeout(doResize, 100)
+          setTimeout(doResize, 400)
+          setTimeout(doResize, 800)
         })
+
+        // 使用 ResizeObserver 监听容器尺寸变化，自动 resize
+        const resizeObserver = new ResizeObserver(() => {
+          if (mapRef.current && !cancelled) {
+            mapRef.current.resize()
+          }
+        })
+        resizeObserver.observe(mapContainerRef.current)
+        resizeObserverRef.current = resizeObserver
 
         mapRef.current = map
       }
@@ -204,9 +213,7 @@ const MapDisplay = ({
 
       // 添加新覆盖物
       if (coords.length > 0) {
-        console.log('[MapDisplay] 添加覆盖物, 类型:', coords.length === 1 ? 'POINT' : 'POLYGON', '坐标:', coords)
         if (coords.length === 1) {
-          // POINT
           markerRef.current = new window.AMap.Marker({
             position: coords[0],
             icon: new window.AMap.Icon({
@@ -219,7 +226,6 @@ const MapDisplay = ({
           mapRef.current.setCenter(coords[0])
           mapRef.current.setZoom(15)
         } else {
-          // POLYGON - 设置多边形并定位到区域
           polygonRef.current = new window.AMap.Polygon({
             path: coords,
             fillColor: '#00b4d8',
@@ -229,25 +235,31 @@ const MapDisplay = ({
             zIndex: 100
           })
           mapRef.current.add(polygonRef.current)
-          // 延迟设置视野，确保地图已准备好
           setTimeout(() => {
-            if (mapRef.current && polygonRef.current) {
+            if (mapRef.current && polygonRef.current && !cancelled) {
               mapRef.current.setFitView([polygonRef.current])
             }
           }, 100)
         }
       }
-    }, 500)
+    }
+
+    // 启动初始化（首次延迟 400ms，让弹窗动画和 DOM 布局稳定）
+    initTimerRef.current = setTimeout(tryInit, 400)
 
     return () => {
-      clearTimeout(timer)
+      cancelled = true
       clearTimeout(initTimerRef.current)
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect()
+        resizeObserverRef.current = null
+      }
       if (mapRef.current) {
         mapRef.current.destroy()
         mapRef.current = null
       }
     }
-  }, [isKeyConfigured, wkt, zoom, center, showControls, visible, mapType])
+  }, [isKeyConfigured, wkt, zoom, center, showControls, mapType])
 
   // 计算中心点
   const getCenter = (coords) => {

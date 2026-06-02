@@ -275,44 +275,27 @@ class StorageManager:
         expires: int = 7 * 24 * 60 * 60
     ) -> str:
         """
-        生成公开访问URL（优先使用直接URL，因为已配置公开访问）
+        生成公开访问URL（直接返回公开URL，不做HTTP检查以避免阻塞）
 
         Args:
             object_path: 对象路径
             expires: 过期时间（秒），默认7天
 
         Returns:
-            可访问的URL（优先直接URL）
+            可访问的URL（优先直接URL，失败回退到预签名URL）
         """
         try:
             # 获取MinIO配置
             endpoint = os.getenv('MINIO_ENDPOINT', 'localhost')
-            port = os.getenv('MINIO_PORT', '9100')
+            port = os.getenv('MINIO_PORT', '9090')
             secure = os.getenv('MINIO_SECURE', 'false').lower() == 'true'
             bucket_name = os.getenv('MINIO_BUCKET_NAME', 'green-tracker-minio')
 
-            # 构建直接访问URL（因为已配置公开访问）
+            # 直接构建公开访问URL（不发起HEAD请求，避免阻塞）
             protocol = 'https' if secure else 'http'
             url = f"{protocol}://{endpoint}:{port}/{bucket_name}/{object_path}"
 
-            # 先测试直接URL是否可访问
-            try:
-                import requests
-                response = requests.head(url, timeout=2)
-                if response.status_code == 200:
-                    logger.info(f"使用直接URL（公开访问）: {url}")
-                    return url
-            except:
-                logger.info(f"直接URL不可访问，尝试预签名URL: {url}")
-
-            # 如果直接URL不可访问，回退到预签名URL
-            presigned_url = self._get_file_url(object_path, expires)
-            if presigned_url:
-                logger.info(f"使用预签名URL: {presigned_url}")
-                return presigned_url
-
-            logger.error(f"无法生成可访问的URL: {object_path}")
-            return url  # 最后返回直接URL作为备选
+            return url
 
         except Exception as e:
             logger.error(f"生成URL失败: {e}")

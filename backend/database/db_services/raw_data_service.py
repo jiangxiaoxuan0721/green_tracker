@@ -222,11 +222,30 @@ def get_raw_data_list_for_frontend(
     offset = (page - 1) * page_size
     raw_data_list = query.order_by(desc(RawData.capture_time)).offset(offset).limit(page_size).all()
 
+    # 批量预加载所有关联的 CollectionSession（消除 N+1 查询）
+    session_ids = set()
+    for item in raw_data_list:
+        if item.session_id:
+            session_ids.add(item.session_id)
+    sessions_map = {}
+    if session_ids:
+        sessions = db.query(CollectionSession).filter(CollectionSession.id.in_(session_ids)).all()
+        sessions_map = {s.id: s for s in sessions}
+
+    # 构建 MinIO URL 前缀（一次性，避免每项都读取 env）
+    import os as _os
+    _minio_endpoint = _os.getenv('MINIO_ENDPOINT', 'localhost')
+    _minio_port = _os.getenv('MINIO_PORT', '9090')
+    _minio_secure = _os.getenv('MINIO_SECURE', 'false').lower() == 'true'
+    _minio_bucket = _os.getenv('MINIO_BUCKET_NAME', 'green-tracker-minio')
+    _minio_protocol = 'https' if _minio_secure else 'http'
+    _minio_url_prefix = f"{_minio_protocol}://{_minio_endpoint}:{_minio_port}/{_minio_bucket}/"
+
     # 转换为前端显示格式
     items = []
     for raw_data_item in raw_data_list:
-        # 获取关联的会话信息
-        session_item = db.query(CollectionSession).filter(CollectionSession.id == raw_data_item.session_id).first()
+        # 从批量加载的 map 中获取会话信息
+        session_item = sessions_map.get(raw_data_item.session_id)
 
         # 构建会话信息
         session_info = None
@@ -239,26 +258,13 @@ def get_raw_data_list_for_frontend(
 
         # 根据数据类型显示不同的值
         if raw_data_item.data_type == "image" or raw_data_item.data_type == "file":  # pyright: ignore[reportGeneralTypeIssues]
-            # 图像/文件类型：使用MinIO存储路径生成公开访问URL
+            # 图像/文件类型：直接拼接 MinIO 公开 URL（不做 HTTP HEAD 检查，避免超时）
             if raw_data_item.object_key:  # pyright: ignore[reportGeneralTypeIssues]
-                # 使用MinIO对象路径生成公开访问URL
-                try:
-                    from storage.storage_manager import get_storage_manager
-                    storage_manager = get_storage_manager()
-                    public_url = storage_manager.get_public_url(str(raw_data_item.object_key))
-                    display_value = public_url
-                    print(f"[RawDataService] 图像/文件使用MinIO公开URL: {display_value}")
-                except Exception as e:
-                    print(f"[RawDataService] 生成公开URL失败: {str(e)}")
-                    display_value = str(raw_data_item.object_key)  # 备选方案：使用原始路径
+                display_value = f"{_minio_url_prefix}{raw_data_item.object_key}"
             elif raw_data_item.data_value and str(raw_data_item.data_value).startswith("http"):  # pyright: ignore[reportGeneralTypeIssues]
-                # 如果data_value是完整的HTTP URL，直接使用
                 display_value = str(raw_data_item.data_value)
-                print(f"[RawDataService] 图像/文件使用HTTP URL: {display_value}")
             else:
-                # 如果都没有有效的图像路径，标记为无图像
                 display_value = ""
-                print(f"[RawDataService] 图像/文件无有效路径: {raw_data_item.id}")
         elif raw_data_item.data_value:  # pyright: ignore[reportGeneralTypeIssues]
             # 数值类型，如果有单位则添加单位
             if raw_data_item.data_unit:  # pyright: ignore[reportGeneralTypeIssues]

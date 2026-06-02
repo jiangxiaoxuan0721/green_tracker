@@ -6,7 +6,7 @@ import { ToastContainer } from './components/ui'
 import './App.css'
 
 // 解构Dashboard子页面
-const { Overview, Fields, Devices, Sessions, DataUpload, DataView, DataAnalyze, System, Logs, AlgorithmSquare, AlgorithmUse } = DashboardPages
+const { Overview, Fields, Devices, Sessions, DataUpload, DataView, DataAnalyze, System, Logs, AlgorithmSquare, AlgorithmUse, MQTT } = DashboardPages
 
 function AppContent() {
   const location = useLocation()
@@ -53,6 +53,7 @@ function AppContent() {
             <Route path="logs" element={<Logs />} />
             <Route path="algorithm-square" element={<AlgorithmSquare />} />
             <Route path="algorithm-use/:algorithmId" element={<AlgorithmUse />} />
+            <Route path="mqtt" element={<MQTT />} />
           </Route>
           
           <Route path="*" element={<NotFound />} />

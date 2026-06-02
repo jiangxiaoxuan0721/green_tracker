@@ -1,15 +1,13 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from database.user_db_manager import get_user_db
 from database.db_models.meta_model import User
 from database.db_services.device_service import (
     create_device, get_device_by_id,
     search_devices, update_device, delete_device,
-    get_device_online_status, provision_device, deprovision_device,
-    is_device_provisioned, remove_device_from_mosquitto_passwd,
-    record_device_heartbeat,
+    get_device_online_status,
 )
 from api.schemas.device import (
-    DeviceCreate, DeviceUpdate, DeviceResponse, DeviceProvisionResponse,
+    DeviceCreate, DeviceUpdate, DeviceResponse,
 )
 from typing import List, Optional
 
@@ -21,13 +19,12 @@ router = APIRouter(prefix="/devices", tags=["devices"])
 
 def _enrich_device_response(device) -> DeviceResponse:
     """
-    将设备对象转换为响应格式，并注入在线状态和绑定状态
+    将设备对象转换为响应格式，并注入在线状态
     """
     status_info = get_device_online_status(device)
     data = DeviceResponse.model_validate(device).model_dump()
     data["online"] = status_info["online"]
     data["last_seen_at"] = status_info["last_seen_at"]
-    data["provisioned"] = is_device_provisioned(device)
     return DeviceResponse(**data)
 
 
@@ -235,7 +232,7 @@ async def delete_device_by_id(
     """
     删除设备（硬删除）
 
-    删除当前用户的设备，同时清理 Mosquitto 中的设备凭据。
+    删除当前用户的设备。
     """
     db = None
     try:
@@ -244,18 +241,13 @@ async def delete_device_by_id(
         # 获取用户的数据库会话
         db = get_user_db(str(current_user.userid))
 
-        # 先获取设备，检查是否已绑定（需要清理 MQTT 凭据）
+        # 检查设备是否存在
         device = get_device_by_id(db, device_id)
         if not device:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="设备不存在"
             )
-
-        # 清理 Mosquitto 密码文件中的设备凭据
-        if device.mqtt_secret_hash:
-            print(f"[API] 清理设备 {device_id[:8]}... 的 MQTT 凭据")
-            _ = remove_device_from_mosquitto_passwd(device_id)
 
         # 删除设备（硬删除）
         success = delete_device(
@@ -285,151 +277,4 @@ async def delete_device_by_id(
     finally:
         if db:
             db.close()
-
-
-# =============================================================================
-# 设备绑定（MQTT 凭据下发）
-# =============================================================================
-
-@router.post("/{device_id}/provision", response_model=DeviceProvisionResponse)
-async def provision_device_credentials(
-    device_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    为设备生成 MQTT 连接凭据（设备绑定/实例化）
-
-    返回设备连接所需的完整配置，包括一次性显示的 MQTT 密钥。
-    重复调用会重新生成密钥（旧密钥失效）。
-    """
-    import os
-    db = None
-    try:
-        print(f"[API] 用户 {current_user.username} 请求绑定设备 {device_id[:8]}...")
-
-        db = get_user_db(str(current_user.userid))
-        device = get_device_by_id(db, device_id)
-
-        if not device:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="设备不存在"
-            )
-
-        secret = provision_device(db, device_id)
-        if secret is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="凭据生成失败"
-            )
-
-        broker_host = os.getenv("MQTT_PUBLIC_HOST", os.getenv("MQTT_BROKER_HOST", "localhost"))
-        broker_port = int(os.getenv("MQTT_BROKER_PORT", "1883"))
-
-        return DeviceProvisionResponse(
-            device_id=device_id,
-            device_name=device.name,
-            mqtt_broker_host=broker_host,
-            mqtt_broker_port=broker_port,
-            mqtt_username=device_id,
-            mqtt_password=secret,
-            heartbeat_topic=f"device/{device_id}/heartbeat",
-            cmd_topic=f"device/{device_id}/cmd",
-            status_topic=f"device/{device_id}/status",
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[API] 设备绑定失败: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"设备绑定失败: {str(e)}"
-        )
-    finally:
-        if db:
-            db.close()
-
-
-@router.delete("/{device_id}/provision", status_code=status.HTTP_204_NO_CONTENT)
-async def revoke_device_credentials(
-    device_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    清空设备 MQTT 凭据（解除绑定）
-
-    从 Mosquitto 密码文件移除设备用户，并清除数据库中的密钥哈希。
-    设备将无法再连接 MQTT Broker。
-    """
-    db = None
-    try:
-        print(f"[API] 用户 {current_user.username} 请求清空设备凭据: {device_id[:8]}...")
-
-        db = get_user_db(str(current_user.userid))
-        device = get_device_by_id(db, device_id)
-
-        if not device:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="设备不存在"
-            )
-
-        if not device.mqtt_secret_hash:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="设备未绑定，无需清空凭据"
-            )
-
-        success = deprovision_device(db, device_id)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="清空凭据失败"
-            )
-
-        print(f"[API] 设备凭据已清空: {device_id[:8]}...")
-        return
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[API] 清空设备凭据失败: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"清空设备凭据失败: {str(e)}"
-        )
-    finally:
-        if db:
-            db.close()
-
-
-# =============================================================================
-# 设备心跳（HTTP API）- 无需用户登录，设备凭据认证
-# =============================================================================
-
-@router.post("/{device_id}/heartbeat", status_code=status.HTTP_200_OK)
-async def device_heartbeat(
-    device_id: str,
-    x_device_secret: str = Header(..., alias="X-Device-Secret", description="设备MQTT密钥"),
-):
-    """
-    设备心跳上报（HTTP API）
-
-    设备通过 HTTP 上报心跳，替代 MQTT heartbeat topic。
-    认证方式：Header 中传入 X-Device-Secret（即 provision 时下发的 mqtt_password）。
-
-    curl 示例:
-      curl -X POST https://green-tracker.cn:6130/api/devices/{device_id}/heartbeat \\
-        -H "X-Device-Secret: <设备密钥>"
-    """
-    success = record_device_heartbeat(device_id, x_device_secret)
-
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="设备验证失败或设备不存在"
-        )
-
-    return {"status": "ok", "device_id": device_id}
 

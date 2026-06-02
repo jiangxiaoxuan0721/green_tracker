@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import './DeviceDetail.css'
 
-const DeviceDetail = ({ device, onClose, onEdit, onProvision, onDeprovision, provisionLoading }) => {
+const DeviceDetail = ({ device, onClose, onEdit }) => {
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => {
@@ -83,14 +83,6 @@ const DeviceDetail = ({ device, onClose, onEdit, onProvision, onDeprovision, pro
             <span className="label">最近在线:</span>
             <span className="value">{device.last_seen_at ? formatDate(device.last_seen_at) : '从未上线'}</span>
           </div>
-          <div className="detail-item">
-            <span className="label">绑定状态:</span>
-            <span className="value">
-              <div className={`status-badge ${device.provisioned ? 'status-completed' : 'status-pending'}`}>
-                {device.provisioned ? '已下发凭证' : '未下发凭证'}
-              </div>
-            </span>
-          </div>
           <div className="detail-item full-width">
             <span className="label">描述:</span>
             <span className="value">{device.description || '无'}</span>
@@ -119,23 +111,6 @@ const DeviceDetail = ({ device, onClose, onEdit, onProvision, onDeprovision, pro
           )}
         </div>
         <div className="modal-footer">
-          {!device.provisioned && onProvision && (
-            <button
-              className="primary-btn"
-              onClick={onProvision}
-              disabled={provisionLoading}
-            >
-              {provisionLoading ? '生成中...' : '生成绑定凭证'}
-            </button>
-          )}
-          {device.provisioned && onDeprovision && (
-            <button
-              className="danger-btn"
-              onClick={onDeprovision}
-            >
-              清空凭证
-            </button>
-          )}
           <button className="primary-btn" onClick={onEdit}>
             编辑设备
           </button>

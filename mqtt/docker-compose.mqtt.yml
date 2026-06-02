@@ -1,0 +1,37 @@
+# ============================================================
+# MQTT 服务 Docker Compose 编排
+#
+# 架构:
+#   mqtt-broker  - Mosquitto 2.0 Broker (:1883 MQTT, :9001 WebSocket)
+#
+# 云端 MQTT 客户端集成在 FastAPI 后端中，不需要独立容器。
+# 启动顺序: 先启动 Broker，再启动后端。
+# ============================================================
+
+services:
+  # ============================================================
+  # MQTT Broker (Mosquitto 2.0)
+  # ============================================================
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: green-tracker-mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "${MQTT_PORT:-1883}:1883"           # MQTT TCP
+      - "${MQTT_WS_PORT:-9001}:9001"        # MQTT over WebSocket
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - mqtt-net
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-u", "${MQTT_USERNAME:-admin}", "-P", "${MQTT_PASSWORD:-admin123}", "-t", "$$SYS/#", "-C", "1", "-W", "3"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  mqtt-net:
+    driver: bridge

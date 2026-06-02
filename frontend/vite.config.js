@@ -28,6 +28,7 @@ export default defineConfig(({ mode }) => {
   console.log('[Vite配置] 允许的主机列表:', allowedHosts)
   
   return {
+    envDir: projectRoot,
     plugins: [react()],
     resolve: {
       alias: {

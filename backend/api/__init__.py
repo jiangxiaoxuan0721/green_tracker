@@ -16,6 +16,9 @@ from .routes import (
     algorithm_router
 )
 
+# MQTT 模块路由
+from mqtt.routes import router as mqtt_router
+
 # 导出所有 Schemas
 from .schemas import (
     # Auth
@@ -75,6 +78,7 @@ __all__ = [
     "api_key_router",
     "admin_database_router",
     "algorithm_router",
+    "mqtt_router",
     # Schemas - Auth
     "UserRegister",
     "UserLogin",
@@ -91,7 +95,6 @@ __all__ = [
     "DeviceResponse",
     "DeviceUpdate",
     "DeviceListParams",
-    "DeviceProvisionResponse",
     # Schemas - Feedback
     "FeedbackCreate",
     "FeedbackResponse",
