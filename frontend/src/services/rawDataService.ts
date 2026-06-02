@@ -291,14 +291,11 @@ export const rawDataService = {
   },
 
   // 获取概览统计信息
-  async getOverviewStatistics(userId?: string) {
+  async getOverviewStatistics() {
     console.log('[前端RawDataService] 发送获取概览统计请求');
-    console.log('[前端RawDataService] 用户ID:', userId);
 
     try {
-      const params = userId ? { user_id: userId } : {};
-      console.log('[前端RawDataService] 实际传递的参数:', params);
-      const response = await api.get('/api/raw-data/overview', { params });
+      const response = await api.get('/api/raw-data/overview');
       console.log('[前端RawDataService] 获取概览统计成功:', response.data);
       return response.data;
     } catch (error) {

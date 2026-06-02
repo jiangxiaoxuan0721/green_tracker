@@ -62,6 +62,9 @@ class DeviceResponse(BaseModel):
     description: Optional[str] = None
     owner_id: Optional[Union[str, UUID]] = None
     is_active: bool
+    last_seen_at: Optional[datetime] = None
+    online: Optional[bool] = None
+    provisioned: Optional[bool] = Field(None, description="是否已绑定MQTT凭证")
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -95,3 +98,16 @@ class DeviceListParams(BaseModel):
                 "has_sensor": "multispectral"
             }
         }
+
+
+class DeviceProvisionResponse(BaseModel):
+    """设备绑定（MQTT 凭据下发）响应"""
+    device_id: str
+    device_name: str
+    mqtt_broker_host: str
+    mqtt_broker_port: int
+    mqtt_username: str = Field(..., description="设备 MQTT 用户名（即设备ID）")
+    mqtt_password: str = Field(..., description="设备 MQTT 密钥（仅此一次可见，请妥善保存）")
+    heartbeat_topic: str
+    cmd_topic: str
+    status_topic: str

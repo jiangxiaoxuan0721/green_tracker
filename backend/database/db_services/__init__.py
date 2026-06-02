@@ -29,9 +29,7 @@ from .device_service import (
     get_device_by_id,
     update_device,
     delete_device,
-    restore_device,
-    get_devices_by_type,
-    get_devices_by_platform
+    restore_device
 )
 
 from .collection_session_service import (
@@ -87,8 +85,6 @@ __all__ = [
     "update_device",
     "delete_device",
     "restore_device",
-    "get_devices_by_type",
-    "get_devices_by_platform",
     "create_collection_session",
     "get_collection_session_by_id",
     "get_collection_sessions_by_field",
@@ -102,7 +98,6 @@ __all__ = [
     "get_raw_data_list_for_frontend",
     "update_processing_status",
     "update_ai_status",
-    "delete_raw_data",
     "add_raw_data_tag",
     "get_raw_data_tags",
     "create_algorithm",

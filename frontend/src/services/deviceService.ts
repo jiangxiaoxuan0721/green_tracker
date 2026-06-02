@@ -13,6 +13,9 @@ export interface Device {
   description?: string;
   owner_id?: string;
   is_active: boolean;
+  online?: boolean;
+  last_seen_at?: string | null;
+  provisioned?: boolean;
   created_at: string;
   updated_at?: string;
 }
@@ -50,6 +53,18 @@ export interface DeviceListParams {
   has_actuator?: string;
   limit?: number;
   offset?: number;
+}
+
+export interface DeviceProvision {
+  device_id: string;
+  device_name: string;
+  mqtt_broker_host: string;
+  mqtt_broker_port: number;
+  mqtt_username: string;
+  mqtt_password: string;
+  heartbeat_topic: string;
+  cmd_topic: string;
+  status_topic: string;
 }
 
 // 设备相关的API服务
@@ -156,31 +171,24 @@ export const deviceService = {
     return response.data;
   },
 
-  // 根据设备类型获取设备列表
-  async getDevicesByType(deviceType: string, activeOnly: boolean = true): Promise<Device[]> {
-    console.log('[前端DeviceService] 发送获取设备类型请求');
-    console.log('[前端DeviceService] 设备类型:', deviceType);
-    console.log('[前端DeviceService] 仅活跃:', activeOnly);
+  // 生成设备绑定凭证（MQTT 凭据下发）
+  async provisionDevice(deviceId: string): Promise<DeviceProvision> {
+    console.log('[前端DeviceService] 发送设备绑定请求');
+    console.log('[前端DeviceService] 设备ID:', deviceId);
     
-    const response = await api.get<Device[]>(`/api/devices/types/${deviceType}`, { 
-      params: { active_only: activeOnly }
-    });
+    const response = await api.post<DeviceProvision>(`/api/devices/${deviceId}/provision`);
     
-    console.log('[前端DeviceService] 获取设备类型成功:', response.data);
+    console.log('[前端DeviceService] 设备绑定成功:', response.data);
     return response.data;
   },
 
-  // 根据平台层级获取设备列表
-  async getDevicesByPlatform(platformLevel: string, activeOnly: boolean = true): Promise<Device[]> {
-    console.log('[前端DeviceService] 发送获取平台层级请求');
-    console.log('[前端DeviceService] 平台层级:', platformLevel);
-    console.log('[前端DeviceService] 仅活跃:', activeOnly);
+  // 清空设备绑定凭证（解除 MQTT 绑定）
+  async deprovisionDevice(deviceId: string): Promise<void> {
+    console.log('[前端DeviceService] 发送清空凭证请求');
+    console.log('[前端DeviceService] 设备ID:', deviceId);
     
-    const response = await api.get<Device[]>(`/api/devices/platforms/${platformLevel}`, { 
-      params: { active_only: activeOnly }
-    });
+    await api.delete(`/api/devices/${deviceId}/provision`);
     
-    console.log('[前端DeviceService] 获取平台层级成功:', response.data);
-    return response.data;
+    console.log('[前端DeviceService] 凭证清空成功');
   }
 };

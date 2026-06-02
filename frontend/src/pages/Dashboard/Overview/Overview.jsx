@@ -42,12 +42,9 @@ const Overview = () => {
   const fetchOverviewData = async () => {
     try {
       setLoading(true)
-      const userId = user?.id
-      console.log('[概览页面] 当前用户信息:', user)
-      console.log('[概览页面] 用户ID:', userId)
       console.log('[概览页面] 准备调用API')
       
-      const response = await rawDataService.getOverviewStatistics(userId)
+      const response = await rawDataService.getOverviewStatistics()
 
       console.log('[概览页面] API响应:', response)
 

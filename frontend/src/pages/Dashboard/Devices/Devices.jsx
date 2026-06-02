@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useDataList, useModal } from '@/hooks/common'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { deviceService } from '@/services/deviceService'
@@ -7,6 +7,7 @@ import { ItemCard } from '@/components/business'
 import { Radio, Plus } from 'lucide-react'
 import DeviceForm from './components/DeviceForm'
 import DeviceDetail from './components/DeviceDetail'
+import ProvisionModal from './components/ProvisionModal'
 import './Devices.css'
 import '../AdditionalStyles.css'
 
@@ -33,6 +34,8 @@ const Devices = () => {
 
   const { isOpen: isFormOpen, modalData: formDevice, openModal: openForm, closeModal: closeForm } = useModal()
   const { isOpen: isDetailOpen, modalData: detailDevice, openModal: openDetail, closeModal: closeDetail } = useModal()
+  const [provisionData, setProvisionData] = useState(null)
+  const [provisionLoading, setProvisionLoading] = useState(false)
 
   const getPlatformLevelText = (platformLevel) => {
     const platformMap = {
@@ -87,6 +90,45 @@ const Devices = () => {
   const handleDetailEdit = (device) => {
     closeDetail()
     openForm(device)
+  }
+
+  const handleProvision = async (device) => {
+    setProvisionLoading(true)
+    try {
+      const result = await deviceService.provisionDevice(device.id)
+      setProvisionData(result)
+      // 立即更新详情弹窗的绑定状态，确保关闭凭证弹窗后状态同步
+      if (detailDevice && detailDevice.id === device.id) {
+        openDetail({ ...device, provisioned: true })
+      }
+    } catch (err) {
+      console.error('生成设备凭证失败:', err)
+      alert(err.response?.data?.detail || '生成凭证失败，请稍后重试')
+    } finally {
+      setProvisionLoading(false)
+    }
+  }
+
+  const handleCloseProvision = () => {
+    setProvisionData(null)
+    refresh()
+  }
+
+  const handleDeprovision = async (device) => {
+    if (!window.confirm('确定要清空该设备的绑定凭证吗？\n\n清空后设备将无法连接MQTT Broker，如需重新连接需重新生成凭证。')) {
+      return
+    }
+    try {
+      await deviceService.deprovisionDevice(device.id)
+      // 更新详情弹窗状态
+      if (detailDevice && detailDevice.id === device.id) {
+        openDetail({ ...device, provisioned: false, mqtt_secret_hash: null })
+      }
+      refresh()
+    } catch (err) {
+      console.error('清空凭证失败:', err)
+      alert(err.response?.data?.detail || '清空凭证失败，请稍后重试')
+    }
   }
 
   return (
@@ -149,6 +191,20 @@ const Devices = () => {
               customInfo={(item) => (
                 <>
                   <div className="item-info-row">
+                    <span>在线</span>
+                    <span className={`status-badge ${item.online ? 'status-completed' : 'status-failed'}`}
+                          style={{ display: 'inline-flex', padding: '1px 6px', fontSize: '0.625rem' }}>
+                      {item.online ? '在线' : '离线'}
+                    </span>
+                  </div>
+                  <div className="item-info-row">
+                    <span>凭证</span>
+                    <span className={`status-badge ${item.provisioned ? 'status-completed' : 'status-pending'}`}
+                          style={{ display: 'inline-flex', padding: '1px 6px', fontSize: '0.625rem' }}>
+                      {item.provisioned ? '已下发' : '未下发'}
+                    </span>
+                  </div>
+                  <div className="item-info-row">
                     <span>类型</span>
                     <span>{getDeviceTypeText(item.device_type)}</span>
                   </div>
@@ -198,8 +254,17 @@ const Devices = () => {
           device={detailDevice}
           onClose={closeDetail}
           onEdit={() => handleDetailEdit(detailDevice)}
+          onProvision={() => handleProvision(detailDevice)}
+          onDeprovision={() => handleDeprovision(detailDevice)}
+          provisionLoading={provisionLoading}
         />
       )}
+
+      <ProvisionModal
+        isOpen={!!provisionData}
+        provision={provisionData}
+        onClose={handleCloseProvision}
+      />
     </div>
   )
 }

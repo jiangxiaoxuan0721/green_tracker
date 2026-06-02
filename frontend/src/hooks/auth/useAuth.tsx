@@ -45,9 +45,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // 只有当所有登录信息都存在时才验证token
       if (token && userId && isLoggedIn === 'true') {
         try {
-          // 直接设置用户状态，不进行网络验证（提升性能）
-          // 如果后续请求失败，后端会返回401，前端会自动清除token并跳转登录页
-          setUser({ id: userId, token });
+          // 向服务端验证token有效性
+          const isValid = await authService.verifyToken(token);
+          if (isValid) {
+            setUser({ id: userId, token });
+          } else {
+            // token无效，清除本地存储
+            console.log('[前端Auth] Token已失效，清除本地登录状态');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('isLoggedIn');
+          }
         } catch (error) {
           console.error('[前端Auth] 恢复登录状态出错:', error);
           localStorage.removeItem('token');

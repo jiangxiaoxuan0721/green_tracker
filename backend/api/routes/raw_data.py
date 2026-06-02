@@ -234,7 +234,7 @@ async def get_raw_data_list(
 
 @router.get("/overview", summary="获取概览统计数据")
 async def get_overview_statistics_endpoint(
-    user_id: str = Query(..., description="用户ID")
+    current_user: User = Depends(get_current_user)
 ):
     """
     获取概览页面的统计数据
@@ -249,11 +249,8 @@ async def get_overview_statistics_endpoint(
     """
     db = None
     try:
+        user_id = str(current_user.userid)
         print(f"[概览API] 收到请求, user_id={user_id}")
-        
-        if not user_id:
-            print(f"[概览API] user_id为空")
-            raise HTTPException(status_code=400, detail="缺少用户ID参数")
         
         # 连接到用户数据库
         db = get_user_db(user_id)

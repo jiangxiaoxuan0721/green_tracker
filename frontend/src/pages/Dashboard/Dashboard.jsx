@@ -13,7 +13,7 @@ import './AdditionalStyles.css'
 const Dashboard = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading, logout } = useAuth()
 
   // 检查用户是否已登录
   useEffect(() => {
@@ -57,10 +57,7 @@ const Dashboard = () => {
   ]
 
   const handleLogout = () => {
-    // 清除登录状态
-    localStorage.removeItem('token')
-    localStorage.removeItem('isLoggedIn')
-    localStorage.removeItem('user_id')
+    logout()
     navigate('/')
   }
 

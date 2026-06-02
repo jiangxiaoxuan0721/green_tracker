@@ -91,6 +91,7 @@ __all__ = [
     "DeviceResponse",
     "DeviceUpdate",
     "DeviceListParams",
+    "DeviceProvisionResponse",
     # Schemas - Feedback
     "FeedbackCreate",
     "FeedbackResponse",

@@ -711,6 +711,11 @@
   color: var(--success-color);
 }
 
+.status-pending {
+  background-color: rgba(var(--warning-color-rgb, 245, 158, 11), 0.15);
+  color: var(--warning-color);
+}
+
 .status-scheduled {
   background-color: rgba(168, 85, 247, 0.15);
   color: #a855f7;

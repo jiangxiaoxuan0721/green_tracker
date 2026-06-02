@@ -31,10 +31,10 @@ app.add_middleware(
     allow_headers=cors_headers,
 )
 
-# 启动时初始化数据库
+# 启动时初始化数据库和 MQTT
 @app.on_event("startup")
 async def startup_event():
-    """启动时初始化数据库"""
+    """启动时初始化数据库和 MQTT 客户端"""
     try:
         from database.database_initializer import DatabaseInitializer
         logger.info("Initializing meta database...")
@@ -48,8 +48,28 @@ async def startup_event():
         logger.info("Database initialization completed")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
-        # 不抛出异常，让服务继续启动
         logger.warning("Continuing with application startup...")
+
+    # 启动 MQTT 客户端（后台线程）
+    try:
+        from mqtt.mqtt_client import mqtt_manager
+        mqtt_manager.start()
+        logger.info("MQTT client started")
+    except Exception as e:
+        logger.error(f"MQTT client startup failed: {e}")
+        logger.warning("Application will continue without MQTT support")
+
+# 关闭时停止 MQTT 客户端
+@app.on_event("shutdown")
+async def shutdown_event():
+    """关闭时清理资源"""
+    try:
+        from mqtt.mqtt_client import mqtt_manager
+        mqtt_manager.stop()
+        logger.info("MQTT client stopped")
+    except Exception as e:
+        logger.error(f"MQTT client shutdown failed: {e}")
+
 
 # 添加请求日志中间件
 @app.middleware("http")
