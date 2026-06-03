@@ -289,6 +289,175 @@
   to { transform: rotate(360deg); }
 }
 
+/* ============================================================
+   命令回复日志区域
+   ============================================================ */
+.cmd-reply-log {
+  margin-top: var(--spacing-md);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.cmd-reply-log-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--bg-subtle);
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.cmd-reply-log-header:hover {
+  background: var(--bg-hover);
+}
+
+.cmd-chevron {
+  transition: transform 0.2s;
+  color: var(--text-muted);
+}
+
+.cmd-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.cmd-reply-count {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  background: var(--bg-component);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.cmd-reply-log-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.cmd-reply-log.expanded .cmd-reply-log-body {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+/* 单条回复记录 */
+.cmd-reply-entry {
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-main);
+}
+
+.cmd-reply-entry:last-child {
+  border-bottom: none;
+}
+
+.cmd-reply-entry-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.cmd-reply-entry-clickable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background 0.15s;
+}
+
+.cmd-reply-entry-clickable:hover {
+  background: var(--bg-subtle);
+}
+
+.cmd-entry-chevron {
+  transition: transform 0.2s;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.cmd-entry-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.cmd-entry-chevron-hidden {
+  visibility: hidden;
+}
+
+.cmd-reply-cmd {
+  font-family: monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cmd-reply-time {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.cmd-reply-status {
+  font-size: 0.6875rem;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-weight: 500;
+}
+
+.cmd-reply-status-pending {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning-color);
+}
+
+.cmd-reply-status-acknowledged {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success-color);
+}
+
+.cmd-reply-status-timeout {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+}
+
+.cmd-reply-status-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+}
+
+.cmd-status-pending { color: var(--warning-color); }
+.cmd-status-ok { color: var(--success-color); }
+.cmd-status-timeout { color: var(--error-color); }
+.cmd-status-error { color: var(--error-color); }
+
+/* 回复内容 */
+.cmd-reply-body {
+  margin: var(--spacing-xs) 0 0;
+  padding: var(--spacing-sm);
+  background: #1e1e2e;
+  color: #cdd6f4;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.cmd-reply-hint {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+}
+
 /* 空状态 */
 .dashboard-mqtt .empty-state {
   display: flex;
