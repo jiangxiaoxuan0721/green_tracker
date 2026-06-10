@@ -6,6 +6,7 @@ interface RegisterFormData {
   email: string;
   password: string;
   confirmPassword: string;
+  code: string;
 }
 
 // 定义表单错误类型
@@ -14,10 +15,11 @@ interface RegisterFormErrors {
   email?: string;
   password?: string;
   confirmPassword?: string;
+  code?: string;
 }
 
 // 定义注册函数类型
-type RegisterFunction = (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+type RegisterFunction = (username: string, email: string, password: string, code: string) => Promise<{ success: boolean; error?: string }>;
 
 // 定义返回类型
 interface UseRegisterFormReturn {
@@ -33,7 +35,8 @@ export const useRegisterForm = (registerFunction: RegisterFunction): UseRegister
     username: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    code: ''
   });
   const [errors, setErrors] = useState<RegisterFormErrors>({});
 
@@ -89,6 +92,13 @@ export const useRegisterForm = (registerFunction: RegisterFunction): UseRegister
       newErrors.confirmPassword = '两次输入的密码不一致';
     }
     
+    // 验证码验证
+    if (!formData.code) {
+      newErrors.code = '请输入验证码';
+    } else if (formData.code.length !== 6 || !/^\d{6}$/.test(formData.code)) {
+      newErrors.code = '验证码为6位数字';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -105,7 +115,8 @@ export const useRegisterForm = (registerFunction: RegisterFunction): UseRegister
       return await registerFunction(
         formData.username, 
         formData.email, 
-        formData.password
+        formData.password,
+        formData.code
       );
     }
     

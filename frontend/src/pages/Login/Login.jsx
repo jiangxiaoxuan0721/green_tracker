@@ -44,7 +44,7 @@ const Login = () => {
               animate={{ opacity: 1 }}
             >
               <div className="brand-icon">
-                <Sprout size={64} />
+                <Sprout size={48} />
               </div>
               <h1>Green Tracker</h1>
               <p>空天地一体化农作物智能监测平台</p>
@@ -103,7 +103,7 @@ const Login = () => {
                   animate="visible"
                 >
                   <div className="login-icon-wrapper">
-                    <Lock size={24} />
+                    <Lock size={20} />
                   </div>
                   <h2>欢迎回来</h2>
                   <p>登录您的账户继续使用</p>
@@ -196,7 +196,7 @@ const Login = () => {
                       <input type="checkbox" />
                       <span>记住我</span>
                     </label>
-                    <a href="#" className="forgot-password">忘记密码？</a>
+                    <a href="#" className="forgot-password" onClick={(e) => { e.preventDefault(); navigate('/forgot-password'); }}>忘记密码？</a>
                   </div>
 
                   <motion.div
@@ -220,7 +220,7 @@ const Login = () => {
                       ) : (
                         <>
                           登录
-                          <ArrowRight size={18} />
+                          <ArrowRight size={16} />
                         </>
                       )}
                     </motion.button>
@@ -246,7 +246,7 @@ const Login = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <Shield size={18} />
+                    <Shield size={16} />
                     其他方式登录
                   </motion.button>
 
@@ -298,7 +298,7 @@ const Login = () => {
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
             >
-              <Sprout size={64} />
+              <Sprout size={48} />
             </motion.div>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -482,7 +482,7 @@ const Login = () => {
                     <input type="checkbox" />
                     <span>记住我</span>
                   </label>
-                  <a href="#" className="forgot-password">忘记密码？</a>
+                  <a href="#" className="forgot-password" onClick={(e) => { e.preventDefault(); navigate('/forgot-password'); }}>忘记密码？</a>
                 </div>
 
                 <motion.div

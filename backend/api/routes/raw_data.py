@@ -1083,8 +1083,11 @@ async def upload_numeric_data(
             valid_subtypes = [DataSubType.MOISTURE, DataSubType.PH, DataSubType.EC,
                            DataSubType.TEMPERATURE_SOIL]
         elif request.data_type == DataType.FILE:
-            valid_subtypes = [DataSubType.RGB, DataSubType.NIR, DataSubType.RED_EDGE,
-                           DataSubType.THERMAL, DataSubType.MULTISPECTRAL, DataSubType.VIDEO]
+            # FILE 类型数据应使用 /upload-file 接口上传
+            raise HTTPException(
+                status_code=400,
+                detail="文件类型数据请使用 /api/raw-data/upload-file 接口上传"
+            )
         else:
             raise HTTPException(status_code=400, detail=f"不支持的数据类型: {request.data_type}")
 
@@ -1210,12 +1213,22 @@ async def upload_file_data(
                 detail="需要认证：请提供JWT令牌（推荐）或API密钥"
             )
 
-        # 验证数据子类型
-        valid_subtypes = ["rgb", "nir", "red_edge", "thermal", "multispectral", "video"]
-        if data_subtype not in valid_subtypes:
+        # 验证数据子类型（使用统一枚举，仅允许 file 类型的子类型）
+        file_subtypes = [
+            DataSubType.RGB, DataSubType.NIR, DataSubType.RED_EDGE,
+            DataSubType.THERMAL, DataSubType.MULTISPECTRAL, DataSubType.VIDEO
+        ]
+        try:
+            subtype_enum = DataSubType(data_subtype)
+        except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail=f"不支持的数据子类型: {data_subtype}，支持的类型: {', '.join(valid_subtypes)}"
+                detail=f"不支持的数据子类型: {data_subtype}，支持的类型: {', '.join(s.value for s in file_subtypes)}"
+            )
+        if subtype_enum not in file_subtypes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"数据子类型 {data_subtype} 不属于文件类型，请使用 /upload-data 接口"
             )
 
         # 读取文件数据
@@ -1313,7 +1326,7 @@ async def upload_file_data(
                 object_key=upload_result['path'],
                 access_url=upload_result['url'],
                 data_type=DataType.FILE,
-                data_subtype=DataSubType[data_subtype.upper()],
+                data_subtype=subtype_enum,
                 file_size_bytes=len(file_data),
                 file_size_mb=round(len(file_data) / (1024 * 1024), 2),
                 data_format=data_format,
@@ -1325,7 +1338,10 @@ async def upload_file_data(
         raise
     except Exception as e:
         logger.error(f"[上传文件] 失败: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
     finally:
-        db.close()  # pyright: ignore[reportPossiblyUnboundVariable, reportOptionalMemberAccess]
+        if db is not None:
+            db.close()
 

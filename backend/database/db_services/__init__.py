@@ -8,7 +8,11 @@ from .user_service import (
     verify_user,
     get_user_by_id,
     get_user_by_username,
-    update_user_email
+    get_user_by_email,
+    update_user_email,
+    reset_password,
+    save_verification_code,
+    verify_and_clear_code,
 )
 
 from .feedback_service import (
@@ -72,7 +76,12 @@ __all__ = [
     "verify_user",
     "get_user_by_id",
     "get_user_by_username",
+    "get_user_by_email",
     "update_user_email",
+    "reset_password",
+    "save_verification_code",
+    "verify_and_clear_code",
+    "reset_password",
     "create_feedback",
     "get_feedback_by_id",
     "get_all_feedback",

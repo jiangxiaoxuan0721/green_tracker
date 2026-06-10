@@ -1,14 +1,15 @@
 from typing import Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database.main_db import get_meta_db
-from database.db_services import create_user, verify_user
+from database.db_services import create_user, verify_user, get_user_by_email, save_verification_code, verify_and_clear_code, reset_password
 from database.db_models.meta_model import User
-from api.schemas.auth import UserRegister, UserLogin, UserResponse
+from api.schemas.auth import SendCodeRequest, UserRegister, UserLogin, UserResponse, ForgotPasswordRequest, ResetPasswordRequest
+from utils.email_service import generate_verification_code, send_verification_email, send_password_reset_email
 from passlib.context import CryptContext
 from jose import jwt, JWTError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import logging
 from dotenv import load_dotenv
@@ -54,16 +55,69 @@ def create_access_token(data: dict[str, Optional[Any]], expires_delta: Optional[
     return encoded_jwt
 
 
+@router.post("/send-code")
+async def send_verification_code(request: SendCodeRequest, db: Session = Depends(get_meta_db)):
+    """
+    发送邮箱验证码
+    """
+    try:
+        # 检查邮箱是否已被已验证用户使用
+        existing = get_user_by_email(db, request.email)
+        if existing and existing.email_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="该邮箱已被注册"
+            )
+
+        # 生成6位验证码
+        code = generate_verification_code(6)
+
+        # 保存验证码到数据库
+        save_verification_code(db, request.email, code)
+
+        # 发送邮件
+        try:
+            send_verification_email(request.email, code)
+        except Exception as e:
+            logger.error(f"发送邮件失败: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"验证码发送失败: {str(e)}"
+            )
+
+        return {"message": "验证码已发送", "email": request.email}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"发送验证码异常: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"发送验证码失败: {str(e)}"
+        )
+
+
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserRegister, db: Session = Depends(get_meta_db)):
     """
-    用户注册
+    用户注册（需邮箱验证码）
     """
     try:
-        # 1. 检查用户是否已存在并创建用户
+        # 1. 验证邮箱验证码
+        if not verify_and_clear_code(db, user.email, user.code):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="验证码错误或已过期"
+            )
+
+        # 2. 检查用户名是否已存在，创建用户
         existing_user = create_user(db, user.username, user.email, get_password_hash(user.password))
 
-        # 2. 为用户创建独立数据库
+        # 标记邮箱已验证
+        existing_user.email_verified = True
+        db.commit()
+
+        # 3. 为用户创建独立数据库
         try:
             from database.create_user_database import create_user_database
             db_info = create_user_database(str(existing_user.userid))
@@ -78,7 +132,7 @@ async def register(user: UserRegister, db: Session = Depends(get_meta_db)):
                 detail=f"创建用户数据库失败: {str(db_error)}"
             )
 
-        # 3. 创建访问令牌
+        # 4. 创建访问令牌
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": existing_user.userid}, expires_delta=access_token_expires
@@ -154,6 +208,86 @@ async def verify_token(current_user: User = Depends(get_current_user)):
     """
     # 如果能通过get_current_user依赖，说明token有效
     return {"valid": True, "user_id": str(current_user.userid)}
+
+
+def _send_reset_email_background(email: str, code: str):
+    """后台任务：发送密码重置邮件（不阻塞响应）"""
+    try:
+        send_password_reset_email(email, code)
+    except Exception as e:
+        logger.error(f"后台发送密码重置邮件失败 [{email}]: {e}")
+
+
+@router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_meta_db)):
+    """
+    忘记密码 - 发送重置密码验证码到邮箱
+    """
+    try:
+        # 查找已注册且已验证邮箱的用户
+        user = get_user_by_email(db, request.email)
+        if not user or not user.email_verified:
+            # 为安全考虑，不暴露用户是否存在，统一返回成功消息
+            return {"message": "如果该邮箱已注册，验证码已发送"}
+
+        # 生成6位验证码
+        code = generate_verification_code(6)
+
+        # 保存验证码到数据库
+        save_verification_code(db, request.email, code)
+
+        # 使用后台任务发送邮件，避免 SMTP 超时阻塞响应
+        background_tasks.add_task(_send_reset_email_background, request.email, code)
+
+        return {"message": "验证码已发送", "email": request.email}
+
+    except Exception as e:
+        logger.error(f"忘记密码处理异常: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"操作失败: {str(e)}"
+        )
+
+
+@router.post("/reset-password")
+async def reset_user_password(request: ResetPasswordRequest, db: Session = Depends(get_meta_db)):
+    """
+    重置密码 - 通过验证码设置新密码
+    """
+    try:
+        # 验证密码强度
+        if len(request.new_password) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="密码长度不能少于6位"
+            )
+
+        # 查找用户
+        user = get_user_by_email(db, request.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="验证码错误或已过期"
+            )
+
+        # 重置密码
+        result = reset_password(db, request.email, request.code, get_password_hash(request.new_password))
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="验证码错误或已过期"
+            )
+
+        return {"message": "密码重置成功，请使用新密码登录"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"重置密码异常: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"重置密码失败: {str(e)}"
+        )
 
 
 async def get_current_user_from_api_key(

@@ -142,7 +142,8 @@ class DatabaseInitializer:
                         required_columns = {
                             'userid', 'username', 'email', 'password_hash', 'status',
                             'subscription_plan', 'storage_quota_gb', 'storage_used_gb',
-                            'max_databases', 'settings', 'last_login_at', 'created_at', 'updated_at'
+                            'max_databases', 'settings', 'last_login_at', 'created_at', 'updated_at',
+                            'email_verified', 'verification_code', 'verification_code_expires_at'
                         }
 
                         missing_columns = required_columns - users_columns
@@ -171,6 +172,12 @@ class DatabaseInitializer:
                                     cursor.execute("ALTER TABLE users ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'")
                                 if 'last_login_at' in missing_columns:
                                     cursor.execute("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP WITH TIME ZONE")
+                                if 'email_verified' in missing_columns:
+                                    cursor.execute("ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE")
+                                if 'verification_code' in missing_columns:
+                                    cursor.execute("ALTER TABLE users ADD COLUMN verification_code VARCHAR(6)")
+                                if 'verification_code_expires_at' in missing_columns:
+                                    cursor.execute("ALTER TABLE users ADD COLUMN verification_code_expires_at TIMESTAMP WITH TIME ZONE")
 
                                 # 创建缺失的索引
                                 cursor.execute("CREATE INDEX IF NOT EXISTS ix_users_email ON users(email)")

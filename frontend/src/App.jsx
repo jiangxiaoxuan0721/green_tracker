@@ -1,7 +1,7 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './hooks/auth/useAuth'
-import { Home, About, Contact, Login, Register, Dashboard, Feedback, NotFound, DashboardPages } from './pages'
+import { Home, About, Contact, Login, Register, ForgotPassword, Dashboard, Feedback, NotFound, DashboardPages } from './pages'
 import { ToastContainer } from './components/ui'
 import './App.css'
 
@@ -38,6 +38,7 @@ function AppContent() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/feedback" element={<Feedback />} />
           
           {/* Dashboard 路由及其子路由 */}

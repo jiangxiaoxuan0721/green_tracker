@@ -550,9 +550,9 @@ def get_raw_data_statistics(
             }
 
         # 按data_subtype分组统计
-        # 只统计数值类型的数据（过滤掉图像、视频等文件类型）
+        # 只统计数值类型的数据（环境数据、土壤数据），过滤掉图像/视频等文件类型
         grouped_result = query.filter(
-            RawData.data_type.in_(['environmental', 'soil', 'spectral'])
+            RawData.data_type.in_(['environmental', 'soil'])
         ).with_entities(
             RawData.data_subtype,
             func.count(RawData.id).label('count'),
@@ -708,20 +708,24 @@ def get_overview_statistics(db: Session) -> Dict[str, Any]:
 
         # 添加最近的数据记录
         for data in recent_data:
-            data_type = data.data_type or "数据"
-            if data_type == "image":
-                data_type = "图像"
-            elif data_type == "environmental":
-                data_type = "环境数据"
-            elif data_type == "soil":
-                data_type = "土壤数据"
-            elif data_type == "spectral":
-                data_type = "光谱数据"
+            data_type_label = data.data_type or "数据"
+            if data_type_label in ("image", "file", "video"):
+                data_type_label = "图像/文件"
+            elif data_type_label == "environmental":
+                data_type_label = "环境数据"
+            elif data_type_label == "soil":
+                data_type_label = "土壤数据"
+            elif data_type_label == "spectral":
+                data_type_label = "光谱数据"
+            elif data_type_label == "multispectral":
+                data_type_label = "多光谱数据"
+            elif data_type_label == "thermal":
+                data_type_label = "热成像数据"
 
             capture_time = data.capture_time
             all_activities.append({
                 "time": capture_time.strftime("%H:%M") if capture_time else "",
-                "content": f"采集{data_type}",
+                "content": f"采集{data_type_label}",
                 "type": "data",
                 "timestamp": capture_time.isoformat() if capture_time else None,
                 "_sort_time": capture_time or datetime.min

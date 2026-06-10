@@ -493,8 +493,8 @@ const AlgorithmSquare = () => {
                   </button>
                 </div>
                 
-                {/* 操作菜单按钮 - 仅在所有者可见或需要额外操作时显示 */}
-                {(user?.id === algo.author_id || algo.status === 'running') && (
+                {/* 操作菜单按钮 - 仅算法归属用户可见 */}
+                {user?.id === algo.author_id && (
                   <div className="action-menu-wrapper">
                     <button
                       className="action-menu-btn"

@@ -97,7 +97,7 @@ const Contact = () => {
         >
           <motion.div className="contact-header" variants={fadeInUp}>
             <div className="contact-icon">
-              <MessageSquare size={40} />
+              <MessageSquare size={28} />
             </div>
             <h1>联系我们</h1>
             <p>
@@ -107,152 +107,158 @@ const Contact = () => {
           </motion.div>
 
           <motion.div 
-            className="contact-info-card"
-            variants={listContainer}
-            initial="hidden"
-            animate="visible"
+            className="contact-body"
+            variants={fadeInUp}
           >
-            {contactInfo.map((info, index) => {
-              const Icon = info.icon
-              return (
-                <motion.div 
-                  key={index}
-                  className="info-item"
-                  variants={listItem}
-                  whileHover={{ x: 5 }}
-                >
-                  <div className="info-icon-wrapper">
-                    <Icon size={20} />
-                  </div>
-                  <div className="info-text">
-                    <span className="info-label">{info.label}</span>
-                    <span className="info-value">{info.value}</span>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </motion.div>
-
-          <AnimatePresence mode="wait">
-            {isSubmitted ? (
-              <motion.div 
-                key="success"
-                className="form-success"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-              >
-                <div className="success-icon">
-                  <CheckCircle size={48} />
-                </div>
-                <h3>感谢您的留言!</h3>
-                <p>我们已收到您的信息，将尽快回复。</p>
-              </motion.div>
-            ) : (
-              <motion.form 
-                key="form"
-                className="contact-form"
-                onSubmit={handleSubmit}
-                variants={fadeInUp}
-                initial="hidden"
-                animate="visible"
-                transition={{ delay: 0.2 }}
-              >
-                <AnimatePresence>
-                  {error && (
-                    <motion.div 
-                      className="form-error"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                    >
-                      {error}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <motion.div variants={fadeInUp} transition={{ delay: 0.1 }}>
-                  <Input
-                    label="姓名"
-                    id="name"
-                    name="name"
-                    value={values.name}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="请输入您的姓名"
-                    error={errors.name}
-                    icon="👤"
-                  />
-                </motion.div>
-
-                <motion.div variants={fadeInUp} transition={{ delay: 0.15 }}>
-                  <Input
-                    type="email"
-                    label="电子邮件"
-                    id="email"
-                    name="email"
-                    value={values.email}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="your@email.com"
-                    error={errors.email}
-                    required
-                    icon="📧"
-                  />
-                </motion.div>
-
-                <motion.div variants={fadeInUp} transition={{ delay: 0.2 }}>
-                  <Input
-                    type="text"
-                    label="主题"
-                    id="subject"
-                    name="subject"
-                    value={values.subject}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="请输入消息主题"
-                    error={errors.subject}
-                    required
-                    icon="📝"
-                  />
-                </motion.div>
-
-                <motion.div variants={fadeInUp} transition={{ delay: 0.25 }}>
-                  <Textarea
-                    label="留言"
-                    id="message"
-                    name="message"
-                    value={values.message}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    rows="5"
-                    placeholder="请输入您的留言内容..."
-                    error={errors.message}
-                    required
-                  />
-                </motion.div>
-
-                <motion.div 
-                  variants={fadeInUp} 
-                  transition={{ delay: 0.3 }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="large"
-                    loading={isSubmitting}
-                    disabled={!isValid}
-                    className="submit-btn"
-                    icon={isSubmitting ? null : <Send size={18} />}
+            <motion.div 
+              className="contact-info-card"
+              variants={listContainer}
+              initial="hidden"
+              animate="visible"
+            >
+              {contactInfo.map((info, index) => {
+                const Icon = info.icon
+                return (
+                  <motion.div 
+                    key={index}
+                    className="info-item"
+                    variants={listItem}
+                    whileHover={{ x: 5 }}
                   >
-                    {isSubmitting ? '提交中...' : '发送消息'}
-                  </Button>
-                </motion.div>
-              </motion.form>
-            )}
-          </AnimatePresence>
+                    <div className="info-icon-wrapper">
+                      <Icon size={16} />
+                    </div>
+                    <div className="info-text">
+                      <span className="info-label">{info.label}</span>
+                      <span className="info-value">{info.value}</span>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+
+            <div className="contact-form-wrapper">
+              <AnimatePresence mode="wait">
+                {isSubmitted ? (
+                  <motion.div 
+                    key="success"
+                    className="form-success"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                  >
+                    <div className="success-icon">
+                      <CheckCircle size={32} />
+                    </div>
+                    <h3>感谢您的留言!</h3>
+                    <p>我们已收到您的信息，将尽快回复。</p>
+                  </motion.div>
+                ) : (
+                  <motion.form 
+                    key="form"
+                    className="contact-form"
+                    onSubmit={handleSubmit}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <AnimatePresence>
+                      {error && (
+                        <motion.div 
+                          className="form-error"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                        >
+                          {error}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <motion.div variants={fadeInUp} transition={{ delay: 0.1 }}>
+                      <Input
+                        label="姓名"
+                        id="name"
+                        name="name"
+                        value={values.name}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        placeholder="请输入您的姓名"
+                        error={errors.name}
+                        icon="👤"
+                      />
+                    </motion.div>
+
+                    <motion.div variants={fadeInUp} transition={{ delay: 0.15 }}>
+                      <Input
+                        type="email"
+                        label="电子邮件"
+                        id="email"
+                        name="email"
+                        value={values.email}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        placeholder="your@email.com"
+                        error={errors.email}
+                        required
+                        icon="📧"
+                      />
+                    </motion.div>
+
+                    <motion.div variants={fadeInUp} transition={{ delay: 0.2 }}>
+                      <Input
+                        type="text"
+                        label="主题"
+                        id="subject"
+                        name="subject"
+                        value={values.subject}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        placeholder="请输入消息主题"
+                        error={errors.subject}
+                        required
+                        icon="📝"
+                      />
+                    </motion.div>
+
+                    <motion.div variants={fadeInUp} transition={{ delay: 0.25 }}>
+                      <Textarea
+                        label="留言"
+                        id="message"
+                        name="message"
+                        value={values.message}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        rows="2"
+                        placeholder="请输入您的留言内容..."
+                        error={errors.message}
+                        required
+                      />
+                    </motion.div>
+
+                    <motion.div 
+                      variants={fadeInUp} 
+                      transition={{ delay: 0.3 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        size="large"
+                        loading={isSubmitting}
+                        disabled={!isValid}
+                        className="submit-btn"
+                        icon={isSubmitting ? null : <Send size={16} />}
+                      >
+                        {isSubmitting ? '提交中...' : '发送消息'}
+                      </Button>
+                    </motion.div>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
         </motion.div>
       </div>
     </>

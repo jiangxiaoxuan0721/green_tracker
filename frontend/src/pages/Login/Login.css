@@ -1,4 +1,4 @@
-/* Login CSS - 分屏布局设计 */
+/* Login CSS - 紧凑分屏布局 */
 /* ============================================= */
 
 /* 分屏容器 */
@@ -14,7 +14,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: var(--spacing-xxl);
+  padding: var(--spacing-xl);
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg, 
@@ -29,13 +29,13 @@
   position: relative;
   z-index: 10;
   text-align: center;
-  margin-bottom: var(--spacing-xxl);
+  margin-bottom: var(--spacing-md);
 }
 
 .brand-icon {
-  width: 120px;
-  height: 120px;
-  margin: 0 auto var(--spacing-xl);
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--spacing-sm);
   background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   display: flex;
@@ -52,9 +52,9 @@
 }
 
 .brand-content h1 {
-  font-size: 2.5rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
   background: linear-gradient(135deg, #fff, rgba(255, 255, 255, 0.8));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -62,7 +62,7 @@
 }
 
 .brand-content p {
-  font-size: 1.1rem;
+  font-size: 0.82rem;
   opacity: 0.9;
   font-weight: 300;
 }
@@ -76,11 +76,11 @@
 .feature-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-lg);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
   background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-xs);
   backdrop-filter: blur(5px);
   transition: var(--transition-normal);
 }
@@ -91,8 +91,8 @@
 }
 
 .feature-icon {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,14 +102,14 @@
 }
 
 .feature-item h4 {
-  margin: 0 0 var(--spacing-xs);
-  font-size: 1rem;
+  margin: 0 0 2px;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
 .feature-item p {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   opacity: 0.8;
 }
 
@@ -127,26 +127,26 @@
 }
 
 .circle-1 {
-  width: 300px;
-  height: 300px;
-  top: -100px;
-  right: -100px;
+  width: 200px;
+  height: 200px;
+  top: -60px;
+  right: -60px;
   animation: pulse 4s ease-in-out infinite;
 }
 
 .circle-2 {
-  width: 200px;
-  height: 200px;
-  bottom: 20%;
-  left: -50px;
+  width: 150px;
+  height: 150px;
+  bottom: 15%;
+  left: -40px;
   animation: pulse 5s ease-in-out infinite 1s;
 }
 
 .circle-3 {
-  width: 150px;
-  height: 150px;
-  bottom: -50px;
-  right: 30%;
+  width: 100px;
+  height: 100px;
+  bottom: -30px;
+  right: 25%;
   animation: pulse 6s ease-in-out infinite 2s;
 }
 
@@ -161,19 +161,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-xxl);
+  padding: var(--spacing-xl);
   background: var(--bg-main);
 }
 
 .login-form-container {
   width: 100%;
-  max-width: 420px;
+  max-width: 360px;
 }
 
 .login-card {
   background: var(--bg-component);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-xxl);
+  padding: var(--spacing-lg);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
   border: 1px solid var(--border-primary);
 }
@@ -181,31 +181,31 @@
 /* 登录头部 */
 .login-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
 }
 
 .login-icon-wrapper {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto var(--spacing-lg);
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--spacing-md);
   background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  box-shadow: 0 8px 24px var(--primary-medium);
+  box-shadow: 0 6px 18px var(--primary-medium);
 }
 
 .login-header h2 {
-  font-size: 1.75rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 var(--spacing-sm);
+  margin: 0 0 var(--spacing-xs);
 }
 
 .login-header p {
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
   margin: 0;
 }
@@ -214,20 +214,20 @@
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .input-label {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-primary);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 2px;
 }
 
 .input-wrapper {
@@ -238,17 +238,17 @@
 
 .input-icon {
   position: absolute;
-  left: var(--spacing-md);
+  left: var(--spacing-sm);
   color: var(--text-muted);
   pointer-events: none;
 }
 
 .input-wrapper input {
   width: 100%;
-  padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) * 3 + 18px);
+  padding: 10px var(--spacing-md) 10px calc(var(--spacing-md) + 24px);
   border: 2px solid var(--border-medium);
   border-radius: var(--radius-md);
-  font-size: 1rem;
+  font-size: 0.9rem;
   background: var(--bg-input);
   color: var(--text-primary);
   transition: var(--transition-normal);
@@ -258,7 +258,7 @@
   outline: none;
   border-color: var(--primary-color);
   background: var(--bg-input-focus);
-  box-shadow: 0 0 0 4px var(--primary-subtle);
+  box-shadow: 0 0 0 3px var(--primary-subtle);
 }
 
 .input-wrapper input::placeholder {
@@ -267,7 +267,7 @@
 
 .password-toggle {
   position: absolute;
-  right: var(--spacing-md);
+  right: var(--spacing-sm);
   background: none;
   border: none;
   color: var(--text-muted);
@@ -286,9 +286,9 @@
 /* 错误消息 */
 .error-message {
   color: var(--error-color);
-  font-size: 0.85rem;
-  margin-top: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.78rem;
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
   background: rgba(var(--error-color-rgb), 0.1);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--error-color);
@@ -304,21 +304,21 @@
 .remember-me {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
 }
 
 .remember-me input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   accent-color: var(--primary-color);
   cursor: pointer;
 }
 
 .forgot-password {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--primary-color);
   text-decoration: none;
   transition: color 0.2s;
@@ -335,12 +335,12 @@
   align-items: center;
   justify-content: center;
   gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: 10px var(--spacing-lg);
   background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
   color: white;
   border: none;
   border-radius: var(--radius-md);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition-normal);
@@ -370,7 +370,7 @@
 .login-divider {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   color: var(--text-muted);
 }
 
@@ -383,7 +383,7 @@
 }
 
 .login-divider span {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -395,12 +395,12 @@
   align-items: center;
   justify-content: center;
   gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: 10px var(--spacing-lg);
   background: var(--bg-input);
   color: var(--text-secondary);
   border: 2px solid var(--border-medium);
   border-radius: var(--radius-md);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   cursor: pointer;
   transition: var(--transition-normal);
 }
@@ -413,7 +413,7 @@
 /* 注册链接 */
 .register-link {
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
 }
 
@@ -450,7 +450,7 @@
   }
   
   .login-header h2 {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
   }
 }
 

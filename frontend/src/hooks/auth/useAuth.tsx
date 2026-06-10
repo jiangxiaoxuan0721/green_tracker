@@ -15,7 +15,7 @@ interface AuthContextType {
   error: string | null;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (username: string, email: string, password: string, code: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   getAuthHeaders: () => { Authorization: string };
 }
@@ -108,9 +108,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   // 注册函数
-  const register = async (username: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const register = async (username: string, email: string, password: string, code: string): Promise<{ success: boolean; error?: string }> => {
     console.log('[前端Auth] 开始注册流程');
-    console.log('[前端Auth] 注册参数:', { username, email, password: '***' });
+    console.log('[前端Auth] 注册参数:', { username, email, password: '***', code: '***' });
 
     try {
       setAuthenticating(true);
@@ -120,7 +120,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const response = await authService.register({
         username,
         email,
-        password
+        password,
+        code
       });
 
       console.log('[前端Auth] 注册成功，响应数据:', response);

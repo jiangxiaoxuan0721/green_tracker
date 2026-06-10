@@ -20,6 +20,7 @@ if (!apiBaseUrl) {
 // 创建axios实例
 const api: AxiosInstance = axios.create({
   baseURL: apiBaseUrl,
+  timeout: 30000, // 默认30秒超时
   headers: {
     'Content-Type': 'application/json',
   },

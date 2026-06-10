@@ -59,7 +59,7 @@ const Home = () => {
                 animate="visible"
                 variants={scaleIn}
               >
-                <h1>空天地一体化农作物智能平台</h1>
+                <h1>边缘-云农情监测系统</h1>
               </motion.div>
               
               <motion.p 
