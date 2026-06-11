@@ -274,8 +274,95 @@
   padding-bottom: var(--spacing-sm);
 }
 
+/* ── 折线图网格布局 ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+}
+
+.chart-card-span-1 { grid-column: span 1; }
+.chart-card-span-2 { grid-column: span 2; }
+.chart-card-span-3 { grid-column: span 3; }
+
+/* 图表卡片 */
 .chart-card {
   padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.chart-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chart-card-unit {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.chart-container {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 空状态图表卡片 */
+.chart-card-empty .chart-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl) 0;
+  color: var(--text-muted);
+  gap: var(--spacing-sm);
+}
+
+.chart-empty-icon {
+  font-size: 2rem;
+  opacity: 0.5;
+}
+
+.chart-empty-state p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* 自定义 Tooltip */
+.chart-tooltip {
+  background: var(--bg-component, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  font-size: 0.8rem;
+}
+
+.chart-tooltip-time {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.chart-tooltip-value {
+  margin: 2px 0;
+  font-weight: 500;
+  font-size: 0.85rem;
 }
 
 /* 简单条形图 */
@@ -377,66 +464,6 @@
   margin-right: var(--spacing-xs);
 }
 
-/* 最近数据 */
-.recent-data {
-  display: grid;
-  gap: var(--spacing-md);
-}
-
-.data-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-md);
-  background-color: var(--bg-subtle);
-  border-radius: var(--radius-md);
-  border-left: 4px solid var(--primary-color);
-  transition: background-color 0.2s;
-}
-
-.data-item:hover {
-  background-color: var(--border-color);
-}
-
-.data-item-header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-xs);
-}
-
-.data-type-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.data-time {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-}
-
-.data-item-value {
-  display: flex;
-  align-items: baseline;
-  gap: var(--spacing-xs);
-}
-
-.value-text {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.value-unit {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
 /* 加载状态 */
 .loading-state {
   display: flex;
@@ -474,22 +501,31 @@
   font-size: 0.875rem;
 }
 
-/* 空状态 */
-.empty-state {
-  text-align: center;
-  padding: var(--spacing-2xl);
-  color: var(--text-tertiary);
-}
-
-.empty-state p {
-  font-size: 1rem;
-  margin: 0;
-}
-
 /* 响应式设计 */
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .chart-card-span-2,
+  .chart-card-span-3 {
+    grid-column: span 2;
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-data-analyze {
     padding: var(--spacing-md);
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card-span-1,
+  .chart-card-span-2,
+  .chart-card-span-3 {
+    grid-column: span 1;
   }
 
   .controls-header {

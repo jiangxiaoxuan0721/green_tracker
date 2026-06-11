@@ -268,7 +268,7 @@ class DatabaseInitializer:
             # 8. 使用 SQLAlchemy 创建所有表（但不检查索引是否存在）
             from database.db_models.user_models import (
                 Field, Device, CollectionSession,
-                RawData, RawDataTag, CropObject
+                RawData, RawDataTag, CropObject, SystemLog
             )
             from sqlalchemy import inspect
 
@@ -283,7 +283,8 @@ class DatabaseInitializer:
                 (CollectionSession, 'collection_sessions'),
                 (RawData, 'raw_data'),
                 (RawDataTag, 'raw_data_tags'),
-                (CropObject, 'crop_objects')
+                (CropObject, 'crop_objects'),
+                (SystemLog, 'system_logs')
             ]:
                 if table_name not in existing_tables:
                     try:
@@ -348,19 +349,23 @@ class DatabaseInitializer:
                     )
                     try:
                         inspector = inspect(engine)
-                        if 'devices' not in (inspector.get_table_names() or []):
-                            logger.info(f"[{db_name}] No devices table, skipping")
-                            continue
+                        existing_tables = inspector.get_table_names() or []
 
-                        columns = {col['name'] for col in inspector.get_columns('devices') or []}
-                        if 'mqtt_secret' not in columns:
-                            logger.info(f"[{db_name}] Adding mqtt_secret column...")
-                            with engine.connect() as conn:
-                                conn.execute(text("ALTER TABLE devices ADD COLUMN mqtt_secret VARCHAR(64)"))
-                                conn.commit()
-                            logger.info(f"[{db_name}] mqtt_secret column added")
-                        else:
-                            logger.info(f"[{db_name}] mqtt_secret column already exists")
+                        if 'devices' in existing_tables:
+                            columns = {col['name'] for col in inspector.get_columns('devices') or []}
+                            if 'mqtt_secret' not in columns:
+                                logger.info(f"[{db_name}] Adding mqtt_secret column...")
+                                with engine.connect() as conn:
+                                    conn.execute(text("ALTER TABLE devices ADD COLUMN mqtt_secret VARCHAR(64)"))
+                                    conn.commit()
+                                logger.info(f"[{db_name}] mqtt_secret column added")
+
+                        # 迁移：为已有用户数据库创建 system_logs 表
+                        if 'system_logs' not in existing_tables:
+                            logger.info(f"[{db_name}] Creating system_logs table...")
+                            from database.db_models.user_models import SystemLog
+                            SystemLog.__table__.create(bind=engine, checkfirst=True)
+                            logger.info(f"[{db_name}] system_logs table created")
                     except ProgrammingError as pe:
                         logger.warning(f"[{db_name}] Migration skipped (DB may not exist): {pe}")
                     finally:

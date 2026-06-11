@@ -133,8 +133,8 @@ class RawData(UserBase):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="数据ID")
     session_id = Column(String(36), ForeignKey('collection_sessions.id', ondelete='CASCADE'), nullable=False, index=True, comment="所属任务")
-    data_type = Column(Text, nullable=False, index=True, comment="数据类型：image/video/environmental/soil/spectral/multispectral/thermal")
-    data_subtype = Column(Text, nullable=True, index=True, comment="数据子类型：rgb/nir/red_edge/thermal/temperature/humidity/ph/moisture/ndvi/evi")
+    data_type = Column(Text, nullable=False, index=True, comment="数据大类：environmental(环境数据)/soil(土壤数据)/file(文件数据)")
+    data_subtype = Column(Text, nullable=True, index=True, comment="数据子类：rgb/nir/red_edge/thermal/multispectral/video/temperature/humidity/co2/light/pressure/ph/moisture/ec/temperature_soil")
     data_unit = Column(Text, nullable=True, comment="数据单位：°C/%/ppm/lux/cm/ms/mm")
     data_value = Column(Text, nullable=True, comment="数据值（非图像数据使用）")
     data_format = Column(Text, nullable=True, comment="数据格式：jpeg/png/tiff/mp4/csv/json")
@@ -289,3 +289,31 @@ class DataProcessing(UserBase):
 
     def __repr__(self):
         return f"<DataProcessing(id={self.id}, type={self.processing_type}, status={self.processing_status})>"
+
+
+class SystemLog(UserBase):
+    """
+    系统日志表 - 记录用户操作和设备事件日志
+    """
+    __tablename__ = "system_logs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="日志ID")
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True, comment="日志时间")
+    level = Column(String(20), nullable=False, index=True, comment="日志级别：error/warning/info/success")
+    source = Column(Text, nullable=False, index=True, comment="日志来源：系统/设备管理/传感器数据采集/任务管理等")
+    message = Column(Text, nullable=False, comment="日志消息")
+    detail = Column(Text, nullable=True, comment="详细信息（可选）")
+    related_id = Column(String(36), nullable=True, comment="关联对象ID（设备/任务等）")
+    related_type = Column(String(50), nullable=True, comment="关联对象类型")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="创建时间")
+
+    __table_args__ = (
+        Index('idx_system_logs_timestamp', 'timestamp'),
+        Index('idx_system_logs_level', 'level'),
+        Index('idx_system_logs_source', 'source'),
+        Index('idx_system_logs_level_time', 'level', 'timestamp'),
+        {'comment': '系统日志表'}
+    )
+
+    def __repr__(self):
+        return f"<SystemLog(id={self.id}, level={self.level}, source={self.source})>"

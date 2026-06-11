@@ -125,6 +125,7 @@ from api import (
     api_key_router,
     admin_database_router,
     algorithm_router,
+    log_router,
     mqtt_router,
 )
 
@@ -154,6 +155,9 @@ app.include_router(admin_database_router, prefix="/api") # /api/admin/database
 
 # 注册算法路由
 app.include_router(algorithm_router, prefix="/api") # /api/algorithms
+
+# 注册日志路由
+app.include_router(log_router, prefix="/api") # /api/logs
 
 # 注册MQTT管理路由
 app.include_router(mqtt_router, prefix="/api") # /api/mqtt/*

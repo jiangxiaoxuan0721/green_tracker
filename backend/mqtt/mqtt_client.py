@@ -42,6 +42,7 @@ TOPIC_PREFIX = "green-tracker"
 TOPIC_STATUS   = f"{TOPIC_PREFIX}/device/+/status"
 TOPIC_RESPONSE = f"{TOPIC_PREFIX}/device/+/response"
 TOPIC_LWT      = f"{TOPIC_PREFIX}/device/+/lwt"
+TOPIC_ANNOUNCE = f"{TOPIC_PREFIX}/device/+/announce"
 TOPIC_COMMAND  = f"{TOPIC_PREFIX}/device/{{device_id}}/command"
 
 
@@ -95,6 +96,10 @@ class CloudMQTTClient:
             # 订阅遗嘱消息
             client.subscribe(TOPIC_LWT, qos=1)
             logger.info(f"  已订阅: {TOPIC_LWT}")
+
+            # 订阅设备宣告（设备上线时广播自身能力信息）
+            client.subscribe(TOPIC_ANNOUNCE, qos=1)
+            logger.info(f"  已订阅: {TOPIC_ANNOUNCE}")
         else:
             logger.error(f"❌ MQTT 连接失败! rc={rc}")
 

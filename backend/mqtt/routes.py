@@ -9,7 +9,9 @@ MQTT 云端管理 REST API
 - MQTT 凭证管理
 """
 
+import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -22,6 +24,7 @@ from .schemas import (
     CommandRequest, CommandResponse, CommandResult,
     DeviceMqttStatus, DeviceMqttDetail,
     MqttStatsResponse, MqttProvisionRequest, MqttProvisionResponse,
+    SupportedCommand, DeviceCommandsResponse,
 )
 
 # 从 auth 模块导入认证依赖
@@ -158,12 +161,13 @@ async def send_device_command(
     """
     向指定设备下发命令
 
-    支持的命令:
-    - get_info: 获取设备基本信息
-    - ping: 心跳检测
-    - reboot: 模拟重启
-    - set_config: 设置配置 (需要 params: {"key": "...", "value": "..."})
-    - get_metrics: 获取运行指标
+    支持的命令（由设备端动态声明，以下为当前版本清单）:
+    - ping:          心跳检测
+    - get_info:      获取设备基本信息
+    - get_metrics:   获取运行指标 (CPU/内存/温度)
+    - reboot:        重启设备 (参数: delay, 默认5秒)
+    - set_config:    写配置项 (参数: key, value)
+    - list_commands: 获取命令列表（内部使用）
     """
     mqtt_client = get_mqtt_client()
     if not mqtt_client or not mqtt_client.connected:
@@ -201,6 +205,145 @@ async def send_device_command(
         command=cmd.command,
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
+
+
+# ── 命令定义表：云端维护每个命令 ID 的显示信息 ──
+# 当设备返回命令名时，在此表中查找 label/icon/require_confirm
+# 设备客户端只需返回命令 ID 列表，无需关心展示细节
+_COMMAND_DEFS: dict[str, dict] = {
+    "ping":          {"label": "心跳检测",   "description": "立即检测设备是否响应",                 "icon": "zap",       "require_confirm": False},
+    "get_info":      {"label": "获取设备信息", "description": "获取设备基本信息、平台、主机名等",    "icon": "info",      "require_confirm": False},
+    "get_metrics":   {"label": "运行指标",   "description": "获取 CPU/内存/温度等运行指标",        "icon": "sliders",   "require_confirm": False},
+    "reboot":        {"label": "重启设备",   "description": "向设备发送重启指令",                  "icon": "rotate-cw", "require_confirm": True,  "params_schema": {"delay": "number"}},
+    "set_config":    {"label": "写配置项",   "description": "写入设备配置项（key/value）",          "icon": "settings",  "require_confirm": False, "params_schema": {"key": "string", "value": "string"}},
+    "list_commands": {"label": "获取命令列表", "description": "获取设备支持的全部命令",             "icon": "list",      "require_confirm": False, "hidden": True},
+}
+
+# 命令列表缓存（避免每次打开控制台都下发 list_commands）
+_command_cache: dict[str, tuple[list, float]] = {}  # device_id -> ([commands], expiry_timestamp)
+_CACHE_TTL = 120  # 缓存有效期 2 分钟
+
+
+@router.get("/devices/{device_id}/commands", response_model=DeviceCommandsResponse)
+async def get_device_commands(
+    device_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    获取指定设备支持的可执行指令列表
+
+    流程:
+    1. 检查缓存（2分钟有效期）
+    2. 向设备下发 list_commands 命令，等待响应（最多5秒）
+    3. 若成功，从响应中解析命令列表并缓存
+    4. 若失败/超时/设备离线，回退到 _COMMAND_DEFS 中的非 hidden 指令
+    """
+    dm = get_device_manager()
+
+    # ── 1. 缓存命中则直接返回 ──
+    cached = _command_cache.get(device_id)
+    if cached:
+        cmds, expiry = cached
+        if time.time() < expiry:
+            logger.debug(f"命令列表缓存命中: {device_id}")
+            return DeviceCommandsResponse(
+                device_id=device_id,
+                commands=[SupportedCommand(**c) for c in cmds],
+            )
+
+    # ── 2. 检查设备在线 ──
+    if not dm.is_online(device_id):
+        logger.info(f"设备离线，返回默认命令列表: {device_id}")
+        commands = _build_default_commands()
+        return DeviceCommandsResponse(
+            device_id=device_id,
+            commands=[SupportedCommand(**c) for c in commands],
+        )
+
+    # ── 3. 向设备下发 list_commands ──
+    mqtt_client = get_mqtt_client()
+    if not mqtt_client or not mqtt_client.connected:
+        logger.warning("MQTT 未连接，返回默认命令列表")
+        commands = _build_default_commands()
+        return DeviceCommandsResponse(
+            device_id=device_id,
+            commands=[SupportedCommand(**c) for c in commands],
+        )
+
+    command_id = mqtt_client.send_command(device_id, "list_commands")
+    if not command_id:
+        logger.warning(f"list_commands 发送失败: {device_id}")
+        commands = _build_default_commands()
+        return DeviceCommandsResponse(
+            device_id=device_id,
+            commands=[SupportedCommand(**c) for c in commands],
+        )
+
+    dm.add_pending_command(
+        command_id=command_id,
+        device_id=device_id,
+        command="list_commands",
+        payload={
+            "command_id": command_id,
+            "command": "list_commands",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "source": "green-tracker-cloud",
+        },
+    )
+
+    # ── 4. 轮询等待设备响应（最多 5 秒）──
+    for _ in range(50):
+        await asyncio.sleep(0.1)
+        cmd_state = dm.get_command(command_id)
+        if cmd_state and cmd_state.get("acknowledged"):
+            response = cmd_state.get("response") or {}
+            result = response.get("result") or {}
+            raw_commands = result.get("commands", [])
+
+            if raw_commands and isinstance(raw_commands, list):
+                commands = _map_commands(raw_commands)
+                _command_cache[device_id] = (commands, time.time() + _CACHE_TTL)
+                logger.info(f"✅ 从设备获取命令列表成功: {device_id} -> {raw_commands}")
+                return DeviceCommandsResponse(
+                    device_id=device_id,
+                    commands=[SupportedCommand(**c) for c in commands],
+                )
+
+    # ── 5. 超时或设备未返回有效列表，回退默认 ──
+    logger.warning(f"list_commands 超时或无响应: {device_id}，回退默认列表")
+    commands = _build_default_commands()
+    return DeviceCommandsResponse(
+        device_id=device_id,
+        commands=[SupportedCommand(**c) for c in commands],
+    )
+
+
+def _build_default_commands() -> list[dict]:
+    """构建默认命令列表（排除 hidden 指令如 list_commands）"""
+    return [
+        v for v in _COMMAND_DEFS.values()
+        if not v.get("hidden")
+    ]
+
+
+def _map_commands(raw_ids: list[str]) -> list[dict]:
+    """将设备返回的命令 ID 列表映射为完整格式"""
+    result = []
+    for cmd_id in raw_ids:
+        if cmd_id in _COMMAND_DEFS:
+            info = _COMMAND_DEFS[cmd_id]
+            if not info.get("hidden"):
+                result.append({"id": cmd_id, **info})
+        else:
+            # 未知命令，使用默认展示信息
+            result.append({
+                "id": cmd_id,
+                "label": cmd_id,
+                "description": "",
+                "icon": "terminal",
+                "require_confirm": False,
+            })
+    return result
 
 
 @router.get("/commands/{command_id}")

@@ -290,6 +290,27 @@ export const rawDataService = {
     }
   },
 
+  // 获取时序数据（用于折线图）
+  async getTimeseriesData(params: {
+    session_ids?: string;
+    data_subtypes?: string;
+    start_time?: string;
+    end_time?: string;
+    limit?: number;
+  }) {
+    console.log('[前端RawDataService] 发送获取时序数据请求');
+    console.log('[前端RawDataService] 请求参数:', params);
+
+    try {
+      const response = await api.get('/api/raw-data/timeseries', { params });
+      console.log('[前端RawDataService] 获取时序数据成功:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('获取时序数据失败:', error);
+      throw error;
+    }
+  },
+
   // 获取概览统计信息
   async getOverviewStatistics() {
     console.log('[前端RawDataService] 发送获取概览统计请求');

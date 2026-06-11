@@ -136,3 +136,6 @@ dmypy.json
 mqtt/mosquitto/data/
 mqtt/mosquitto/log/
 mqtt/mosquitto/config/passwd
+
+# 屏幕日志
+/screen_dev.log

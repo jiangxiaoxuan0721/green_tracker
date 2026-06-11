@@ -3,8 +3,8 @@ import { useDataList, useModal } from '@/hooks/common'
 import useToast from '@/hooks/useToast'
 import { mqttService } from '@/services/mqttService'
 import { Button, Card, Modal, PageHeader } from '@/components/ui'
-import { ItemCard, StatusBadge } from '@/components/business'
-import { Wifi, WifiOff, Server, RefreshCw, Copy } from 'lucide-react'
+import { StatusBadge } from '@/components/business'
+import { Wifi, WifiOff, Server, RefreshCw, Copy, Monitor } from 'lucide-react'
 import CommandConsole from './components/CommandConsole'
 import './MQTT.css'
 import '../AdditionalStyles.css'
@@ -32,6 +32,10 @@ const MQTT = () => {
     openModal: openDetail, closeModal: closeDetail
   } = useModal()
   const {
+    isOpen: isRemoteOpen, modalData: remoteDevice,
+    openModal: openRemote, closeModal: closeRemote
+  } = useModal()
+  const {
     isOpen: isCredentialOpen, modalData: credentialData,
     openModal: openCredential, closeModal: closeCredential
   } = useModal()
@@ -55,19 +59,7 @@ const MQTT = () => {
   }, [autoRefresh, fetchStats, refresh])
 
   const handleViewDetail = (device) => openDetail(device)
-
-  const handleProvision = async (deviceId) => {
-    setCredentialLoading(true)
-    try {
-      const result = await mqttService.provisionDevice(deviceId)
-      openCredential(result)
-      showSuccess('MQTT 凭证配置成功')
-    } catch (err) {
-      showError(err?.response?.data?.detail || '凭证配置失败')
-    } finally {
-      setCredentialLoading(false)
-    }
-  }
+  const handleRemoteControl = (device) => openRemote(device)
 
   const handleGetCredentials = async (deviceId) => {
     setCredentialLoading(true)
@@ -107,9 +99,9 @@ const MQTT = () => {
   return (
     <div className="dashboard-mqtt">
       <PageHeader
-        icon={Wifi}
-        title="MQTT 设备管理"
-        description="监控物理设备在线状态，管理 MQTT 连接凭证与下发控制指令"
+        icon={Monitor}
+        title="远程控制"
+        description="监控设备在线状态，管理设备连接与远程下发控制指令"
         actions={
           <div className="mqtt-header-actions">
             <label className="mqtt-auto-refresh">
@@ -123,50 +115,33 @@ const MQTT = () => {
         }
       />
 
-      {/* Stats Cards */}
+      {/* Stats Summary */}
       {stats && (
-        <div className="mqtt-stats-grid">
-          <Card className="mqtt-stat-card">
-            <div className="mqtt-stat-icon broker">
-              <Server size={22} />
-            </div>
-            <div className="mqtt-stat-info">
-              <span className={`mqtt-stat-value ${stats.mqtt_connected ? 'text-success' : 'text-error'}`}>
-                {stats.mqtt_connected ? '已连接' : '未连接'}
-              </span>
-              <span className="mqtt-stat-label">Broker 状态</span>
-            </div>
-          </Card>
-
-          <Card className="mqtt-stat-card">
-            <div className="mqtt-stat-icon online">
-              <Wifi size={22} />
-            </div>
-            <div className="mqtt-stat-info">
-              <span className="mqtt-stat-value">{stats.online_devices}</span>
-              <span className="mqtt-stat-label">在线设备</span>
-            </div>
-          </Card>
-
-          <Card className="mqtt-stat-card">
-            <div className="mqtt-stat-icon offline">
-              <WifiOff size={22} />
-            </div>
-            <div className="mqtt-stat-info">
-              <span className="mqtt-stat-value">{stats.offline_devices}</span>
-              <span className="mqtt-stat-label">离线设备</span>
-            </div>
-          </Card>
-
-          <Card className="mqtt-stat-card">
-            <div className="mqtt-stat-icon pending">
-              <RefreshCw size={22} />
-            </div>
-            <div className="mqtt-stat-info">
-              <span className="mqtt-stat-value">{stats.pending_commands}</span>
-              <span className="mqtt-stat-label">待响应命令</span>
-            </div>
-          </Card>
+        <div className="mqtt-stats-bar">
+          <div className="mqtt-stat-item">
+            <Server size={18} />
+            <span className="mqtt-stat-label">Broker</span>
+            <span className={`mqtt-stat-dot ${stats.mqtt_connected ? 'online' : 'offline'}`} />
+            <span className="mqtt-stat-text">{stats.mqtt_connected ? '已连接' : '未连接'}</span>
+          </div>
+          <div className="mqtt-stats-sep" />
+          <div className="mqtt-stat-item">
+            <Wifi size={18} />
+            <span className="mqtt-stat-label">在线</span>
+            <span className="mqtt-stat-num online">{stats.online_devices}</span>
+          </div>
+          <div className="mqtt-stats-sep" />
+          <div className="mqtt-stat-item">
+            <WifiOff size={18} />
+            <span className="mqtt-stat-label">离线</span>
+            <span className="mqtt-stat-num offline">{stats.offline_devices}</span>
+          </div>
+          <div className="mqtt-stats-sep" />
+          <div className="mqtt-stat-item">
+            <RefreshCw size={18} />
+            <span className="mqtt-stat-label">待响应</span>
+            <span className="mqtt-stat-num pending">{stats.pending_commands}</span>
+          </div>
         </div>
       )}
 
@@ -208,49 +183,66 @@ const MQTT = () => {
         </Card>
       )}
 
-      {/* Device List */}
+      {/* Device Control Cards Grid */}
       {!initialLoading && !error && devices.length > 0 && (
-        <div className="devices-grid">
-          {devices.map((device) => (
-            <ItemCard
-              key={device.device_id}
-              item={device}
-              type="mqtt"
-              onView={handleViewDetail}
-              customInfo={(item) => (
-                <>
-                  <div className="item-info-row">
-                    <span>在线状态</span>
-                    <StatusBadge status={item.status === 'online' ? 'online' : 'offline'} />
+        <div className="remote-devices-grid">
+          {devices.map((device) => {
+            const online = device.status === 'online'
+            return (
+              <Card key={device.device_id} hoverable className="remote-device-card">
+                {/* Top: Status & Device ID */}
+                <div className="rdc-header">
+                  <div className={`rdc-status-dot ${online ? 'online' : 'offline'}`} />
+                  <div className="rdc-header-info">
+                    <h3 className="rdc-device-name">{device.name || device.device_id}</h3>
+                    <StatusBadge status={online ? 'online' : 'offline'} />
                   </div>
-                  <div className="item-info-row">
-                    <span>IP 地址</span>
-                    <span>{item.ip_address || '-'}</span>
+                </div>
+
+                {/* Middle: Info rows */}
+                <div className="rdc-body">
+                  <div className="rdc-info-row">
+                    <span className="rdc-info-label">设备 ID</span>
+                    <span className="rdc-info-value mono">{device.device_id}</span>
                   </div>
-                  <div className="item-info-row">
-                    <span>最后心跳</span>
-                    <span>{formatTime(item.last_seen)}</span>
+                  <div className="rdc-info-row">
+                    <span className="rdc-info-label">IP 地址</span>
+                    <span className="rdc-info-value">{device.ip_address || '-'}</span>
                   </div>
-                  <div className="item-info-row">
-                    <span>已注册</span>
-                    <span style={{ color: item.registered ? 'var(--success-color)' : 'var(--text-muted)', fontWeight: 500 }}>
-                      {item.registered ? '已注册' : '未注册'}
-                    </span>
+                  <div className="rdc-info-row">
+                    <span className="rdc-info-label">最后心跳</span>
+                    <span className="rdc-info-value">{formatTime(device.last_seen)}</span>
                   </div>
-                </>
-              )}
-              actions={(item) => (
-                <div className="item-card-actions">
-                  <Button size="small" variant="outline" onClick={() => handleViewDetail(item)}>
+                </div>
+
+                {/* Bottom: Action buttons */}
+                <div className="rdc-actions">
+                  <Button
+                    size="small"
+                    variant={online ? 'primary' : 'outline'}
+                    onClick={() => handleRemoteControl(device)}
+                    disabled={!online}
+                  >
+                    远程控制
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outline"
+                    onClick={() => handleViewDetail(device)}
+                  >
                     详情
                   </Button>
-                  <Button size="small" variant="outline" onClick={() => handleGetCredentials(item.device_id)}>
+                  <Button
+                    size="small"
+                    variant="outline"
+                    onClick={() => handleGetCredentials(device.device_id)}
+                  >
                     凭证
                   </Button>
                 </div>
-              )}
-            />
-          ))}
+              </Card>
+            )
+          })}
         </div>
       )}
 
@@ -296,12 +288,6 @@ const MQTT = () => {
               </div>
             </div>
 
-            {detailDevice.status === 'online' && (
-              <div className="mqtt-command-section">
-                <CommandConsole deviceId={detailDevice.device_id} />
-              </div>
-            )}
-
             {detailDevice.connect_history && detailDevice.connect_history.length > 0 && (
               <div className="mqtt-history">
                 <h4>连接历史</h4>
@@ -316,6 +302,18 @@ const MQTT = () => {
               </div>
             )}
           </div>
+        </Modal>
+      )}
+
+      {/* Remote Control Modal */}
+      {isRemoteOpen && remoteDevice && (
+        <Modal
+          isOpen={isRemoteOpen}
+          onClose={closeRemote}
+          title={`远程控制 · ${remoteDevice.name || remoteDevice.device_id}`}
+          size="large"
+        >
+          <CommandConsole deviceId={remoteDevice.device_id} />
         </Modal>
       )}
 

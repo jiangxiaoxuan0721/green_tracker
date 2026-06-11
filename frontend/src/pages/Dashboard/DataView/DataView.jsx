@@ -28,34 +28,40 @@ const DataView = () => {
   const [exporting, setExporting] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
 
-  // 翻译映射：将英文value翻译为中文label
+  // 翻译映射：仅三大数据大类，旧类型保留兼容
   const dataTypeTranslations = {
-    'image': '图像',
-    'video': '视频',
     'environmental': '环境数据',
     'soil': '土壤数据',
+    'file': '文件数据',
+    // 旧类型兼容（数据库中可能仍有历史数据）
+    'image': '图像',
+    'video': '视频',
     'spectral': '光谱数据',
     'multispectral': '多光谱数据',
     'thermal': '热成像数据'
   }
 
   const dataSubtypeTranslations = {
+    // 文件数据子类
     'rgb': 'RGB图像',
     'nir': '近红外图像',
     'red_edge': '红边图像',
     'multispectral': '多光谱图像',
     'thermal': '热成像',
     'video': '视频',
+    // 环境数据子类
     'temperature': '温度',
     'humidity': '湿度',
     'pressure': '气压',
     'wind_speed': '风速',
     'co2': 'CO2浓度',
     'light': '光照强度',
+    // 土壤数据子类
     'ph': 'pH值',
     'moisture': '土壤湿度',
     'ec': '电导率',
     'temperature_soil': '土壤温度',
+    // 旧指标兼容
     'nutrients': '土壤养分',
     'ndvi': 'NDVI',
     'evi': 'EVI',
@@ -77,24 +83,16 @@ const DataView = () => {
   }
 
   const getDefaultDataTypes = () => [
-    { value: 'image', label: translateDataType('image') },
-    { value: 'video', label: translateDataType('video') },
     { value: 'environmental', label: translateDataType('environmental') },
     { value: 'soil', label: translateDataType('soil') },
-    { value: 'spectral', label: translateDataType('spectral') },
-    { value: 'multispectral', label: translateDataType('multispectral') },
-    { value: 'thermal', label: translateDataType('thermal') }
+    { value: 'file', label: translateDataType('file') }
   ]
 
   const getDefaultDataSubtypes = (dataType) => {
     const subtypes = {
-      image: ['rgb', 'nir', 'red_edge'],
-      video: ['rgb', 'thermal'],
-      environmental: ['temperature', 'humidity', 'pressure', 'wind_speed'],
-      soil: ['ph', 'moisture', 'temperature', 'nutrients'],
-      spectral: ['ndvi', 'evi', 'ndre'],
-      multispectral: ['blue', 'green', 'red', 'nir', 'red_edge'],
-      thermal: ['temperature', 'thermal_image']
+      file: ['rgb', 'nir', 'red_edge', 'multispectral', 'thermal', 'video'],
+      environmental: ['temperature', 'humidity', 'pressure', 'co2', 'light'],
+      soil: ['ph', 'moisture', 'ec', 'temperature_soil']
     }
     
     const subtypeValues = dataType ? (subtypes[dataType] || []) : []

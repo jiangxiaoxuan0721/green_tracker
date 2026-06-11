@@ -68,6 +68,20 @@ export interface MqttProvisionResponse {
   mqtt_broker_port: number;
 }
 
+export interface SupportedCommand {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
+  require_confirm: boolean;
+  params_schema?: Record<string, any> | null;
+}
+
+export interface DeviceCommandsResponse {
+  device_id: string;
+  commands: SupportedCommand[];
+}
+
 export interface MqttHealth {
   status: string;
   service: string;
@@ -112,6 +126,12 @@ export const mqttService = {
       `/api/mqtt/devices/${deviceId}/commands`,
       { command, params: params || {} }
     );
+    return response.data;
+  },
+
+  // 获取设备支持的指令列表
+  async getDeviceCommands(deviceId: string): Promise<DeviceCommandsResponse> {
+    const response = await api.get<DeviceCommandsResponse>(`/api/mqtt/devices/${deviceId}/commands`);
     return response.data;
   },
 

@@ -3,9 +3,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database.main_db import get_meta_db
+from database.user_db_manager import get_user_db
 from database.db_services import create_user, verify_user, get_user_by_email, save_verification_code, verify_and_clear_code, reset_password
+from database.db_services.log_service import create_log
 from database.db_models.meta_model import User
-from api.schemas.auth import SendCodeRequest, UserRegister, UserLogin, UserResponse, ForgotPasswordRequest, ResetPasswordRequest
+from api.schemas.auth import SendCodeRequest, UserRegister, UserLogin, EmailLoginRequest, UserResponse, ForgotPasswordRequest, ResetPasswordRequest
 from utils.email_service import generate_verification_code, send_verification_email, send_password_reset_email
 from passlib.context import CryptContext
 from jose import jwt, JWTError
@@ -58,17 +60,9 @@ def create_access_token(data: dict[str, Optional[Any]], expires_delta: Optional[
 @router.post("/send-code")
 async def send_verification_code(request: SendCodeRequest, db: Session = Depends(get_meta_db)):
     """
-    发送邮箱验证码
+    发送邮箱验证码（用于注册或登录）
     """
     try:
-        # 检查邮箱是否已被已验证用户使用
-        existing = get_user_by_email(db, request.email)
-        if existing and existing.email_verified:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="该邮箱已被注册"
-            )
-
         # 生成6位验证码
         code = generate_verification_code(6)
 
@@ -77,7 +71,8 @@ async def send_verification_code(request: SendCodeRequest, db: Session = Depends
 
         # 发送邮件
         try:
-            send_verification_email(request.email, code)
+            purpose = request.purpose if hasattr(request, 'purpose') and request.purpose else "register"
+            send_verification_email(request.email, code, purpose)
         except Exception as e:
             logger.error(f"发送邮件失败: {e}")
             raise HTTPException(
@@ -138,6 +133,14 @@ async def register(user: UserRegister, db: Session = Depends(get_meta_db)):
             data={"sub": existing_user.userid}, expires_delta=access_token_expires
         )
 
+        # 记录注册日志
+        try:
+            user_db = get_user_db(str(existing_user.userid))
+            create_log(user_db, "success", "auth.register", f"用户 {user.username} 注册成功")
+            user_db.close()
+        except Exception:
+            pass
+
         return UserResponse(user_id=str(existing_user.userid), token=access_token)
     except Exception as e:
         raise HTTPException(
@@ -166,6 +169,52 @@ async def login(user: UserLogin, db: Session = Depends(get_meta_db)):
     access_token = create_access_token(
         data={"sub": db_user.userid}, expires_delta=access_token_expires
     )
+
+    # 记录登录日志
+    try:
+        user_db = get_user_db(str(db_user.userid))
+        create_log(user_db, "info", "auth.login", f"用户 {db_user.username} 登录成功")
+        user_db.close()
+    except Exception:
+        pass
+
+    return UserResponse(user_id=str(db_user.userid), token=access_token)
+
+
+@router.post("/login-by-code", response_model=UserResponse)
+async def login_by_code(request: EmailLoginRequest, db: Session = Depends(get_meta_db)):
+    """
+    邮箱验证码登录
+    """
+    # 1. 验证验证码
+    if not verify_and_clear_code(db, request.email, request.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="验证码错误或已过期"
+        )
+
+    # 2. 查找已验证邮箱的用户
+    db_user = get_user_by_email(db, request.email)
+    if not db_user or not db_user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="该邮箱未注册或未验证",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # 3. 创建访问令牌
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_user.userid}, expires_delta=access_token_expires
+    )
+
+    # 记录登录日志
+    try:
+        user_db = get_user_db(str(db_user.userid))
+        create_log(user_db, "info", "auth.login", f"用户 {db_user.username} 通过验证码登录成功")
+        user_db.close()
+    except Exception:
+        pass
 
     return UserResponse(user_id=str(db_user.userid), token=access_token)
 
@@ -239,6 +288,14 @@ async def forgot_password(request: ForgotPasswordRequest, background_tasks: Back
         # 使用后台任务发送邮件，避免 SMTP 超时阻塞响应
         background_tasks.add_task(_send_reset_email_background, request.email, code)
 
+        # 记录密码重置请求日志
+        try:
+            user_db = get_user_db(str(user.userid))
+            create_log(user_db, "info", "auth.password_reset", f"用户 {user.username} 请求密码重置")
+            user_db.close()
+        except Exception:
+            pass
+
         return {"message": "验证码已发送", "email": request.email}
 
     except Exception as e:
@@ -277,6 +334,14 @@ async def reset_user_password(request: ResetPasswordRequest, db: Session = Depen
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="验证码错误或已过期"
             )
+
+        # 记录密码重置成功日志
+        try:
+            user_db = get_user_db(str(user.userid))
+            create_log(user_db, "success", "auth.password_reset", f"用户 {user.username} 密码重置成功")
+            user_db.close()
+        except Exception:
+            pass
 
         return {"message": "密码重置成功，请使用新密码登录"}
 

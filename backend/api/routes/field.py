@@ -8,6 +8,7 @@ from database.db_services.field_service import (
     get_field_with_wkt, get_all_fields_with_wkt,
     search_fields_with_wkt
 )
+from database.db_services.log_service import create_log
 from api.schemas.field import (
     FieldCreate, FieldUpdate, FieldResponse, FieldListParams
 )
@@ -57,6 +58,15 @@ async def create_new_field(
             )
 
         print(f"[API] 地块创建成功: {field_response['id']}")
+
+        # 记录操作日志
+        try:
+            create_log(db, "info", "field.create",
+                       f"用户 {current_user.username} 创建地块: {field.name}",
+                       related_id=str(field_response['id']), related_type="field")
+        except Exception:
+            pass
+
         return field_response
 
     except Exception as e:
@@ -200,6 +210,15 @@ async def update_field_by_id(
 
         if field_response:
             print(f"[API] 地块更新成功: {field_response['name']}")
+
+        # 记录操作日志
+        try:
+            create_log(db, "info", "field.update",
+                       f"用户 {current_user.username} 更新地块: {field_id}",
+                       related_id=field_id, related_type="field")
+        except Exception:
+            pass
+
         return field_response
 
     except HTTPException:
@@ -246,6 +265,15 @@ async def delete_field_by_id(
             )
 
         print(f"[API] 地块删除成功: {field_id}")
+
+        # 记录操作日志
+        try:
+            create_log(db, "warning", "field.delete",
+                       f"用户 {current_user.username} 删除地块: {field_id}",
+                       related_id=field_id, related_type="field")
+        except Exception:
+            pass
+
         return
 
     except HTTPException:

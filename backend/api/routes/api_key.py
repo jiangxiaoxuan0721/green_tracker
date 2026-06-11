@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from ..routes.auth import get_current_user
 from database.db_models.meta_model import User
 from database.main_db import get_meta_db
+from database.user_db_manager import get_user_db
+from database.db_services.log_service import create_log
 from database.db_services.api_key_service import (
     create_api_key,
     get_api_keys_by_user,
@@ -61,6 +63,16 @@ async def create_new_api_key(
     if not key_id:
         raise HTTPException(status_code=500, detail="无法获取API密钥ID")
     key_info = get_api_key_by_id(db, key_id)
+
+    # 记录操作日志
+    try:
+        user_db = get_user_db(str(current_user.userid))
+        create_log(user_db, "info", "api_key.create",
+                   f"用户 {current_user.username} 创建API密钥: {request.key_name}",
+                   related_id=str(key_id), related_type="api_key")
+        user_db.close()
+    except Exception:
+        pass
 
     return {
         "code": 200, 
@@ -183,6 +195,16 @@ async def delete_api_key_by_id(
 
     if not success:
         raise HTTPException(status_code=500, detail="删除API密钥失败")
+
+    # 记录操作日志
+    try:
+        user_db = get_user_db(str(current_user.userid))
+        create_log(user_db, "warning", "api_key.delete",
+                   f"用户 {current_user.username} 删除API密钥: {key_id}",
+                   related_id=key_id, related_type="api_key")
+        user_db.close()
+    except Exception:
+        pass
 
     return {"code": 200, "message": "success", "data": None}
 

@@ -65,6 +65,12 @@ def create_raw_data(
     """
     print(f"[后端RawDataService] 创建原始数据: 类型={data_type}")
 
+    # 校验数据大类，仅允许 environmental / soil / file
+    VALID_DATA_TYPES = {"environmental", "soil", "file"}
+    if data_type not in VALID_DATA_TYPES:
+        print(f"[后端RawDataService] 无效的数据大类: {data_type}")
+        return None
+
     try:
         # 验证会话状态 - 只有进行中的会话才能上传数据
         session_record = db.query(CollectionSession).filter(
@@ -658,10 +664,6 @@ def get_overview_statistics(db: Session) -> Dict[str, Any]:
             )
         ).scalar() or 0
         
-        # 调试：打印时间范围和查询结果
-        print(f"[概览统计] 当前时间: {datetime.now()}")
-        print(f"[概览统计] 今日任务数（进行中的任务）: {today_sessions}")
-        
         # 调试：查询所有会话的详细信息
         all_sessions = db.query(
             CollectionSession.id, 
@@ -669,11 +671,6 @@ def get_overview_statistics(db: Session) -> Dict[str, Any]:
             CollectionSession.end_time,
             CollectionSession.mission_name
         ).all()
-        print(f"[概览统计] 数据库中所有会话:")
-        for session in all_sessions:
-            print(f"  - ID: {session.id}, 开始: {session.start_time}, 结束: {session.end_time}, 名称: {session.mission_name}")
-
-        # 统计总数据记录数
         total_data_records = db.query(func.count(RawData.id)).scalar() or 0
 
         # 获取最近的活动记录（采集任务）
@@ -772,3 +769,90 @@ def get_overview_statistics(db: Session) -> Dict[str, Any]:
                 "disk_usage": "未知"
             }
         }
+
+
+def get_timeseries_data(
+    db: Session,
+    session_ids: Optional[List[str]] = None,
+    data_subtypes: Optional[List[str]] = None,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    limit: int = 200
+) -> Dict[str, Any]:
+    """
+    获取时序数据，用于折线图展示
+
+    按 data_subtype 分组返回时间-数值对，专为前端图表优化。
+
+    Args:
+        db: 数据库会话
+        session_ids: 会话ID列表
+        data_subtypes: 数据子类型列表，如 ["temperature", "humidity"]
+        start_time: 开始时间
+        end_time: 结束时间
+        limit: 每个子类型最多返回的数据点数
+
+    Returns:
+        {
+            "series": {
+                "temperature": [{"time": "2024-01-01T10:00:00", "value": 25.3}, ...],
+                "humidity": [...]
+            }
+        }
+    """
+    try:
+        query = db.query(
+            RawData.data_subtype,
+            RawData.data_value,
+            RawData.capture_time
+        )
+
+        # 只查询数值类型（environmental 和 soil），排除文件类型
+        query = query.filter(RawData.data_type.in_(['environmental', 'soil']))
+
+        if session_ids:
+            query = query.filter(RawData.session_id.in_(session_ids))
+
+        if data_subtypes:
+            query = query.filter(RawData.data_subtype.in_(data_subtypes))
+
+        if start_time:
+            query = query.filter(RawData.capture_time >= start_time)
+
+        if end_time:
+            query = query.filter(RawData.capture_time <= end_time)
+
+        # 按时间升序排列，便于绘制折线图
+        query = query.order_by(RawData.capture_time.asc())
+
+        results = query.all()
+
+        # 按 data_subtype 分组
+        series: Dict[str, list] = {}
+        for row in results:
+            subtype = row.data_subtype or 'unknown'
+            if subtype not in series:
+                series[subtype] = []
+
+            # 限制每个子类型的数据点数
+            if limit and len(series[subtype]) >= limit:
+                continue
+
+            try:
+                value = float(row.data_value) if row.data_value else None
+            except (ValueError, TypeError):
+                value = None
+
+            if value is not None:
+                series[subtype].append({
+                    "time": row.capture_time.isoformat() if row.capture_time else None,
+                    "value": value
+                })
+
+        return {"series": series}
+
+    except Exception as e:
+        print(f"[后端RawDataService] 获取时序数据失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"series": {}}

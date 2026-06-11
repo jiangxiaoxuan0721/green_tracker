@@ -2,7 +2,9 @@ from database.db_models.meta_model import Algorithm
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from database.main_db import get_meta_db
+from database.user_db_manager import get_user_db
 from database.db_services import algorithm_service
+from database.db_services.log_service import create_log
 from database.db_models.meta_model import User
 from api.schemas.algorithm import (
     AlgorithmCreate, AlgorithmUpdate, AlgorithmResponse,
@@ -240,11 +242,21 @@ async def upload_algorithm(
             updated_at=algorithm.updated_at
         )
         
+        # 记录操作日志
+        try:
+            user_db = get_user_db(str(current_user.userid))
+            create_log(user_db, "info", "algorithm.upload",
+                       f"用户 {current_user.username} 上传算法: {name} v{version}",
+                       related_id=str(algorithm.id), related_type="algorithm")
+            user_db.close()
+        except Exception:
+            pass
+
         return AlgorithmUploadResponse(
             algorithm=algo_response,
             message="算法上传成功，正在构建镜像..."
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -351,7 +363,17 @@ async def delete_algorithm(
         
         # 删除数据库记录
         algorithm_service.delete_algorithm(db, algorithm_id)
-        
+
+        # 记录操作日志
+        try:
+            user_db = get_user_db(str(current_user.userid))
+            create_log(user_db, "warning", "algorithm.delete",
+                       f"用户 {current_user.username} 删除算法: {algorithm.name}",
+                       related_id=algorithm_id, related_type="algorithm")
+            user_db.close()
+        except Exception:
+            pass
+
         return {"message": "删除成功"}
     except HTTPException:
         raise
@@ -788,6 +810,16 @@ async def trigger_build(
             build_log=f'构建并部署成功，容器端口: {actual_port}'
         )
         
+        # 记录操作日志
+        try:
+            user_db = get_user_db(str(current_user.userid))
+            create_log(user_db, "success", "algorithm.build",
+                       f"用户 {current_user.username} 构建并部署算法: {algorithm.name}, 端口: {actual_port}",
+                       related_id=algorithm_id, related_type="algorithm")
+            user_db.close()
+        except Exception:
+            pass
+
         return {
             "message": "算法构建并部署成功",
             "algorithm_id": algorithm_id,

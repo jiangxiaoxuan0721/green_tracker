@@ -33,8 +33,10 @@ from database.db_services.raw_data_service import (
     add_raw_data_tag,
     get_session_data_types,
     get_raw_data_statistics,
-    get_overview_statistics
+    get_overview_statistics,
+    get_timeseries_data
 )
+from database.db_services.log_service import create_log
 from ..schemas.raw_data import (
     RawDataRequest,
     RawDataTagRequest,
@@ -63,11 +65,13 @@ async def create_new_raw_data(
     """
     添加原始数据
 
-    支持多种数据类型：
-    - 图像数据：data_type=image，data_value为MinIO存储路径
+    支持三种数据大类：
     - 环境数据：data_type=environmental，data_value为测量值
+      data_subtype: temperature/humidity/co2/light/pressure
     - 土壤数据：data_type=soil，data_value为测量值
-    - 光谱数据：data_type=multi_spectral，data_value为MinIO存储路径或数值
+      data_subtype: moisture/ph/ec/temperature_soil
+    - 文件数据：data_type=file，data_value为MinIO存储路径
+      data_subtype: rgb/nir/red_edge/multispectral/thermal/video
     """
     db = None
     try:
@@ -101,6 +105,14 @@ async def create_new_raw_data(
 
         if not data_id:
             raise HTTPException(status_code=500, detail="添加原始数据失败")
+
+        # 记录操作日志
+        try:
+            create_log(db, "info", "data.create",
+                       f"用户 {current_user.username} 添加原始数据: {request.data_type}/{request.data_subtype}",
+                       related_id=data_id, related_type="raw_data")
+        except Exception:
+            pass
 
         return {"code": 200, "message": "success", "data": {"id": data_id}}
         
@@ -192,6 +204,61 @@ async def get_raw_data_statistics_endpoint(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取数据统计失败: {str(e)}")
+    finally:
+        db.close()
+
+
+@router.get("/timeseries", summary="获取时序数据（折线图）")
+async def get_timeseries_data_endpoint(
+    session_ids: Optional[str] = Query(None, description="会话ID列表，用逗号分隔"),
+    data_subtypes: Optional[str] = Query(None, description="数据子类型列表，用逗号分隔，如 temperature,humidity"),
+    start_time: Optional[str] = Query(None, description="开始时间（ISO格式）"),
+    end_time: Optional[str] = Query(None, description="结束时间（ISO格式）"),
+    limit: int = Query(200, ge=10, le=1000, description="每个子类型最多返回的数据点数"),
+    user_id: str = Query("3d5e8a9f-1fc1-4374-8afe-1277b4e0b175", description="用户ID")
+):
+    """
+    获取时序数据，用于前端折线图展示
+
+    按 data_subtype 分组返回时间-数值对，支持按会话、子类型、时间范围过滤。
+    专为温度、湿度、CO2、光照等数值型数据的折线图优化。
+    """
+    db = get_user_db(user_id)
+    try:
+        session_id_list = None
+        if session_ids:
+            session_id_list = [s.strip() for s in session_ids.split(',') if s.strip()]
+
+        subtype_list = None
+        if data_subtypes:
+            subtype_list = [s.strip() for s in data_subtypes.split(',') if s.strip()]
+
+        parsed_start_time = None
+        parsed_end_time = None
+        if start_time:
+            try:
+                parsed_start_time = datetime.fromisoformat(start_time)
+            except ValueError:
+                pass
+        if end_time:
+            try:
+                parsed_end_time = datetime.fromisoformat(end_time)
+            except ValueError:
+                pass
+
+        result = get_timeseries_data(
+            db=db,
+            session_ids=session_id_list,
+            data_subtypes=subtype_list,
+            start_time=parsed_start_time,
+            end_time=parsed_end_time,
+            limit=limit
+        )
+
+        return {"code": 200, "message": "success", "data": result}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取时序数据失败: {str(e)}")
     finally:
         db.close()
 
@@ -343,6 +410,14 @@ async def export_raw_data(
         raw_data_list = query.all()
 
         logger.info(f"[导出数据] 共获取 {len(raw_data_list)} 条数据，格式: {format}")
+
+        # 记录操作日志
+        try:
+            create_log(db, "info", "data.export",
+                       f"用户 {user_id} 导出数据: {format} 格式, {len(raw_data_list)} 条",
+                       detail=f"过滤条件: session_id={session_id}, data_type={data_type}, data_subtype={data_subtype}")
+        except Exception:
+            pass
 
         if format == 'csv':
             # 导出CSV格式
@@ -1126,6 +1201,14 @@ async def upload_numeric_data(
                 detail="数据上传失败：会话不存在或状态不允许上传数据"
             )
 
+        # 记录操作日志
+        try:
+            create_log(db, "info", "data.upload",
+                       f"用户 {current_user.username} 上传数据: {request.data_type.value}/{request.data_subtype.value}",
+                       related_id=data_id, related_type="raw_data")
+        except Exception:
+            pass
+
         return {
             "code": 200,
             "message": "success",
@@ -1317,6 +1400,14 @@ async def upload_file_data(
                 status_code=400,
                 detail="文件上传失败：会话不存在或状态不允许上传数据"
             )
+
+        # 记录操作日志
+        try:
+            create_log(db, "info", "data.upload_file",
+                       f"用户 {current_user.username} 上传文件: {file.filename} ({data_subtype})",
+                       related_id=data_id, related_type="raw_data")
+        except Exception:
+            pass
 
         return {
             "code": 200,

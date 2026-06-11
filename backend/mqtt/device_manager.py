@@ -164,6 +164,17 @@ class DeviceStateManager:
                     metadata=payload.get("metadata"),
                 )
 
+            elif msg_type == "announce":
+                # 设备宣告上线，携带能力信息
+                self.update_status(
+                    device_id=device_id,
+                    status="online",
+                    client_id=payload.get("client_id"),
+                    ip=payload.get("ip"),
+                    metadata=payload.get("metadata") or payload,
+                )
+                logger.info(f"📢 设备宣告: {device_id}")
+
             elif msg_type == "response":
                 cmd_id = payload.get("command_id")
                 if cmd_id:

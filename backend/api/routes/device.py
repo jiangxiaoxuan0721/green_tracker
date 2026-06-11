@@ -6,6 +6,7 @@ from database.db_services.device_service import (
     search_devices, update_device, delete_device,
     get_device_online_status,
 )
+from database.db_services.log_service import create_log
 from api.schemas.device import (
     DeviceCreate, DeviceUpdate, DeviceResponse,
 )
@@ -59,6 +60,14 @@ async def create_new_device(
         )
 
         print(f"[API] 设备创建成功: {db_device.id}")
+
+        # 记录操作日志
+        try:
+            create_log(db, "success", "device.create",
+                       f"用户 {current_user.username} 创建设备: {device.name}",
+                       related_id=str(db_device.id), related_type="device")
+        except Exception:
+            pass
 
         # 转换为响应格式
         return _enrich_device_response(db_device)
@@ -208,6 +217,15 @@ async def update_device_by_id(
             )
 
         print(f"[API] 设备更新成功: {db_device.model}")
+
+        # 记录操作日志
+        try:
+            create_log(db, "info", "device.update",
+                       f"用户 {current_user.username} 更新设备: {device_id}",
+                       related_id=device_id, related_type="device")
+        except Exception:
+            pass
+
         return _enrich_device_response(db_device)
 
     except HTTPException:
@@ -263,6 +281,15 @@ async def delete_device_by_id(
             )
 
         print(f"[API] 设备删除成功: {device_id}")
+
+        # 记录操作日志
+        try:
+            create_log(db, "warning", "device.delete",
+                       f"用户 {current_user.username} 删除设备: {device_id} ({device.name})",
+                       related_id=device_id, related_type="device")
+        except Exception:
+            pass
+
         return
 
     except HTTPException:

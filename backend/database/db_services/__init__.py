@@ -71,6 +71,14 @@ from .algorithm_service import (
     get_categories
 )
 
+from .log_service import (
+    create_log,
+    get_logs,
+    get_log_sources,
+    delete_log,
+    clear_logs,
+)
+
 __all__ = [
     "create_user",
     "verify_user",
@@ -119,5 +127,10 @@ __all__ = [
     "increment_calls",
     "add_review",
     "get_algorithm_reviews",
-    "get_categories"
+    "get_categories",
+    "create_log",
+    "get_logs",
+    "get_log_sources",
+    "delete_log",
+    "clear_logs",
 ]

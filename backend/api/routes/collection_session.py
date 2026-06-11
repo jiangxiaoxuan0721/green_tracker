@@ -7,6 +7,7 @@ from api.routes.auth import get_current_user
 from database.db_models.meta_model import User
 from database.main_db import get_meta_db
 from sqlalchemy.orm import Session
+from database.db_services.log_service import create_log
 from database.db_services.collection_session_service import (
     create_collection_session,
     get_collection_session_with_details,
@@ -75,6 +76,14 @@ async def create_session(
 
         # 获取创建后的带有详细信息的采集任务
         session_with_details = get_collection_session_with_details(db, str(new_session.id))
+
+        # 记录操作日志
+        try:
+            create_log(db, "info", "collection.create",
+                       f"用户 {current_user.username} 创建采集任务: {session_data.mission_name or session_data.mission_type}",
+                       related_id=str(new_session.id), related_type="collection_session")
+        except Exception:
+            pass
 
         return CollectionSessionWithFieldResponse(**session_with_details)
     except ValueError as e:
@@ -261,6 +270,14 @@ async def update_session(
         # 获取更新后的带有详细信息的采集任务
         session_with_details = get_collection_session_with_details(db, session_id)
 
+        # 记录操作日志
+        try:
+            create_log(db, "info", "collection.update",
+                       f"用户 {current_user.username} 更新采集任务: {session_id}",
+                       related_id=session_id, related_type="collection_session")
+        except Exception:
+            pass
+
         return CollectionSessionWithFieldResponse(**session_with_details)
     finally:
         db.close()
@@ -288,6 +305,14 @@ async def delete_session(
 
         if not success:
             raise HTTPException(status_code=404, detail="采集任务不存在")
+
+        # 记录操作日志
+        try:
+            create_log(db, "warning", "collection.delete",
+                       f"用户 {current_user.username} 删除采集任务: {session_id}",
+                       related_id=session_id, related_type="collection_session")
+        except Exception:
+            pass
 
         return {"message": "采集任务删除成功"}
     finally:

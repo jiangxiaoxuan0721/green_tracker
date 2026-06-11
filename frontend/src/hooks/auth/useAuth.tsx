@@ -15,6 +15,7 @@ interface AuthContextType {
   error: string | null;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginByCode: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
   register: (username: string, email: string, password: string, code: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   getAuthHeaders: () => { Authorization: string };
@@ -107,6 +108,42 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // 邮箱验证码登录函数
+  const loginByCode = async (email: string, code: string): Promise<{ success: boolean; error?: string }> => {
+    console.log('[前端Auth] 开始邮箱验证码登录流程');
+    console.log('[前端Auth] 登录参数:', { email, code: '***' });
+
+    try {
+      setAuthenticating(true);
+      setError(null);
+      console.log('[前端Auth] 调用authService.loginByCode');
+      const response = await authService.loginByCode({ email, code });
+
+      // 保存token和用户信息
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user_id', response.user_id);
+      localStorage.setItem('isLoggedIn', 'true');
+
+      setUser({
+        id: response.user_id,
+        token: response.token
+      });
+
+      console.log('[前端Auth] 已更新用户状态');
+      return { success: true };
+    } catch (error: any) {
+      console.error('[前端Auth] 验证码登录失败:', error);
+      const errorMessage = error.response?.data?.detail || '登录失败';
+      setError(errorMessage);
+      return {
+        success: false,
+        error: errorMessage
+      };
+    } finally {
+      setAuthenticating(false);
+    }
+  };
+
   // 注册函数
   const register = async (username: string, email: string, password: string, code: string): Promise<{ success: boolean; error?: string }> => {
     console.log('[前端Auth] 开始注册流程');
@@ -179,6 +216,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         error,
         isAuthenticated: !!user,
         login,
+        loginByCode,
         register,
         logout,
         getAuthHeaders

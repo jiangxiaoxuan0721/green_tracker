@@ -71,6 +71,22 @@ class MqttProvisionRequest(BaseModel):
     regenerate: bool = Field(False, description="是否强制重新生成密钥")
 
 
+class SupportedCommand(BaseModel):
+    """设备支持的单条指令"""
+    id: str = Field(..., description="指令标识，如 get_info / ping / reboot")
+    label: str = Field(..., description="显示名称")
+    description: str = Field("", description="指令说明")
+    icon: str = Field("terminal", description="前端图标提示，如 terminal / zap / sliders / rotate-cw / info")
+    require_confirm: bool = Field(False, description="是否需要二次确认")
+    params_schema: Optional[Dict[str, Any]] = Field(None, description="参数 schema（如有）")
+
+
+class DeviceCommandsResponse(BaseModel):
+    """设备支持的指令列表"""
+    device_id: str
+    commands: list[SupportedCommand]
+
+
 class MqttProvisionResponse(BaseModel):
     """设备 MQTT 凭证配置响应"""
     device_id: str

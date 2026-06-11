@@ -13,6 +13,11 @@ export interface UserLoginData {
   password: string;
 }
 
+export interface EmailLoginData {
+  email: string;
+  code: string;
+}
+
 export interface AuthResponse {
   user_id: string;
   token: string;
@@ -21,9 +26,9 @@ export interface AuthResponse {
 // 认证相关的API服务
 export const authService = {
   // 发送邮箱验证码
-  async sendVerificationCode(email: string): Promise<{ message: string; email: string }> {
+  async sendVerificationCode(email: string, purpose: string = 'register'): Promise<{ message: string; email: string }> {
     console.log('[前端AuthService] 发送验证码请求');
-    const response = await api.post<{ message: string; email: string }>('/api/auth/send-code', { email });
+    const response = await api.post<{ message: string; email: string }>('/api/auth/send-code', { email, purpose });
     console.log('[前端AuthService] 验证码发送响应:', response.data);
     return response.data;
   },
@@ -45,6 +50,17 @@ export const authService = {
     console.log('[前端AuthService] 请求数据:', { ...credentials, password: '***' });
     
     const response = await api.post<AuthResponse>('/api/auth/login', credentials);
+    
+    console.log('[前端AuthService] 收到登录响应:', response.data);
+    return response.data;
+  },
+
+  // 邮箱验证码登录
+  async loginByCode(data: EmailLoginData): Promise<AuthResponse> {
+    console.log('[前端AuthService] 发送邮箱验证码登录请求');
+    console.log('[前端AuthService] 请求数据:', { ...data, code: '***' });
+    
+    const response = await api.post<AuthResponse>('/api/auth/login-by-code', data);
     
     console.log('[前端AuthService] 收到登录响应:', response.data);
     return response.data;

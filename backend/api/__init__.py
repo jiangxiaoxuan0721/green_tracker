@@ -13,7 +13,8 @@ from .routes import (
     raw_data_router,
     api_key_router,
     admin_database_router,
-    algorithm_router
+    algorithm_router,
+    log_router,
 )
 
 # MQTT 模块路由

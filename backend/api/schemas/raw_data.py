@@ -1,14 +1,17 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+
+# 合法的数据大类
+VALID_DATA_TYPES = {"environmental", "soil", "file"}
 
 
 class RawDataRequest(BaseModel):
     """原始数据请求模型"""
     session_id: str = Field(..., description="采集会话ID")
-    data_type: str = Field(..., description="数据类型")
+    data_type: str = Field(..., description="数据大类：environmental(环境数据)/soil(土壤数据)/file(文件数据)")
     data_value: str = Field(..., description="数据值")
-    data_subtype: Optional[str] = Field(None, description="数据子类型")
+    data_subtype: Optional[str] = Field(None, description="数据子类")
     data_unit: Optional[str] = Field(None, description="数据单位")
     data_format: Optional[str] = Field(None, description="数据格式")
     bucket_name: Optional[str] = Field(None, description="MinIO bucket名称")
@@ -26,12 +29,20 @@ class RawDataRequest(BaseModel):
     validation_notes: Optional[str] = Field(None, description="验证备注")
     capture_time: Optional[datetime] = Field(None, description="采集时间")
 
+    @field_validator("data_type")
+    @classmethod
+    def validate_data_type(cls, v: str) -> str:
+        if v not in VALID_DATA_TYPES:
+            raise ValueError(f"无效的数据类型: {v}，仅允许 {VALID_DATA_TYPES}")
+        return v
+
     model_config = {
         "from_attributes": True,
         "json_schema_extra": {
             "example": {
                 "session_id": "550e8400-e29b-41d4-a716-446655440000",
-                "data_type": "image",
+                "data_type": "file",
+                "data_subtype": "rgb",
                 "data_value": "path/to/image.jpg"
             }
         }

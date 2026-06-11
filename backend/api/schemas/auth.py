@@ -4,6 +4,7 @@ from typing import Optional
 
 class SendCodeRequest(BaseModel):
     email: EmailStr
+    purpose: Optional[str] = "register"  # "register" | "login" | "reset_password"
 
 
 class UserRegister(BaseModel):
@@ -16,6 +17,11 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+
+
+class EmailLoginRequest(BaseModel):
+    email: EmailStr
+    code: str  # 邮箱验证码
 
 
 class UserResponse(BaseModel):

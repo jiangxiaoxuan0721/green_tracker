@@ -1,5 +1,4 @@
-/* MQTT 设备管理页面样式 */
-/* 使用项目全局 CSS 变量，与 Devices/Fields 风格统一 */
+/* ── MQTT 远程控制页面样式 ── */
 
 /* 页面头部操作区 */
 .mqtt-header-actions {
@@ -23,62 +22,25 @@
   cursor: pointer;
 }
 
-/* 统计卡片网格 */
-.mqtt-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-md);
-}
-
-.mqtt-stat-card .card-content {
+/* ── 统计摘要栏（紧凑横向）── */
+.mqtt-stats-bar {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
+  margin-top: var(--spacing-sm);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  flex-wrap: wrap;
 }
 
-.mqtt-stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
+.mqtt-stat-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.mqtt-stat-icon.broker {
-  background: var(--primary-subtle);
-  color: var(--primary-color);
-}
-
-.mqtt-stat-icon.online {
-  background: rgba(16, 185, 129, 0.12);
-  color: var(--success-color);
-}
-
-.mqtt-stat-icon.offline {
-  background: rgba(245, 158, 11, 0.12);
-  color: var(--warning-color);
-}
-
-.mqtt-stat-icon.pending {
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--info-color);
-}
-
-.mqtt-stat-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.mqtt-stat-value {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
 }
 
 .mqtt-stat-label {
@@ -86,18 +48,166 @@
   color: var(--text-muted);
 }
 
-.text-success { color: var(--success-color); }
-.text-error { color: var(--error-color); }
+.mqtt-stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.mqtt-stat-dot.online {
+  background: var(--success-color);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+.mqtt-stat-dot.offline {
+  background: var(--error-color);
+}
 
-/* 设备网格 - 复用 Devices 的 grid */
-.dashboard-mqtt .devices-grid {
+.mqtt-stat-text {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.mqtt-stat-num {
+  font-weight: 700;
+  font-size: 1rem;
+  min-width: 20px;
+  text-align: center;
+}
+.mqtt-stat-num.online { color: var(--success-color); }
+.mqtt-stat-num.offline { color: var(--warning-color); }
+.mqtt-stat-num.pending { color: var(--info-color); }
+
+.mqtt-stats-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-light);
+}
+
+/* ── 远程控制设备卡片网格 ── */
+.remote-devices-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
   gap: var(--spacing-md);
   margin-top: var(--spacing-md);
 }
 
-/* 详情 Modal 内容 */
+/* 单张控制卡片 */
+.remote-device-card {
+  transition: var(--transition-fast);
+}
+.remote-device-card .card-content {
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* 卡片头部：状态指示灯 + 名称 */
+.rdc-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 2px 0 var(--spacing-sm);
+}
+
+.rdc-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.rdc-status-dot.online {
+  background: var(--success-color);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  animation: rdc-pulse 2s infinite;
+}
+.rdc-status-dot.offline {
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+@keyframes rdc-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.6); }
+}
+
+.rdc-header-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.rdc-device-name {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 卡片主体信息区 */
+.rdc-body {
+  padding: var(--spacing-sm) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rdc-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.rdc-info-row:last-child {
+  border-bottom: none;
+}
+
+.rdc-info-label {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.rdc-info-value {
+  color: var(--text-primary);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--spacing-sm);
+}
+.rdc-info-value.mono {
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+/* 卡片底部操作栏 */
+.rdc-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding: var(--spacing-sm) 0 2px;
+}
+.rdc-actions .btn {
+  flex: 1;
+  max-width: none;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  padding: 6px 12px;
+}
+
+/* ── 详情 Modal ── */
 .mqtt-detail {
   max-height: 70vh;
   overflow-y: auto;
@@ -134,13 +244,6 @@
   font-size: 0.75rem;
 }
 
-/* 命令控制台区域 */
-.mqtt-command-section {
-  margin-top: var(--spacing-md);
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--border-light);
-}
-
 /* 连接历史 */
 .mqtt-history {
   margin-top: var(--spacing-md);
@@ -168,7 +271,6 @@
   font-size: 0.8125rem;
   border-bottom: 1px solid var(--border-light);
 }
-
 .history-item:last-child {
   border-bottom: none;
 }
@@ -178,14 +280,14 @@
   font-size: 0.75rem;
 }
 
-/* 凭证 Modal */
+/* ── 凭证 Modal ── */
 .mqtt-credential {
   padding-top: var(--spacing-xs);
 }
 
 .credential-block pre {
   padding: var(--spacing-sm);
-  background: var(--bg-header);
+  background: var(--bg-input);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-light);
   font-family: monospace;
@@ -210,12 +312,7 @@
   line-height: 1.4;
 }
 
-.tip-warning {
-  color: var(--warning-color) !important;
-  font-size: 0.8125rem;
-}
-
-/* 命令控制台 (CommandConsole) */
+/* ── 命令控制台 ── */
 .command-console {
   padding: var(--spacing-xs) 0;
 }
@@ -250,6 +347,7 @@
 
 .command-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-sm);
@@ -279,9 +377,96 @@
   color: var(--text-muted);
 }
 
+/* 需要确认的小标记 */
+.cmd-confirm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 16px;
+  border-radius: 3px;
+  color: var(--warning-color);
+  background: rgba(var(--warning-color-rgb), 0.12);
+}
+
+/* 参数输入区域 — 整行换行 */
+.cmd-param-fields {
+  flex-basis: 100%;
+  display: flex;
+  gap: 6px;
+}
+
+.cmd-param-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cmd-param-label {
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.cmd-param-input {
+  width: 100%;
+  padding: 3px 6px;
+  font-size: 0.75rem;
+  font-family: monospace;
+  line-height: 1.4;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.cmd-param-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.cmd-param-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cmd-param-input::placeholder {
+  color: var(--text-muted);
+  font-family: inherit;
+}
+
 .spinning-inline {
   display: inline-block;
   animation: spin 1s linear infinite;
+}
+
+.command-console-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.command-console-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  background: rgba(var(--warning-color-rgb), 0.08);
+  border-radius: var(--radius-sm);
+  color: var(--warning-color);
+  font-size: 0.75rem;
 }
 
 @keyframes spin {
@@ -289,9 +474,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* ============================================================
-   命令回复日志区域
-   ============================================================ */
+/* ── 命令回复日志 ── */
 .cmd-reply-log {
   margin-top: var(--spacing-md);
   border: 1px solid var(--border-light);
@@ -314,14 +497,13 @@
 }
 
 .cmd-reply-log-header:hover {
-  background: var(--bg-hover);
+  background: var(--bg-subtle-hover);
 }
 
 .cmd-chevron {
   transition: transform 0.2s;
   color: var(--text-muted);
 }
-
 .cmd-chevron.rotated {
   transform: rotate(180deg);
 }
@@ -340,19 +522,16 @@
   overflow: hidden;
   transition: max-height 0.3s ease;
 }
-
 .cmd-reply-log.expanded .cmd-reply-log-body {
   max-height: 360px;
   overflow-y: auto;
 }
 
-/* 单条回复记录 */
 .cmd-reply-entry {
   padding: var(--spacing-sm);
   border-bottom: 1px solid var(--border-light);
-  background: var(--bg-main);
+  background: var(--bg-component);
 }
-
 .cmd-reply-entry:last-child {
   border-bottom: none;
 }
@@ -362,7 +541,6 @@
   align-items: center;
   gap: var(--spacing-xs);
 }
-
 .cmd-reply-entry-clickable {
   cursor: pointer;
   border-radius: 4px;
@@ -370,7 +548,6 @@
   margin: -2px -4px;
   transition: background 0.15s;
 }
-
 .cmd-reply-entry-clickable:hover {
   background: var(--bg-subtle);
 }
@@ -380,11 +557,9 @@
   color: var(--text-muted);
   flex-shrink: 0;
 }
-
 .cmd-entry-chevron.rotated {
   transform: rotate(180deg);
 }
-
 .cmd-entry-chevron-hidden {
   visibility: hidden;
 }
@@ -408,24 +583,20 @@
   border-radius: var(--radius-pill);
   font-weight: 500;
 }
-
 .cmd-reply-status-pending {
-  background: rgba(245, 158, 11, 0.12);
+  background: rgba(var(--warning-color-rgb), 0.12);
   color: var(--warning-color);
 }
-
 .cmd-reply-status-acknowledged {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(var(--success-color-rgb), 0.12);
   color: var(--success-color);
 }
-
 .cmd-reply-status-timeout {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(var(--error-color-rgb), 0.1);
   color: var(--error-color);
 }
-
 .cmd-reply-status-error {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(var(--error-color-rgb), 0.1);
   color: var(--error-color);
 }
 
@@ -434,12 +605,11 @@
 .cmd-status-timeout { color: var(--error-color); }
 .cmd-status-error { color: var(--error-color); }
 
-/* 回复内容 */
 .cmd-reply-body {
   margin: var(--spacing-xs) 0 0;
   padding: var(--spacing-sm);
-  background: #1e1e2e;
-  color: #cdd6f4;
+  background: var(--bg-input);
+  color: var(--text-primary);
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 0.6875rem;
   line-height: 1.5;
@@ -449,6 +619,7 @@
   overflow-x: auto;
   max-height: 160px;
   overflow-y: auto;
+  border: 1px solid var(--border-light);
 }
 
 .cmd-reply-hint {
@@ -458,56 +629,32 @@
   font-size: 0.75rem;
 }
 
-/* 空状态 */
-.dashboard-mqtt .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-lg);
-  text-align: center;
-  color: var(--text-muted);
-  min-height: 200px;
-  background: var(--bg-subtle);
-  border-radius: var(--radius-md);
-  border: 1px dashed var(--border-primary);
-}
-
-.dashboard-mqtt .empty-state h3 {
-  margin-bottom: var(--spacing-xs);
-  color: var(--text-primary);
-  font-size: 1rem;
-  font-weight: 500;
-}
-
-.dashboard-mqtt .empty-state > p {
-  margin-bottom: var(--spacing-sm);
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-/* 错误卡片 */
+/* ── 错误卡片 ── */
 .dashboard-mqtt .error-card {
   text-align: center;
   padding: var(--spacing-lg);
 }
-
 .dashboard-mqtt .error-card p {
   color: var(--error-color);
   margin-bottom: var(--spacing-sm);
 }
 
-/* 响应式 */
+/* ── 响应式 ── */
 @media (max-width: 768px) {
-  .mqtt-stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .mqtt-stats-bar {
+    justify-content: center;
+    gap: var(--spacing-sm) var(--spacing-md);
   }
 
-  .dashboard-mqtt .devices-grid {
+  .remote-devices-grid {
     grid-template-columns: 1fr;
   }
 
   .mqtt-detail .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .rdc-actions {
+    gap: var(--spacing-sm);
   }
 }
