@@ -20,6 +20,7 @@
 | 后端 | FastAPI + SQLAlchemy 2.0 | 高性能异步API |
 | 数据库 | PostgreSQL + PostGIS | 关系型 + 地理空间 |
 | 存储 | MinIO (S3兼容) | 对象存储 |
+| 消息 | MQTT (Mosquitto) | IoT设备实时通信 |
 | 容器 | Docker | 算法容器化部署 |
 
 ### 📊 核心功能模块
@@ -118,7 +119,9 @@ green_tracker/
 │   │   │   ├── algorithm.py   # 算法管理
 │   │   │   ├── collection_session.py  # 采集会话
 │   │   │   ├── raw_data.py    # 原始数据
-│   │   │   └── api_key.py     # API密钥
+│   │   │   ├── log.py         # 系统日志
+│   │   │   ├── api_key.py     # API密钥
+│   │   │   └── feedback.py    # 用户反馈
 │   │   └── schemas/           # Pydantic模型
 │   ├── database/              # 数据库
 │   │   ├── db_models/         # SQLAlchemy模型
@@ -126,6 +129,11 @@ green_tracker/
 │   ├── storage/               # 存储服务
 │   │   ├── container_manager.py   # Docker容器管理
 │   │   └── dockerfile_generator.py # Dockerfile生成
+│   ├── mqtt/                  # MQTT模块
+│   │   ├── mqtt_client.py     # MQTT客户端
+│   │   ├── device_manager.py  # 设备状态管理
+│   │   ├── routes.py          # MQTT API路由
+│   │   └── schemas.py         # MQTT数据模型
 │   └── utils/                 # 工具函数
 │
 ├── frontend/                   # React前端
@@ -241,6 +249,17 @@ green_tracker/
 | DELETE | /algorithms/{id}/undeploy | 取消部署 |
 | GET | /algorithms/{id}/health | 健康检查 |
 | POST | /algorithms/{id}/infer | 在线推理 |
+
+### 系统日志 `/api/logs`
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | /logs | 分页查询日志（支持按级别/来源/日期筛选） |
+| GET | /logs/sources | 获取日志来源列表 |
+| GET | /logs/export | 导出日志为 CSV |
+| DELETE | /logs/{id} | 删除单条日志 |
+
+日志记录覆盖认证、设备、地块、采集会话、数据、API密钥、算法等所有关键操作路径，支持 `error` / `warning` / `info` / `success` 四级分类。
 
 ### 其他模块
 
