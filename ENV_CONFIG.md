@@ -15,8 +15,23 @@
 
 - `PORT` - 前端服务器端口，默认为 3010
 - `VITE_API_BASE_URL` - 前端API请求的基础URL，默认为 http://localhost:6130
-- `VITE_DEFAULT_USERNAME` - 开发环境默认用户名（仅用于开发测试）
-- `VITE_DEFAULT_PASSWORD` - 开发环境默认密码（仅用于开发测试）
+- `VITE_API_TIMEOUT` - API请求超时时间（毫秒），默认为 30000
+- `VITE_ALLOWED_HOSTS` - 允许的主机列表（逗号分隔）
+
+#### 文件处理配置
+
+- `VITE_MAX_FILE_SIZE` - 最大文件大小（字节），默认为 10485760 (10MB)
+- `VITE_ALLOWED_IMAGE_FORMATS` - 允许的图片格式，默认为 jpg,jpeg,png,gif,webp,bmp
+- `VITE_THUMBNAIL_SIZE` - 缩略图尺寸，默认为 150
+- `VITE_IMAGE_LAZY_LOADING` - 是否启用图片懒加载，默认为 true
+- `VITE_THUMBNAIL_CACHE_TTL` - 缩略图缓存时间（秒），默认为 3600
+- `VITE_IMAGE_CACHE_LIMIT` - 图片缓存数量限制，默认为 100
+
+#### 性能配置
+
+- `VITE_ENABLE_VIRTUAL_SCROLL` - 是否启用虚拟滚动，默认为 false
+- `VITE_PAGE_SIZE` - 默认分页大小，默认为 20
+- `VITE_MAX_CONCURRENT_REQUESTS` - 最大并发请求数，默认为 5
 
 ### 高德地图配置
 
@@ -35,11 +50,17 @@
 
 ### 数据库配置
 
+系统采用多数据库架构（元数据库 + 用户模板库 + 用户独立数据库）：
+
 - `DB_HOST` - 数据库主机，默认为 localhost
 - `DB_PORT` - 数据库端口，默认为 5432
-- `DB_NAME` - 数据库名称，默认为 green_tracker
+- `META_DB_NAME` - 元数据库名称（存储用户、数据库等元数据），默认为 `green_tracker_meta`
+- `TEMPLATE_DB_NAME` - 用户数据库模板名称，默认为 `green_tracker_template`
+- `USER_DB_PREFIX` - 用户数据库前缀，默认为 `green_tracker_user_`
 - `DB_USER` - 数据库用户名
 - `DB_PASSWORD` - 数据库密码
+- `DB_SUPERUSER` - 超级用户（用于创建数据库），默认为 postgres
+- `DB_SUPERPASSWORD` - 超级用户密码
 - `DB_POOL_SIZE` - 数据库连接池大小，默认为 10
 - `DB_MAX_OVERFLOW` - 数据库连接池最大溢出，默认为 20
 
@@ -96,15 +117,46 @@
 #### Docker 配置
 算法部署功能使用 Docker 容器化运行：
 
-- `DOCKER_SOCKET` - Docker socket 路径，默认为 `/var/run/docker.sock`
-- `ALGORITHM_IMAGE_PREFIX` - 算法镜像前缀，默认为 `green-tracker-algorithm-`
-- `ALGORITHM_CONTAINER_PREFIX` - 算法容器前缀，默认为 `gt-algo-`
+- `DOCKER_REGISTRY` - Docker 镜像仓库地址，开发环境默认为 `localhost:5000`
+- `ALGORITHM_PORT_START` - 容器端口范围起始，默认为 8000
+- `ALGORITHM_PORT_END` - 容器端口范围结束，默认为 9000
+- `DOCKER_BUILD_TIMEOUT` - 镜像构建超时时间（秒），默认为 600
+- `CONTAINER_MEMORY_LIMIT` - 容器内存限制，默认为 4g
 
 #### 端口配置
 - **容器内部端口**: 固定 8001
 - **容器外部端口**: 动态分配（避免端口冲突）
 - **健康检查间隔**: 30秒
 - **健康检查超时**: 60秒
+
+### MQTT 设备通信配置
+
+- `MQTT_BROKER_HOST` - MQTT Broker 主机地址，默认为 localhost
+- `MQTT_BROKER_PORT` - MQTT Broker TCP 端口，默认为 1883
+- `MQTT_WS_PORT` - MQTT WebSocket 端口（前端直连用），默认为 9001
+- `MQTT_USERNAME` - MQTT Broker 管理员账号
+- `MQTT_PASSWORD` - MQTT Broker 管理员密码
+- `MQTT_LOG_LEVEL` - MQTT 日志级别 (DEBUG/INFO/WARNING/ERROR)，默认为 INFO
+- `MQTT_PORT` - MQTT 服务端口（docker-compose 用），默认为 1883
+- `SERVER_PORT` - 服务端口（docker-compose 用），默认为 8080
+
+### 邮件服务配置 (SMTP)
+
+用于发送邮箱验证码、密码重置等邮件：
+
+- `SMTP_HOST` - SMTP 服务器地址（QQ邮箱: smtp.qq.com, Gmail: smtp.gmail.com）
+- `SMTP_PORT` - SMTP 端口，默认为 465（SSL）
+- `SMTP_USER` - SMTP 账号（QQ邮箱需使用授权码）
+- `SMTP_PASSWORD` - SMTP 密码/授权码
+- `SMTP_FROM_NAME` - 发件人显示名称，默认为 "Green Tracker"
+
+### MinIO 前端配置
+
+- `VITE_MINIO_ENDPOINT` - MinIO 服务端点
+- `VITE_MINIO_PORT` - MinIO 服务端口，默认为 9100
+- `VITE_MINIO_BUCKET` - MinIO 存储桶名称
+- `VITE_MINIO_SECURE` - 是否使用 HTTPS，默认为 false
+- `VITE_MINIO_PUBLIC_URL` - MinIO 公开访问 URL
 
 ## 使用说明
 

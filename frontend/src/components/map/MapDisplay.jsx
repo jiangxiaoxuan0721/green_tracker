@@ -12,8 +12,7 @@ const MapDisplay = ({
   center = [116.397428, 39.90923],
   zoom = 10,
   showControls = true,
-  visible = true,
-  initialMapType = 'satellite' // 'normal' | 'satellite'
+  visible = true
 }) => {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
@@ -27,7 +26,6 @@ const MapDisplay = ({
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [mapType, setMapType] = useState(initialMapType)
 
   const isKeyConfigured = AMapKey && !AMapKey.includes('your_') && AMapKey.length > 10
 
@@ -92,38 +90,6 @@ const MapDisplay = ({
     }
   }
 
-  // 切换底图类型
-  const toggleMapType = () => {
-    if (!mapRef.current) return
-
-    const newType = mapType === 'satellite' ? 'normal' : 'satellite'
-
-    // 先移除现有图层
-    if (satelliteLayerRef.current) {
-      mapRef.current.removeLayer(satelliteLayerRef.current)
-      satelliteLayerRef.current = null
-    }
-    if (labelLayerRef.current) {
-      mapRef.current.removeLayer(labelLayerRef.current)
-      labelLayerRef.current = null
-    }
-
-    if (newType === 'satellite') {
-      // 卫星模式：添加卫星图层 + 标注图层
-      satelliteLayerRef.current = new window.AMap.TileLayer.Satellite()
-      mapRef.current.addLayer(satelliteLayerRef.current)
-      labelLayerRef.current = new window.AMap.TileLayer.RoadNet({ opacity: 0.8 })
-      mapRef.current.addLayer(labelLayerRef.current)
-      mapRef.current.setMapStyle('amap://styles/light')
-    } else {
-      // 普通模式：使用标准底图
-      mapRef.current.setMapStyle('amap://styles/normal')
-    }
-
-    // 延迟更新状态
-    setTimeout(() => setMapType(newType), 50)
-  }
-
   // 初始化/更新地图
   useEffect(() => {
     if (!mapContainerRef.current || !window.AMap || !isKeyConfigured) return
@@ -161,12 +127,10 @@ const MapDisplay = ({
           showLabel: true
         })
 
-        if (mapType === 'satellite') {
-          satelliteLayerRef.current = new window.AMap.TileLayer.Satellite()
-          map.addLayer(satelliteLayerRef.current)
-          labelLayerRef.current = new window.AMap.TileLayer.RoadNet({ opacity: 0.8 })
-          map.addLayer(labelLayerRef.current)
-        }
+        satelliteLayerRef.current = new window.AMap.TileLayer.Satellite()
+        map.addLayer(satelliteLayerRef.current)
+        labelLayerRef.current = new window.AMap.TileLayer.RoadNet({ opacity: 0.8 })
+        map.addLayer(labelLayerRef.current)
 
         if (showControls) {
           window.AMap.plugin(['AMap.Scale', 'AMap.ToolBar'], () => {
@@ -259,7 +223,7 @@ const MapDisplay = ({
         mapRef.current = null
       }
     }
-  }, [isKeyConfigured, wkt, zoom, center, showControls, mapType])
+  }, [isKeyConfigured, wkt, zoom, center, showControls])
 
   // 计算中心点
   const getCenter = (coords) => {
@@ -292,23 +256,11 @@ const MapDisplay = ({
           {error}
         </div>
       ) : (
-        <>
-          <div
+        <div
             ref={mapContainerRef}
             className="map-container"
             style={{ height: `${height}px` }}
           />
-          {/* 图层切换按钮 */}
-          <div className="map-type-toggle">
-            <button
-              onClick={toggleMapType}
-              className="map-type-btn"
-              title={mapType === 'satellite' ? '切换到普通地图' : '切换到卫星图'}
-            >
-              {mapType === 'satellite' ? '🗺️ 普通地图' : '🛰️ 卫星地图'}
-            </button>
-          </div>
-        </>
       )}
     </div>
   )

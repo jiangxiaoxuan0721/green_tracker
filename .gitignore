@@ -129,9 +129,6 @@ dmypy.json
 # 报告协助文件
 /reports
 
-# mqtt示例文件
-/mqtt_docker_example
-
 # MQTT 运行时数据目录
 mqtt/mosquitto/data/
 mqtt/mosquitto/log/
