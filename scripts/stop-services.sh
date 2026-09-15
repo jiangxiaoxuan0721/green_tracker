@@ -2,9 +2,15 @@
 
 # 停止所有服务脚本
 
+set -euo pipefail
+
+# 脚本目录（修复：原引用 $SCRIPT_DIR 但从未定义，导致 MinIO 停不掉）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo -e "${RED}===================================${NC}"

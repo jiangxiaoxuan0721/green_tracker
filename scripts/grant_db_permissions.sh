@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 # ============================================================================
 # 授权脚本 - 授予 green_tracker 用户创建数据库的权限
 # ============================================================================
@@ -136,9 +138,9 @@ echo -e "${GREEN}当前权限状态:${NC}"
 sudo -u postgres psql -c "\du $DB_USER"
 echo ""
 echo -e "${GREEN}可用数据库:${NC}"
-sudo -u postgres psql -c "\l" | grep -E "(Name|Owner|$DB_NAME)"
+sudo -u postgres psql -c "\l" | grep -E "(Name|Owner|$DB_NAME)" || true
 echo ""
 echo -e "下一步:"
-echo -e "  1. 运行初始化脚本: ${YELLOW}cd /home/jiangxiaoxuan/workspace/green_tracker && bash scripts/init_new_architecture.sh${NC}"
-echo -e "  2. 启动后端服务: ${YELLOW}cd backend && python main.py${NC}"
+echo -e "  1. 启动后端服务（自动完成建表与初始化）: ${YELLOW}bash scripts/start-services.sh${NC}"
+echo -e "  2. 或手动启动: ${YELLOW}cd backend && python main.py${NC}"
 echo ""

@@ -3,7 +3,10 @@
 # 一键启动所有必要服务
 # 用于启动PostgreSQL和MinIO服务
 
+set -euo pipefail
+
 # 颜色定义
+RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
