@@ -1,0 +1,128 @@
+# =============================================================================
+# Green Tracker - Nginx 反向代理配置
+# =============================================================================
+# 此文件由 scripts/render_nginx.sh 自动渲染（替换 ${...} 占位符）后安装到
+# /etc/nginx/sites-available/green-tracker，并通过 sites-enabled 软链接启用。
+#
+# 架构：
+#   浏览器 → Nginx (:80/:443)
+#              ├── /              → 前端 (Vite dev server / 静态资源)
+#              └── /api/, /health → FastAPI 后端 (仅本地 127.0.0.1:6130)
+# =============================================================================
+
+# ---------------- HTTP 服务器（:80）----------------
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DOMAIN};
+
+    # Let's Encrypt 验证目录必须放行，否则证书续签会失败
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/html;
+        default_type "text/plain";
+        try_files $uri =404;
+    }
+
+    # 健康检查（云厂商负载均衡常用）
+    location = /nginx-health {
+        access_log off;
+        return 200 "ok\n";
+        add_header Content-Type text/plain;
+    }
+
+    # 其余请求 301 重定向到 HTTPS（生产 / 域名已解析场景）
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ---------------- HTTPS 服务器（:443）----------------
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ${DOMAIN};
+
+    # 网站根目录（仅用于 acme-challenge 与健康检查）
+    root /var/www/html;
+    index index.html;
+
+    # 上传文件较大（图片 / 视频 / 模型），放宽请求体限制
+    client_max_body_size 0;
+
+    # 日志（可用 journalctl 或 filebeat 收集）
+    access_log /var/log/nginx/green-tracker.access.log;
+    error_log  /var/log/nginx/green-tracker.error.log warn;
+
+    # SSL 证书路径（由 setup_https.sh 自动填充）
+    ssl_certificate     ${SSL_CERT_PATH};
+    ssl_certificate_key ${SSL_KEY_PATH};
+
+    # 引入 SSL 通用参数（TLS 版本 / 加密套件 / 安全响应头）
+    include /etc/nginx/snippets/green-tracker-ssl-params.conf;
+
+    # ============================================================
+    # 前端：开发（Vite dev server / HMR）或生产（静态文件 dist/）
+    # 具体模式由 scripts/render_nginx.sh 渲染的片段决定：
+    #   /etc/nginx/snippets/green-tracker-frontend.conf
+    # 通过 `make serve-dev` / `make serve-prod` 一键切换。
+    # ============================================================
+    include /etc/nginx/snippets/green-tracker-frontend.conf;
+
+    # ============================================================
+    # 后端 API 反代：/api/* → http://127.0.0.1:${BACKEND_PORT}/api/*
+    # 使用 ^~ 前缀修饰符：命中后不再尝试正则 location，
+    # 避免被静态资源正则（*.js / *.png 等）误捕获。
+    # ============================================================
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT}/api/;
+
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_set_header X-Forwarded-Port  $server_port;
+
+        # 算法推理可能耗时较长（图像 / 视频处理）
+        proxy_read_timeout  300s;
+        proxy_send_timeout  300s;
+        proxy_connect_timeout 10s;
+
+        # 透传分块上传（MinIO / 大文件上传必需）
+        proxy_request_buffering off;
+        proxy_buffering off;
+    }
+
+    # ============================================================
+    # MinIO 对象存储反代：/minio/* → http://127.0.0.1:${MINIO_PORT}
+    # （避免图片/视频访问时出现 :9100 端口号）
+    # ============================================================
+    location ^~ /minio/ {
+        proxy_pass http://127.0.0.1:${MINIO_PORT}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 大文件分块上传/下载
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+
+        # 透传 Range 请求（视频拖拽进度条必需）
+        proxy_set_header Range $http_range;
+        proxy_set_header If-Range $http_if_range;
+    }
+
+    # ============================================================
+    # 后端健康检查 / 根路径（用于探活）
+    # ============================================================
+    location = /health {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT}/health;
+        proxy_set_header Host $host;
+        access_log off;
+    }
+}

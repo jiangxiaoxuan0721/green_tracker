@@ -134,5 +134,9 @@ mqtt-broker/mosquitto/data/
 mqtt-broker/mosquitto/log/
 mqtt-broker/mosquitto/config/passwd
 
+# Nginx 运行状态与渲染产物（由 scripts/render_nginx.sh 生成）
+/nginx/.current-mode
+/nginx/build/
+
 # 屏幕日志
 /screen_dev.log
