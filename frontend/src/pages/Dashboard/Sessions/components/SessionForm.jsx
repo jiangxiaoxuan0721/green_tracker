@@ -7,7 +7,7 @@ import { Input, Select, Textarea, ToastContainer } from '@/components/ui'
 import './SessionForm.css'
 
 const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
-  const { toasts, removeToast, error: showError, success: showSuccess } = useToast()
+  const { error: showError, success: showSuccess } = useToast()
   const [formData, setFormData] = useState({
     mission_name: '',
     field_id: '',
@@ -128,7 +128,7 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
 
   return (
     <>
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer />
       <FormContainer
         isOpen={isOpen}
         onClose={onClose}

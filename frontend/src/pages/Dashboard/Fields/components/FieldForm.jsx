@@ -7,7 +7,7 @@ import { FieldMapPicker } from '@/components/map'
 import './FieldForm.css'
 
 const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
-  const { toasts, removeToast, error: showError, success: showSuccess } = useToast()
+  const { error: showError, success: showSuccess } = useToast()
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -127,7 +127,7 @@ const FieldForm = ({ mode, field, onClose, onSuccess, isOpen }) => {
 
   return (
     <>
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer />
       <FormContainer
         isOpen={isOpen}
         onClose={onClose}

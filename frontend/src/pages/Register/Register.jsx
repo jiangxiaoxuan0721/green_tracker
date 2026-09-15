@@ -19,7 +19,7 @@ const Register = () => {
   const navigate = useNavigate()
   const { register, loading, authenticating, error: authError } = useAuth()
   const { formData, errors, handleChange, handleSubmit } = useRegisterForm(register)
-  const { success: showSuccess, error: showError, toasts, removeToast } = useToast()
+  const { success: showSuccess, error: showError } = useToast()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [sendingCode, setSendingCode] = useState(false)
@@ -126,7 +126,7 @@ const Register = () => {
   return (
     <>
       <Navbar />
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer />
       <div className="register-split-container">
         {/* 品牌展示区域 - 与登录页一致 */}
         <motion.div 
