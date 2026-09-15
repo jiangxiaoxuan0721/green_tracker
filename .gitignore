@@ -130,9 +130,9 @@ dmypy.json
 /reports
 
 # MQTT 运行时数据目录
-mqtt/mosquitto/data/
-mqtt/mosquitto/log/
-mqtt/mosquitto/config/passwd
+mqtt-broker/mosquitto/data/
+mqtt-broker/mosquitto/log/
+mqtt-broker/mosquitto/config/passwd
 
 # 屏幕日志
 /screen_dev.log

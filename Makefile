@@ -90,14 +90,14 @@ clean:
 # ============================================================
 mqtt-start: check-env
 	@echo "启动 MQTT Broker..."
-	@cd mqtt && bash deploy_mqtt.sh start
+	@cd mqtt-broker && bash deploy_mqtt.sh start
 
 mqtt-stop:
 	@echo "停止 MQTT Broker..."
-	@cd mqtt && bash deploy_mqtt.sh stop
+	@cd mqtt-broker && bash deploy_mqtt.sh stop
 
 mqtt-status:
-	@cd mqtt && bash deploy_mqtt.sh status
+	@cd mqtt-broker && bash deploy_mqtt.sh status
 
 mqtt-logs:
-	@cd mqtt && bash deploy_mqtt.sh logs
+	@cd mqtt-broker && bash deploy_mqtt.sh logs
