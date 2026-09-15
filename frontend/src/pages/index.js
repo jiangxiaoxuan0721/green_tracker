@@ -1,4 +1,4 @@
-// 导出所有页面组件
+// 顶层页面
 export { default as Home } from './Home/Home'
 export { default as About } from './About/About'
 export { default as Contact } from './Contact/Contact'
@@ -9,5 +9,19 @@ export { default as Dashboard } from './Dashboard/Dashboard'
 export { default as Feedback } from './Feedback/Feedback'
 export { default as NotFound } from './NotFound/NotFound'
 
-// Dashboard 子页面统一导出
-export * as DashboardPages from './Dashboard'
+// Dashboard 子页面（透传自 Dashboard 桶，App.jsx 具名导入用）
+export {
+  Overview,
+  Fields,
+  Devices,
+  Sessions,
+  DataUpload,
+  DataView,
+  DataAnalyze,
+  System,
+  Logs,
+  AlgorithmSquare,
+  AlgorithmUse,
+  KeyManagement,
+  MQTT,
+} from './Dashboard'

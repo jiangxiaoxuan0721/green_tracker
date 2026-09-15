@@ -1,12 +1,9 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './hooks/auth/useAuth'
-import { Home, About, Contact, Login, Register, ForgotPassword, Dashboard, Feedback, NotFound, DashboardPages } from './pages'
+import { Home, About, Contact, Login, Register, ForgotPassword, Dashboard, Feedback, NotFound, Overview, Fields, Devices, Sessions, DataUpload, DataView, DataAnalyze, System, Logs, AlgorithmSquare, AlgorithmUse, KeyManagement, MQTT } from './pages'
 import { ToastContainer } from './components/ui'
 import './App.css'
-
-// 解构Dashboard子页面
-const { Overview, Fields, Devices, Sessions, DataUpload, DataView, DataAnalyze, System, Logs, AlgorithmSquare, AlgorithmUse, MQTT } = DashboardPages
 
 function AppContent() {
   const location = useLocation()
@@ -54,6 +51,7 @@ function AppContent() {
             <Route path="logs" element={<Logs />} />
             <Route path="algorithm-square" element={<AlgorithmSquare />} />
             <Route path="algorithm-use/:algorithmId" element={<AlgorithmUse />} />
+            <Route path="api-keys" element={<KeyManagement />} />
             <Route path="mqtt" element={<MQTT />} />
           </Route>
           
