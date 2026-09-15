@@ -1,33 +1,22 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { env } from '@/config/env';
 
-// 动态检测后端 API 地址（origin 前缀，不含 /api）
-let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
-
-if (!apiBaseUrl) {
-  // 没有配置：使用同源相对路径（推荐，与 Nginx 反代配合）
-  apiBaseUrl = '';
-}
+// API 基址来自唯一出口 config/env.ts（已归一化：不含尾部 /api，空 = 同源相对路径）
+const apiBaseUrl = env.API_BASE_URL;
 
 // 创建axios实例
 const api: AxiosInstance = axios.create({
   baseURL: apiBaseUrl,
-  timeout: 30000, // 默认30秒超时
+  timeout: env.API_TIMEOUT, // 默认30秒超时
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// 调试信息
-console.log('[前端API] 初始化API');
-console.log('- import.meta.env.VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
-console.log('- 检测到的API地址:', apiBaseUrl);
-console.log('- 最终baseURL:', api.defaults.baseURL);
-
 // 请求拦截器 - 添加token到请求头
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     console.log(`[前端API] 发送请求: ${config.method?.toUpperCase()} ${config.url}`);
-    console.log('[前端API] 请求数据:', config.data);
     console.log('[前端API] 请求参数:', config.params);
     
     const token = localStorage.getItem('token');
