@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
 // 动态检测后端 API 地址（origin 前缀，不含 /api）
-let apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
 if (!apiBaseUrl) {
   // 没有配置：使用同源相对路径（推荐，与 Nginx 反代配合）
