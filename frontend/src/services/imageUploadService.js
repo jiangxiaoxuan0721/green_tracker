@@ -144,33 +144,9 @@ class ImageUploadService {
     }
 
     /**
-     * 获取支持的图像格式
-     * @returns {Promise} 支持的格式信息
-     */
-    async getSupportedFormats() {
-        try {
-            const headers = createAuthHeaders();
-            const response = await fetch(`${this.baseUrl}/api/file-upload/supported-formats`, {
-                method: 'GET',
-                headers: headers,
-                credentials: 'include',
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.detail || '获取支持的格式失败');
-            }
-
-            return result;
-        } catch (error) {
-            console.error('获取支持的格式失败:', error);
-            throw error;
-        }
-    }
-
-    /**
      * 获取支持的格式信息
+     * 注：后端暂无对应端点，此处返回静态清单（原文件存在两个同名方法，
+     * JS 类中后者覆盖前者、网络版从未生效，已于结构规范化时删除）。
      * @returns {Promise} 支持的格式信息
      */
     async getSupportedFormats() {

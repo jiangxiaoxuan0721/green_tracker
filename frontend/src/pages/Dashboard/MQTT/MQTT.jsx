@@ -175,7 +175,7 @@ const MQTT = () => {
             <p>设备连接方法：</p>
             <ul>
               <li>在 <strong>设备管理</strong> 页面创建逻辑设备</li>
-              <li>点击设备操作中的"MQTT凭证"获取连接信息</li>
+              <li>点击设备操作中的&quot;MQTT凭证&quot;获取连接信息</li>
               <li>在物理设备上配置 MQTT 连接参数（Broker 地址、设备 ID、密钥）</li>
               <li>物理设备上线后将自动显示在此处</li>
             </ul>

@@ -465,7 +465,7 @@ const KeyManagement = () => {
         <div className="modal-overlay">
           <div className="modal">
             <h3>删除API密钥</h3>
-            <p>确定要删除密钥 "<strong>{currentKey.key_name}</strong>" 吗？</p>
+            <p>确定要删除密钥 &quot;<strong>{currentKey.key_name}</strong>&quot; 吗？</p>
             <p className="warning">此操作不可恢复，删除后将无法使用此密钥进行数据上传。</p>
             <div className="modal-actions">
               <button onClick={handleDeleteKey} className="delete" disabled={loading}>

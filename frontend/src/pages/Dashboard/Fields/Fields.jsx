@@ -103,7 +103,7 @@ const Fields = () => {
         <Card className="empty-state">
           <div className="empty-icon">🌱</div>
           <h3>还没有地块</h3>
-          <p>点击右上角的"添加地块"按钮开始管理您的农田</p>
+          <p>点击右上角的&quot;添加地块&quot;按钮开始管理您的农田</p>
           <div className="empty-state-tips">
             <p>您可以：</p>
             <ul>

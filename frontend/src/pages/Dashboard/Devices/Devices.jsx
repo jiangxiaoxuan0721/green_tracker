@@ -200,7 +200,7 @@ const Devices = () => {
         <Card className="empty-state">
           <div className="empty-icon">📡</div>
           <h3>还没有设备</h3>
-          <p>点击右上角的"添加设备"按钮开始管理您的监测设备</p>
+          <p>点击右上角的&quot;添加设备&quot;按钮开始管理您的监测设备</p>
           <div className="empty-state-tips">
             <p>您可以：</p>
             <ul>
@@ -327,7 +327,7 @@ MQTT_BROKER_HOST=${credentialData.mqtt_broker_host || '-'}
 MQTT_BROKER_PORT=${credentialData.mqtt_broker_port || '-'}`}</pre>
                 ) : (
                   <div className="credential-masked">
-                    <p>凭证内容已隐藏，点击"显示"按钮查看</p>
+                    <p>凭证内容已隐藏，点击&quot;显示&quot;按钮查看</p>
                   </div>
                 )}
                 <div className="credential-actions">

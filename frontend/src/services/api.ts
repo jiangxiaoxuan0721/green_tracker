@@ -1,20 +1,11 @@
-/// <reference path="../utils/vite-env.d.ts" />
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
-// 动态检测后端 API 地址
-// 从环境变量获取，如果没有则根据当前访问地址动态判断
+// 动态检测后端 API 地址（origin 前缀，不含 /api）
 let apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 if (!apiBaseUrl) {
-  // 如果没有配置环境变量，根据当前访问地址自动判断
-  const currentHost = window.location.hostname;
-  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-    // 本地访问：使用 localhost:6130
-    apiBaseUrl = 'http://localhost:6130';
-  } else {
-    // 外部访问：使用当前主机地址 + 6130 端口
-    apiBaseUrl = `http://${currentHost}:6130`;
-  }
+  // 没有配置：使用同源相对路径（推荐，与 Nginx 反代配合）
+  apiBaseUrl = '';
 }
 
 // 创建axios实例
