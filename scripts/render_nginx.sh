@@ -115,11 +115,19 @@ if [ "$MODE" = "prod" ] && [ ! -f "$STATIC_ROOT/index.html" ]; then
 fi
 
 # ---------- 证书探测 ----------
+# 注：/etc/letsencrypt/live 仅 root 可读，普通用户 [ -f ] 会误判"无证书"。
+# 回退方案：经本机 443 TLS 握手确认 Let's Encrypt 证书已部署（Nginx 以 root 加载），
+# 仍按标准路径写入配置。
 if [ -z "${SSL_CERT_PATH:-}" ] || [ -z "${SSL_KEY_PATH:-}" ]; then
     if [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
         SSL_CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
         SSL_KEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
         log_info "使用 Let's Encrypt 证书"
+    elif openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" </dev/null 2>/dev/null \
+            | openssl x509 -noout -issuer 2>/dev/null | grep -q "Let's Encrypt"; then
+        SSL_CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+        SSL_KEY_PATH="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+        log_info "使用 Let's Encrypt 证书（经 TLS 握手确认已部署）"
     elif [ -f "$SSL_DIR/${DOMAIN}.crt" ]; then
         SSL_CERT_PATH="$SSL_DIR/${DOMAIN}.crt"
         SSL_KEY_PATH="$SSL_DIR/${DOMAIN}.key"
