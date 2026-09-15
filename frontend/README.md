@@ -4,6 +4,11 @@
 
 React 18 + Vite 5 + JavaScript/TypeScript 混合（迁移中：新代码一律 `.ts/.tsx`）。
 
+## 开发
+
+- `npm run dev`，端口 **3010**（由仓库根 `.env` 的 `PORT` 控制；Vite envDir 指向仓库根）。
+- 路径别名：`@/` → `src/`（见 `vite.config.js`）。
+
 ## 目录结构
 
 ```
@@ -17,6 +22,12 @@ src/
 ├── pages/         # 页面（Dashboard 子页面经 Dashboard/index.js 桶透传）
 └── styles/        # 样式
 ```
+
+| 扩展名 | 用途 |
+|---|---|
+| `.ts` | 服务/hooks/utils/config（禁止新 `.js`） |
+| `.tsx` | 组件（禁止新 `.jsx`） |
+| `.js` | 仅桶文件（index.js） |
 
 ## 硬性约定
 
@@ -41,6 +52,7 @@ src/
 - `pages/index.js`、`pages/Dashboard/index.js`、`components/{ui,business,map}/index.js` 为**活桶**，可被外部 import。
 - 组件级局部桶仅当有两个以上消费者时保留；单文件 re-export 的桶一律不建。
 - `App.jsx` 使用**具名导入**（`import { Home, ... } from './pages'`），拼写错误在编译期暴露，不再用命名空间解构。
+- **新增 Dashboard 子页面必须同步 `Dashboard/index.js`**，否则 `App.jsx` 具名导入在构建期直接报错。
 
 ### 5. Toast 契约
 
