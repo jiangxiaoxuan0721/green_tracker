@@ -11,10 +11,20 @@
 
 ## 主要配置项
 
+### 站点域名与 HTTPS 配置（推荐使用）
+
+用于 `make setup-https` 自动配置 HTTPS 证书和 Nginx 反向代理。
+
+- `DOMAIN` - 站点主域名，访问地址为 `https://${DOMAIN}`，默认 `green-tracker.cn`
+- `SSL_EMAIL` - Let's Encrypt 注册邮箱，接收证书续期提醒
+
+详细 HTTPS 部署文档见 [docs/HTTPS_SETUP.md](docs/HTTPS_SETUP.md)。
+
 ### 前端配置
 
 - `PORT` - 前端服务器端口，默认为 3010
-- `VITE_API_BASE_URL` - 前端API请求的基础URL，默认为 http://localhost:6130
+- `VITE_API_BASE_URL` - 前端 API 请求的 origin 前缀（**不含 `/api`**），默认为空（同源相对路径）。
+  代码中请求路径已自带 `/api` 前缀，请勿填 `/api`，否则会变成 `/api/api/...` 报 404
 - `VITE_API_TIMEOUT` - API请求超时时间（毫秒），默认为 30000
 - `VITE_ALLOWED_HOSTS` - 允许的主机列表（逗号分隔）
 
@@ -42,8 +52,10 @@
 
 ### 后端API配置
 
-- `API_HOST` - API服务器主机，默认为 0.0.0.0
+- `API_HOST` - API服务器主机，默认为 `127.0.0.1`（仅本地监听，由 Nginx 反向代理转发）
 - `API_PORT` - API服务器端口，默认为 6130
+- `BACKEND_USE_HTTPS` - 后端独立启用 HTTPS（一般不需要），默认为 false
+- `BACKEND_SSL_CERTFILE` / `BACKEND_SSL_KEYFILE` - 后端 HTTPS 证书路径（可选）
 - `SECRET_KEY` - JWT密钥（生产环境请使用强随机密钥）
 - `JWT_ALGORITHM` - JWT算法，默认为 HS256
 - `JWT_EXPIRE_MINUTES` - JWT过期时间（分钟），默认为 30
@@ -156,7 +168,7 @@
 - `VITE_MINIO_PORT` - MinIO 服务端口，默认为 9100
 - `VITE_MINIO_BUCKET` - MinIO 存储桶名称
 - `VITE_MINIO_SECURE` - 是否使用 HTTPS，默认为 false
-- `VITE_MINIO_PUBLIC_URL` - MinIO 公开访问 URL
+- `VITE_MINIO_PUBLIC_URL` - MinIO 公开访问 URL，**推荐使用相对路径 `/minio/<bucket>`**（由 Nginx 反代到 MinIO，避免出现 `:9100` 端口号）
 
 ## 使用说明
 
@@ -177,7 +189,24 @@
 
 ## 生产环境部署
 
-1. 使用环境变量管理工具（如 Docker 环境变量或 Kubernetes ConfigMap）
-2. 确保敏感信息不会泄露
-3. 配置适当的日志级别和日志文件路径
-4. 配置 HTTPS 和安全相关的选项
+> 更新（2026-09-15）：项目现支持 **dev/prod 双模式**（`scripts/render_nginx.sh` 渲染不同站点，`make serve-dev` / `make serve-prod` 切换）。以下流程以生产模式为准；开发模式详见 [HTTPS_SETUP.md](HTTPS_SETUP.md)。
+
+1. **配置 HTTPS 证书**（推荐 Let's Encrypt 自动申请）：
+   ```bash
+   make setup-https
+   ```
+
+2. **使用环境变量管理工具**（如 Docker 环境变量或 Kubernetes ConfigMap）
+
+3. **确保敏感信息不会泄露**：
+   - `SECRET_KEY` 必须使用强随机密钥（至少 32 位）
+   - `DB_PASSWORD` / `MINIO_SECRET_KEY` 不要使用默认值
+   - `.env` 文件已在 `.gitignore` 中，请勿提交
+
+4. **配置日志级别和日志路径**（`LOG_LEVEL` / `LOG_FILE_PATH`）
+
+5. **暴露端口最小化**：
+   - 公网只暴露 Nginx 80/443
+   - 后端 6130 与 MinIO 9100 保持 127.0.0.1 监听，仅 Nginx 可访问
+
+6. **HTTPS 安全响应头**已由 `nginx/ssl-params.conf` 自动配置（HSTS / X-Frame-Options 等）

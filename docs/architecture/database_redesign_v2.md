@@ -783,7 +783,7 @@ db_manager = UserDatabaseManager()
 ### 迁移脚本示例
 
 ```python
-# backend/scripts/migrate_to_v2.py
+# 原 backend/scripts/migrate_to_v2.py（脚本已随版本演进移除，以下为历史方案记录）
 
 import psycopg2
 from datetime import datetime
