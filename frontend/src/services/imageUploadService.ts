@@ -5,48 +5,91 @@
 
 import { getApiUrl } from './api';
 
+export interface UploadOptions {
+    session_id: string;
+    data_subtype?: string;
+    description?: string;
+    location_geom?: string;
+    altitude_m?: number;
+    heading?: number;
+}
+
+export interface BatchItemResult {
+    file: string;
+    success: boolean;
+    data?: unknown;
+    error?: string;
+}
+
+export interface BatchUploadResult {
+    total: number;
+    success_count: number;
+    failed_count: number;
+    results: BatchItemResult[];
+    errors: { file: string; error: string }[];
+}
+
+export interface SupportedFormatsResponse {
+    code: number;
+    message: string;
+    data: {
+        supported_formats: Record<string, {
+            extensions: string[];
+            mime_types: string[];
+            description: string;
+        }>;
+        max_file_size_mb: number;
+        max_batch_size: number;
+    };
+}
+
+export interface ValidationOutcome {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+}
+
 /**
  * 获取当前用户的认证token
  */
-function getAuthToken() {
+function getAuthToken(): string | null {
     return localStorage.getItem('token');
 }
 
 /**
  * 创建带有认证头的请求配置
  */
-function createAuthHeaders() {
+function createAuthHeaders(): Record<string, string> {
     const token = getAuthToken();
-    const headers = {};
-    
+    const headers: Record<string, string> = {};
+
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
     return headers;
 }
 
 class ImageUploadService {
+    private baseUrl: string;
+
     constructor() {
         this.baseUrl = getApiUrl();
     }
 
     /**
      * 上传单个文件
-     * @param {File} file - 文件
-     * @param {Object} options - 上传选项
-     * @returns {Promise} 上传结果
      */
-    async uploadFile(file, options = {}) {
+    async uploadFile(file: File, options: Partial<UploadOptions> = {}): Promise<unknown> {
         const formData = new FormData();
         formData.append('file', file);
-        
+
         // 添加必需参数
         if (!options.session_id) {
             throw new Error('session_id 是必需的');
         }
         formData.append('session_id', options.session_id);
-        
+
         // 添加可选参数
         if (options.data_subtype) {
             formData.append('data_subtype', options.data_subtype);
@@ -58,10 +101,10 @@ class ImageUploadService {
             formData.append('location_geom', options.location_geom);
         }
         if (options.altitude_m !== undefined) {
-            formData.append('altitude_m', options.altitude_m);
+            formData.append('altitude_m', String(options.altitude_m));
         }
         if (options.heading !== undefined) {
-            formData.append('heading', options.heading);
+            formData.append('heading', String(options.heading));
         }
 
         try {
@@ -88,14 +131,11 @@ class ImageUploadService {
 
     /**
      * 批量上传文件（通过多次调用单文件上传）
-     * @param {FileList} files - 文件列表
-     * @param {Object} options - 上传选项
-     * @returns {Promise} 批量上传结果
      */
-    async uploadBatchFiles(files, options = {}) {
+    async uploadBatchFiles(files: FileList | File[], options: Partial<UploadOptions> = {}): Promise<BatchUploadResult> {
         const fileArray = Array.from(files);
-        const results = [];
-        const errors = [];
+        const results: BatchItemResult[] = [];
+        const errors: { file: string; error: string }[] = [];
 
         for (const file of fileArray) {
             try {
@@ -106,14 +146,15 @@ class ImageUploadService {
                     data: result
                 });
             } catch (error) {
+                const message = (error as Error).message;
                 errors.push({
                     file: file.name,
-                    error: error.message
+                    error: message
                 });
                 results.push({
                     file: file.name,
                     success: false,
-                    error: error.message
+                    error: message
                 });
             }
         }
@@ -131,7 +172,7 @@ class ImageUploadService {
      * 上传单个图像文件（兼容旧接口名）
      * @deprecated 请使用 uploadFile 代替
      */
-    async uploadImage(file, options = {}) {
+    async uploadImage(file: File, options: Partial<UploadOptions> = {}): Promise<unknown> {
         return this.uploadFile(file, options);
     }
 
@@ -139,7 +180,7 @@ class ImageUploadService {
      * 批量上传图像文件（兼容旧接口名）
      * @deprecated 请使用 uploadBatchFiles 代替
      */
-    async uploadBatchImages(files, options = {}) {
+    async uploadBatchImages(files: FileList | File[], options: Partial<UploadOptions> = {}): Promise<BatchUploadResult> {
         return this.uploadBatchFiles(files, options);
     }
 
@@ -147,9 +188,8 @@ class ImageUploadService {
      * 获取支持的格式信息
      * 注：后端暂无对应端点，此处返回静态清单（原文件存在两个同名方法，
      * JS 类中后者覆盖前者、网络版从未生效，已于结构规范化时删除）。
-     * @returns {Promise} 支持的格式信息
      */
-    async getSupportedFormats() {
+    async getSupportedFormats(): Promise<SupportedFormatsResponse> {
         try {
             const headers = createAuthHeaders();
             const response = await fetch(`${this.baseUrl}/api/raw-data/upload-data`, {
@@ -206,11 +246,9 @@ class ImageUploadService {
 
     /**
      * 验证图像文件
-     * @param {File} file - 图像文件
-     * @param {Object} limits - 文件限制
-     * @returns {Object} 验证结果
+     * @param limits - 文件限制
      */
-    validateImageFile(file, limits = {}) {
+    validateImageFile(file: File, limits: { maxSizeMB?: number } = {}): ValidationOutcome {
         const maxSize = limits.maxSizeMB || 50; // 默认50MB
         const supportedTypes = [
             'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
@@ -218,7 +256,7 @@ class ImageUploadService {
             'image/svg+xml'
         ];
 
-        const validation = {
+        const validation: ValidationOutcome = {
             isValid: true,
             errors: [],
             warnings: []
@@ -250,10 +288,8 @@ class ImageUploadService {
 
     /**
      * 创建图像预览URL
-     * @param {File} file - 图像文件
-     * @returns {Promise} 预览URL
      */
-    createPreviewUrl(file) {
+    createPreviewUrl(file: File): Promise<string> {
         return new Promise((resolve, reject) => {
             if (!file.type.startsWith('image/')) {
                 reject(new Error('不是图像文件'));
@@ -262,7 +298,7 @@ class ImageUploadService {
 
             const reader = new FileReader();
             reader.onload = (e) => {
-                resolve(e.target.result);
+                resolve(e.target?.result as string);
             };
             reader.onerror = () => {
                 reject(new Error('读取文件失败'));
@@ -273,34 +309,28 @@ class ImageUploadService {
 
     /**
      * 格式化文件大小
-     * @param {number} bytes - 字节数
-     * @returns {string} 格式化的文件大小
      */
-    formatFileSize(bytes) {
+    formatFileSize(bytes: number): string {
         if (bytes === 0) return '0 Bytes';
-        
+
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
+
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     /**
      * 从文件名获取扩展名
-     * @param {string} filename - 文件名
-     * @returns {string} 扩展名
      */
-    getFileExtension(filename) {
-        return filename.split('.').pop().toLowerCase();
+    getFileExtension(filename: string): string {
+        return filename.split('.').pop() ?? '';
     }
 
     /**
      * 检查文件是否为支持的图像格式
-     * @param {string} filename - 文件名
-     * @returns {boolean} 是否为支持的格式
      */
-    isSupportedImageFormat(filename) {
+    isSupportedImageFormat(filename: string): boolean {
         const supportedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'tif', 'webp', 'ico', 'svg'];
         const extension = this.getFileExtension(filename);
         return supportedExtensions.includes(extension);
