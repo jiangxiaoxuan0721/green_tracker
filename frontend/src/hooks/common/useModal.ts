@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react'
 
-const useModal = () => {
+const useModal = <T = unknown,>() => {
   const [isOpen, setIsOpen] = useState(false)
-  const [modalData, setModalData] = useState(null)
+  const [modalData, setModalData] = useState<T | null>(null)
 
-  const openModal = useCallback((data = null) => {
+  const openModal = useCallback((data: T | null = null) => {
     setModalData(data)
     setIsOpen(true)
   }, [])
