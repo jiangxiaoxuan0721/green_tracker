@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Upload, Download, Play, Star, User, PlayCircle, PauseCircle, RotateCw, Trash2, MoreVertical, Cpu } from 'lucide-react'
 import axios from 'axios'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { env } from '@/config/env'
 import { PageHeader } from '@/components/ui'
 import './AlgorithmSquare.css'
 import '../AdditionalStyles.css'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6130'
+// API 基址：来自唯一出口 config/env.ts（已归一化，不含 /api）
+const API_BASE_URL = env.API_BASE_URL
 
 const AlgorithmSquare = () => {
   const navigate = useNavigate()
