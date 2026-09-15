@@ -1,7 +1,8 @@
+# 本文件是 pyproject.toml 的镜像（唯一依赖来源为 pyproject.toml，make install 使用 pip install -e .）
+# 修改依赖请编辑 pyproject.toml 后同步本文件
 fastapi==0.124.4
 python-dotenv==1.2.1
 uvicorn==0.38.0
-dotenv==0.9.9
 greenlet==3.3.0
 sqlalchemy==2.0.45
 psycopg2-binary==2.9.11
