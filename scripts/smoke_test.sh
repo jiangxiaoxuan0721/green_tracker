@@ -36,21 +36,21 @@ echo " 后端直连: $API_URL"
 echo "=========================================="
 
 echo "[1/5] 后端直连"
-check "GET  /health"                        200 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$API_URL/health")"
-check "POST /api/auth/login（空body=路由存在）" 422 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST "$API_URL/api/auth/login" -H 'Content-Type: application/json' -d '{}')"
+check "GET  /health"                        200 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$API_URL/health" 2>/dev/null || echo 000)"
+check "POST /api/auth/login（空body=路由存在）" 422 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST "$API_URL/api/auth/login" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo 000)"
 
 echo "[2/5] 经 Nginx 反代"
-check "GET  /health"                        200 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG "$FRONT_URL/health")"
-check "POST /api/auth/login"                422 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG -X POST "$FRONT_URL/api/auth/login" -H 'Content-Type: application/json' -d '{}')"
+check "GET  /health"                        200 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG "$FRONT_URL/health" 2>/dev/null || echo 000)"
+check "POST /api/auth/login"                422 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG -X POST "$FRONT_URL/api/auth/login" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo 000)"
 
 echo "[3/5] 双前缀反例（必须 404；若 422 即 baseURL 配置回归）"
-check "POST /api/api/auth/login"            404 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG -X POST "$FRONT_URL/api/api/auth/login" -H 'Content-Type: application/json' -d '{}')"
+check "POST /api/api/auth/login"            404 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG -X POST "$FRONT_URL/api/api/auth/login" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo 000)"
 
 echo "[4/5] 鉴权接口（无 token 应 401；FastAPI 会把 /api/fields 307 重定向到带尾斜杠路径，故直接用尾斜杠形式）"
-check "GET  /api/fields/"                   401 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG "$FRONT_URL/api/fields/")"
+check "GET  /api/fields/"                   401 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG "$FRONT_URL/api/fields/" 2>/dev/null || echo 000)"
 
 echo "[5/5] 前端入口"
-check "GET  /"                              200 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG "$FRONT_URL/")"
+check "GET  /"                              200 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 $KFLAG "$FRONT_URL/" 2>/dev/null || echo 000)"
 
 if [[ -n "${SMOKE_USERNAME:-}" && -n "${SMOKE_PASSWORD:-}" ]]; then
   echo "[可选] 真实登录（SMOKE_USERNAME 已设置）"

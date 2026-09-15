@@ -39,10 +39,10 @@ export const normalizeApiBaseUrl = (raw: string | undefined): string => {
   if (original === '') return ''
 
   let normalized = original.replace(/\/+$/, '')
-  if (normalized === '/api') {
-    normalized = ''
-  } else if (normalized.endsWith('/api')) {
-    normalized = normalized.slice(0, -'/api'.length).replace(/\/+$/, '')
+  // 循环剥离病态输入（如 /api/api）的每一层 /api 后缀
+  while (normalized === '/api' || normalized.endsWith('/api')) {
+    normalized =
+      normalized === '/api' ? '' : normalized.slice(0, -'/api'.length).replace(/\/+$/, '')
   }
 
   if (normalized !== original) {
@@ -79,6 +79,7 @@ export const env = {
 
   AMAP_KEY: readString(import.meta.env.VITE_AMAP_KEY, ''),
   AMAP_SERVICE_KEY: readString(import.meta.env.VITE_AMAP_SERVICE_KEY, ''),
+  AMAP_SECURITY_CODE: readString(import.meta.env.VITE_AMAP_SECURITY_CODE, ''),
 
   MAX_FILE_SIZE: readInt(import.meta.env.VITE_MAX_FILE_SIZE, 10 * 1024 * 1024),
   ALLOWED_IMAGE_FORMATS: readList(import.meta.env.VITE_ALLOWED_IMAGE_FORMATS, [

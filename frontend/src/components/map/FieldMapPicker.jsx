@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { env } from '@/config/env'
 import './map.css'
 
-const AMapKey = import.meta.env.VITE_AMAP_KEY
-const AMapServiceKey = import.meta.env.VITE_AMAP_SERVICE_KEY
-const AMapSecurityCode = import.meta.env.VITE_AMAP_SECURITY_CODE
+const AMapKey = env.AMAP_KEY
+const AMapServiceKey = env.AMAP_SERVICE_KEY
+const AMapSecurityCode = env.AMAP_SECURITY_CODE
 
 /**
  * 地块地图选择器组件

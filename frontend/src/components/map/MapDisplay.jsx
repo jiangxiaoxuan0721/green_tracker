@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { env } from '@/config/env'
 import './map.css'
 
-const AMapKey = import.meta.env.VITE_AMAP_KEY
+const AMapKey = env.AMAP_KEY
 
 /**
  * 地图展示组件 - 用于显示地块位置
