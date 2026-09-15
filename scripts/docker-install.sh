@@ -4,6 +4,8 @@
 # 用于在Ubuntu/Debian系统上安装Docker和Docker Compose
 # 用途: 为Green Tracker算法镜像构建提供Docker支持
 
+set -euo pipefail
+
 # 颜色定义
 GREEN='\033[0;32m'
 RED='\033[0;31m'

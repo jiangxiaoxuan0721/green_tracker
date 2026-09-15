@@ -341,16 +341,10 @@ test_connection() {
 
     cd "$PROJECT_DIR/backend"
 
-    # 修复：原指向不存在的 storage/check_minio.py 与 test_storage.py
-    if [ -f "storage/check_minio.py" ]; then
-        python storage/check_minio.py
-    elif [ -f "storage/test_storage.py" ]; then
-        echo "运行存储测试..."
-        python storage/test_storage.py
-    else
-        echo -e "${RED}未找到专用测试脚本，改用后端连通性自检（MinioClient 构造会真实连接并确保桶存在）${NC}"
-        python -c "from storage.minio_client import MinioClient; MinioClient(); print('MinIO 连接 OK')" || return 1
-    fi
+    # 连通性自检：MinioClient 构造会真实连接并确保桶存在（原指向的
+    # storage/check_minio.py 与 test_storage.py 从未存在过，已删除死代码分支）
+    echo -e "${RED}运行存储连通性自检...${NC}"
+    python -c "from storage.minio_client import MinioClient; MinioClient(); print('MinIO 连接 OK')" || return 1
 }
 
 # 清理数据目录
@@ -383,7 +377,7 @@ main() {
                 use_docker="false"
                 ;;
             --force)
-                FORCE_INSTALL="true"
+                FORCE_INSTALL="--force"
                 ;;
         esac
     done
@@ -416,8 +410,8 @@ main() {
             ;;
         restart)
             # 修复：原实现直接调用不存在的 stop/start 命令（case 标签不是函数），
-            # set -e 下必然中断
-            if [ "$use_docker" = "true" ] && check_docker; then
+            # set -e 下必然中断；守卫与主 stop) 分支一致（容器不存在时走 binary 路径）
+            if [ "$use_docker" = "true" ] && check_docker && [ "$(docker ps -q -f name=minio)" ]; then
                 stop_docker
                 sleep 2
                 start_docker

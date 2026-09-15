@@ -18,7 +18,7 @@
 - `DOMAIN` - 站点主域名，访问地址为 `https://${DOMAIN}`，默认 `green-tracker.cn`
 - `SSL_EMAIL` - Let's Encrypt 注册邮箱，接收证书续期提醒
 
-详细 HTTPS 部署文档见 [docs/HTTPS_SETUP.md](docs/HTTPS_SETUP.md)。
+详细 HTTPS 部署文档见 [HTTPS_SETUP.md](HTTPS_SETUP.md)（同目录）。
 
 ### 前端配置
 
@@ -65,7 +65,7 @@
 系统采用多数据库架构（元数据库 + 用户模板库 + 用户独立数据库）：
 
 - `DB_HOST` - 数据库主机，默认为 localhost
-- `DB_PORT` - 数据库端口，默认为 5432
+- `DB_PORT` - 数据库端口（本机实际部署为 5433；`.env.example` 中的 5432 为 PostgreSQL 出厂默认值，以 `.env` 为准）
 - `META_DB_NAME` - 元数据库名称（存储用户、数据库等元数据），默认为 `green_tracker_meta`
 - `TEMPLATE_DB_NAME` - 用户数据库模板名称，默认为 `green_tracker_template`
 - `USER_DB_PREFIX` - 用户数据库前缀，默认为 `green_tracker_user_`

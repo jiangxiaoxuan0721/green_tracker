@@ -67,7 +67,7 @@ fi
 echo ""
 # MinIO状态
 echo "MinIO状态："
-"$SCRIPT_DIR/minio.sh" status
+"$SCRIPT_DIR/minio.sh" status || true
 
 echo ""
 echo -e "${GREEN}所有服务启动完成！${NC}"

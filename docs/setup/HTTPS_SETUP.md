@@ -10,7 +10,7 @@
 |------|---------|
 | 访问地址不出现端口号 | 用 Nginx 监听 80/443，对外只暴露标准端口 |
 | 默认主页就是 `https://green-tracker.cn` | HTTP 80 自动 301 跳到 HTTPS 443 |
-| 不区分开发/部署 | 开发与生产使用同一套 Nginx + 域名配置 |
+| 开发/部署双模式 | dev 反代 Vite dev server（HMR），prod 托管构建产物（见第 9 节） |
 | 安全性 | HTTPS 加密 + 安全响应头 + 后端只监听 127.0.0.1 |
 
 ---
@@ -200,8 +200,10 @@ Detail: Invalid response from http://green-tracker.cn/.well-known/acme-challenge
 | `.env` | 项目配置（域名、端口、数据库等） |
 | `nginx/green-tracker.conf.template` | Nginx 站点模板 |
 | `nginx/ssl-params.conf` | SSL 通用参数（TLS 版本 / 加密套件 / 安全响应头） |
+| `nginx/snippets/` | 各模式差异化片段（green-tracker-frontend.conf 等，渲染时按模式选取） |
 | `scripts/setup_https.sh` | 一键申请证书并部署 |
-| `scripts/nginx.sh` | Nginx 服务管理 |
+| `scripts/render_nginx.sh` | 按 dev/prod 模式渲染站点配置并记录 `.current-mode` |
+| `scripts/nginx.sh` | Nginx 服务管理（status/mode/reload 等） |
 | `/etc/nginx/sites-available/green-tracker` | 由脚本自动安装的实际配置 |
 | `/etc/letsencrypt/live/<domain>/` | Let's Encrypt 证书存放目录 |
 
