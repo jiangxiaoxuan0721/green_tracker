@@ -31,7 +31,7 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
   handlersRef.current = { onViewportChange, onBlankClick, onPolygonClick }
 
   /**
-   * key -> Cluster。marker 会被复用（只 setCenter/setContent 不重建），
+   * key -> Cluster。marker 会被复用（只 setPosition/setContent 不重建），
    * 若在 click 闭包里捕获建点时的 c，平移后同一 key 的成员已变，会拿到过期 ids。
    * 改为点击那一刻按 key 读最新数据（R21）。
    */
@@ -184,7 +184,9 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
         clusterDataRef.current.set(c.key, c)
         const existing = clusterMapRef.current.get(c.key)
         if (existing) {
-          existing.setCenter(new AMap.LngLat(lng, lat))
+          // Marker 更新位置用 setPosition（setCenter 是 Circle 的方法，Marker 上没有，
+          // 调用会抛 TypeError 并整页崩溃；window.AMap 是 any，tsc 与 eslint 都拦不住）
+          existing.setPosition(new AMap.LngLat(lng, lat))
           existing.setContent(content)
           return
         }
