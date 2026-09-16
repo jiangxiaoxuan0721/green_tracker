@@ -29,13 +29,6 @@ class DockerfileGenerator:
     def __init__(self):
         self.port_counter = CONTAINER_PORT_START
 
-    def get_next_port(self) -> int:
-        """获取下一个可用端口"""
-        port = self.port_counter
-        if self.port_counter < CONTAINER_PORT_END:
-            self.port_counter += 1
-        return port
-
     def reset_port_counter(self):
         """重置端口计数器"""
         self.port_counter = CONTAINER_PORT_START
