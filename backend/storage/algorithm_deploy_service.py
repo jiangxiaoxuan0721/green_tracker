@@ -69,6 +69,10 @@ import logging
 import uuid as _uuid
 from typing import Optional
 
+# 模块顶层 re-export，让 monkeypatch 可以按字符串路径替换
+from storage.image_build_service import get_image_build_service
+from storage.container_manager import get_container_manager
+
 logger = logging.getLogger(__name__)
 
 
@@ -112,13 +116,90 @@ class AlgorithmDeployService:
             raise
 
     async def _run(self, task: BuildTask) -> None:
-        # 在 Task 7 实现完整编排
+        """构建 → 清理旧容器 → 分配端口 → 启动 → 健康检查 → finish。
+
+        任何环节失败立即 finish(failed) 并释放端口。"""
+        port: Optional[int] = None
         try:
-            await asyncio.sleep(0.1)
-            task.finish("running", result={"port": 0, "image": "stub", "container_id": "stub"})
+            # 使用本模块全局的 get_image_build_service / get_container_manager（顶部 re-export），
+            # 让 monkeypatch.setattr 字符串路径替换生效。
+            build_svc = get_image_build_service()
+            cm = get_container_manager()
+
+            task.publish("[build] 查找算法记录...")
+            minio_path: Optional[str] = None
+            try:
+                from database.main_db import get_meta_db
+                from database.db_services import algorithm_service
+                db = next(get_meta_db())
+                algo = algorithm_service.get_algorithm_by_id(db, str(task.algorithm_id))
+                minio_path = getattr(algo, "minio_path", None) if algo else None
+            except Exception as e:
+                task.publish(f"[warn] 读算法记录失败: {e}")
+            if not minio_path:
+                task.finish("failed", error="算法记录缺失 minio_path")
+                return
+
+            from storage.minio_client import minio_client
+            task.publish("[build] 下载算法包并生成 Dockerfile...")
+            ok, image_tag, _port_or_err = await build_svc.build_image(
+                task.algorithm_uuid, minio_path, minio_client,
+                log_sink=task.publish,
+            )
+            if not ok:
+                task.finish("failed", error=_port_or_err or "镜像构建失败")
+                return
+            task.publish(f"[build] 镜像构建成功: {image_tag}")
+
+            task.publish("[cleanup] 清理同名旧容器...")
+            try:
+                await cm.remove_container(task.algorithm_uuid)
+            except Exception as e:
+                task.publish(f"[warn] 清理旧容器失败: {e}")
+
+            task.publish("[start] 启动容器...")
+            ok, cid, port, err = await cm.start_container(
+                task.algorithm_uuid, image_tag, env={}, log_sink=task.publish,
+            )
+            if not ok:
+                task.finish("failed", error=err or "容器启动失败")
+                return
+            task.publish(f"[start] 容器已起 cid={cid[:12]} port={port}")
+
+            task.publish(f"[health] 等待服务就绪（最多 30s）...")
+            healthy = await cm.wait_healthy(port, timeout=30)
+            if not healthy:
+                task.publish("[health] ⚠ 健康检查超时，但容器已起；后续可能不稳定")
+
+            # 写回数据库
+            try:
+                from database.main_db import get_meta_db
+                from database.db_services import algorithm_service
+                db = next(get_meta_db())
+                algorithm_service.update_algorithm(
+                    db, str(task.algorithm_id),
+                    status="running", docker_image=image_tag, container_port=port,
+                    build_log="\n".join(task.log_lines[-50:]),
+                )
+            except Exception as e:
+                task.publish(f"[warn] 写回数据库失败: {e}")
+
+            task.finish("running", result={
+                "port": port, "image": image_tag, "container_id": cid,
+            })
+        except Exception as e:
+            logger.exception(f"_run 异常: {e}")
+            if port is not None:
+                try:
+                    await get_container_manager().release_port(port)
+                except Exception:
+                    pass
+            task.finish("failed", error=str(e))
         finally:
-            self._build_locks[task.algorithm_id].release()
-            self._tasks_by_algorithm[task.algorithm_id].discard(task.task_id)
+            lock = self._build_locks.get(task.algorithm_id)
+            if lock and lock.locked():
+                lock.release()
+            self._tasks_by_algorithm.get(task.algorithm_id, set()).discard(task.task_id)
 
     def get_task(self, task_id: str) -> Optional[BuildTask]:
         return self._tasks.get(task_id)
