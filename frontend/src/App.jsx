@@ -1,4 +1,5 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
+import { DeployTasksFab } from '@/components/deploy/DeployTasksFab'
 import { useEffect } from 'react'
 import { AuthProvider } from './hooks/auth/useAuth'
 import { Home, About, Contact, Login, Register, ForgotPassword, Dashboard, Feedback, NotFound, Overview, Fields, Devices, Sessions, DataUpload, DataView, DataAnalyze, System, Logs, AlgorithmSquare, AlgorithmUse, KeyManagement, MQTT } from './pages'
@@ -59,6 +60,7 @@ function AppContent() {
         </Routes>
       </main>
       <ToastContainer />
+      <DeployTasksFab />
     </div>
   )
 }
