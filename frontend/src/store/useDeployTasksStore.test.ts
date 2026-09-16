@@ -1,4 +1,5 @@
 // zustand store 测试 —— 需要 vitest 跑（frontend/package.json 暂无 test script）
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck -- vitest 未安装；待 npm i -D vitest 后移除
 import { useDeployTasksStore } from './useDeployTasksStore'
 

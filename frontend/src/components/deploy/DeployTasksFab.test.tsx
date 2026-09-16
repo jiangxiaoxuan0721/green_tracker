@@ -1,4 +1,5 @@
 // DeployTasksFab 测试 —— 需要 vitest + @testing-library/react 跑（前端无此依赖）
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck -- vitest 未安装；待 npm i -D vitest @testing-library/react 后移除
 import { useDeployTasksStore } from '@/store/useDeployTasksStore'
 import { DeployTasksFab } from './DeployTasksFab'

@@ -210,3 +210,27 @@
    - 后端 6130 与 MinIO 9100 保持 127.0.0.1 监听，仅 Nginx 可访问
 
 6. **HTTPS 安全响应头**已由 `nginx/ssl-params.conf` 自动配置（HSTS / X-Frame-Options 等）
+## 流式 API 长连接（NDJSON 构建日志）
+
+`/api/algorithms/{id}/build/stream` 是 NDJSON 长连接（算法构建日志实时推送）。nginx 默认会缓冲响应导致日志看不到实时输出。在 `/api` location 必须配置：
+
+```nginx
+proxy_buffering off;
+proxy_cache off;
+proxy_read_timeout 600s;
+proxy_send_timeout 600s;
+chunked_transfer_encoding on;
+```
+
+参考 `nginx/green-tracker.conf.template` 第 76-87 行。
+
+**算法部署新流程**：
+
+- 点击「提交构建」→ 后端立即返回 202 → 顶部条出现进度卡片
+- 卡片显示实时日志（构建/启动/健康检查三阶段）
+- 用户可切到其他页面，卡片持续显示（zustand store + sessionStorage 持久化）
+- 同一算法并发构建会被后端拒绝（409）
+- 后端崩溃后任务标记为「后端已丢失此任务」（lost 状态）
+
+后端实现见 `backend/storage/algorithm_deploy_service.py` 与 `backend/api/routes/algorithm.py`。
+前端实现见 `frontend/src/store/useDeployTasksStore.ts` 与 `frontend/src/components/deploy/DeployTasksFab.tsx`。
