@@ -2,14 +2,15 @@
 算法镜像构建服务 - 处理算法的镜像构建和管理
 """
 
+import asyncio
 import os
 import logging
-import zipfile
-import tempfile
+import subprocess as _sp
 import shutil
-import uuid
-from typing import Optional, Tuple
-from datetime import datetime
+import zipfile
+from typing import Callable, Optional, Tuple
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -19,192 +20,149 @@ DOCKER_BUILD_CONTEXT = "/tmp/algorithm_builds"
 
 
 class ImageBuildService:
-    """算法镜像构建服务"""
+    """算法镜像构建服务
+
+    流式日志 + build 前清理同前缀旧 tag（避免镜像冲突）。
+    端口由 ContainerManager 自管，build_image 不再返回端口（返回 None）。
+    """
 
     def __init__(self):
         self.build_context = DOCKER_BUILD_CONTEXT
         os.makedirs(self.build_context, exist_ok=True)
+
+    @staticmethod
+    def image_tag(uuid: str) -> str:
+        """单 tag 命名：与 ContainerManager.image_tag 一致。"""
+        return f"algorithm_{uuid.replace('-', '')}:latest"
+
+    def _next_tag(self, uuid: str) -> str:
+        """每次 build 用临时 build-tag（与 :latest 别名同步）。"""
+        return f"algorithm_{uuid.replace('-', '')}:build-{os.getpid()}"
 
     async def build_image(
         self,
         algorithm_uuid: str,
         minio_path: str,
         minio_client,
-        assigned_port: int = None
-    ) -> Tuple[bool, str, Optional[str]]:
-        """
-        构建算法镜像
-        
-        Args:
-            algorithm_uuid: 算法UUID
-            minio_path: MinIO存储路径
-            minio_client: MinIO客户端
-            assigned_port: 分配的主机端口（可选）
-        
-        Returns:
-            (成功标志, 镜像名, 主机端口号或错误信息)
-        """
+        *,
+        log_sink: Optional[Callable[[str], None]] = None,
+    ) -> Tuple[bool, str, object]:
+        log = log_sink or (lambda _msg: None)
         try:
-            logger.info(f"开始构建算法镜像: {algorithm_uuid}")
+            log(f"下载算法包: {minio_path}")
+            package = minio_client.get_object("algorithms", minio_path)
 
-            # 1. 创建临时目录
             build_dir = os.path.join(self.build_context, algorithm_uuid)
             os.makedirs(build_dir, exist_ok=True)
-
-            # 2. 下载算法包
-            logger.info(f"从MinIO下载算法包: {minio_path}")
-            algorithm_package = minio_client.get_object("algorithms", minio_path)
-
-            # 3. 解压算法包
             zip_path = os.path.join(build_dir, "algorithm.zip")
             with open(zip_path, 'wb') as f:
-                f.write(algorithm_package)
+                f.write(package)
 
             extract_dir = os.path.join(build_dir, "extracted")
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_dir)
+            with zipfile.ZipFile(zip_path, 'r') as zr:
+                zr.extractall(extract_dir)
 
-            logger.info(f"算法包解压到: {extract_dir}")
-
-            # 4. 解析 algorithm.yaml
-            import yaml
             config_path = None
-            for root, dirs, files in os.walk(extract_dir):
+            for root, _dirs, files in os.walk(extract_dir):
                 if 'algorithm.yaml' in files:
                     config_path = os.path.join(root, 'algorithm.yaml')
                     break
-
             if not config_path:
-                return False, "", "算法包缺少 algorithm.yaml 文件"
-
+                return False, "", "算法包缺少 algorithm.yaml"
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f)
 
-            # 5. 生成 Dockerfile
             from storage.dockerfile_generator import get_dockerfile_generator
             generator = get_dockerfile_generator()
-            framework = config.get('framework', 'python')
-
-            # 找到src目录
-            src_dir = None
-            for item in os.listdir(extract_dir):
-                item_path = os.path.join(extract_dir, item)
-                if os.path.isdir(item_path) and item == 'src':
-                    src_dir = item_path
-                    break
-
-            # 生成Dockerfile，容器内部端口固定为8000
             dockerfile_content, _ = generator.generate_dockerfile(
                 algorithm_dir=extract_dir,
                 algorithm_uuid=algorithm_uuid,
-                framework=framework
+                framework=config.get('framework', 'python'),
             )
-            
-            # 如果传入了分配端口，使用它作为主机端口
-            port = assigned_port if assigned_port is not None else generator.get_next_port()
-
-            # 写入 Dockerfile
             dockerfile_path = os.path.join(extract_dir, 'Dockerfile')
             with open(dockerfile_path, 'w') as f:
                 f.write(dockerfile_content)
 
-            # 6. 构建镜像
-            docker_image = f"{DOCKER_REGISTRY}/algorithm_{algorithm_uuid}:latest"
-            logger.info(f"开始构建镜像: {docker_image}")
+            # ★ 关键：build 前清理同前缀旧 tag（spec 决策 C）
+            old_tags = await self._list_image_tags(algorithm_uuid)
+            for t in old_tags:
+                log(f"清理旧镜像: {t}")
+                await self._exec(['docker', 'rmi', t], check=False)
 
-            build_success = await self._build_docker_image(
-                context=extract_dir,
-                dockerfile=dockerfile_path,
-                image_name=docker_image
+            new_tag = self._next_tag(algorithm_uuid)
+            log(f"构建镜像: {new_tag}")
+            ok = await self._build_docker_image(
+                extract_dir, dockerfile_path, new_tag, log_sink=log,
             )
+            if not ok:
+                return False, "", "Docker 镜像构建失败"
 
-            if not build_success:
-                return False, "", "Docker镜像构建失败"
+            # 让 :latest 别名同步指向新 build tag
+            await self._exec(['docker', 'tag', new_tag, self.image_tag(algorithm_uuid)], check=False)
 
-            # 7. 清理临时文件
             shutil.rmtree(build_dir, ignore_errors=True)
-
-            logger.info(f"镜像构建成功: {docker_image}, 端口: {port}")
-            return True, docker_image, port
+            log(f"镜像构建成功: {new_tag}")
+            return True, new_tag, None  # 端口由 ContainerManager 自管
 
         except Exception as e:
-            logger.error(f"镜像构建失败: {str(e)}")
+            logger.error(f"镜像构建失败: {e}")
             return False, "", str(e)
+
+    async def _list_image_tags(self, uuid: str) -> list[str]:
+        """列出同前缀的所有 image tag（待清理）。"""
+        try:
+            result = _sp.run(
+                ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}",
+                 "--filter", f"reference=algorithm_{uuid.replace('-', '')}"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode != 0:
+                return []
+            return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        except (FileNotFoundError, _sp.TimeoutExpired):
+            return []
+
+    async def _exec(self, cmd: list[str], check: bool = False) -> tuple[int, str, str]:
+        """统一 docker CLI 执行。"""
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        return process.returncode, stdout.decode(errors="replace"), stderr.decode(errors="replace")
 
     async def _build_docker_image(
         self,
         context: str,
         dockerfile: str,
-        image_name: str
+        image_name: str,
+        log_sink: Optional[Callable[[str], None]] = None,
     ) -> bool:
-        """
-        执行 Docker 构建
-        
-        Args:
-            context: 构建上下文目录
-            dockerfile: Dockerfile路径
-            image_name: 镜像名称
-        
-        Returns:
-            是否成功
-        """
-        try:
-            import subprocess
-            import asyncio
-
-            # 使用 docker build 命令
-            cmd = [
-                'docker', 'build',
-                '-f', dockerfile,
-                '-t', image_name,
-                context
-            ]
-
-            logger.info(f"执行命令: {' '.join(cmd)}")
-
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-
-            stdout, stderr = await process.communicate()
-
-            if process.returncode != 0:
-                logger.error(f"Docker构建失败: {stderr.decode()}")
-                return False
-
-            logger.info(f"Docker构建输出: {stdout.decode()}")
-            return True
-
-        except FileNotFoundError:
-            logger.error("Docker未安装或不在PATH中")
-            raise FileNotFoundError("Docker未安装或不在PATH中，请检查Docker是否正确安装并已添加到系统PATH")
-        except Exception as e:
-            logger.error(f"Docker构建异常: {str(e)}")
-            raise
+        """流式构建：逐行写入 log_sink。"""
+        cmd = ['docker', 'build', '-f', dockerfile, '-t', image_name, context]
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        if log_sink is not None:
+            async for line in process.stdout:
+                log_sink(line.decode(errors="replace").rstrip())
+        rc = await process.wait()
+        if rc != 0:
+            logger.error(f"Docker 构建失败: rc={rc}")
+        return rc == 0
 
     async def push_image(self, image_name: str) -> bool:
-        """
-        推送镜像到仓库
-        
-        Args:
-            image_name: 镜像名称
-        
-        Returns:
-            是否成功
-        """
+        """推送镜像到仓库。"""
         try:
-            import subprocess
-            import asyncio
-
             cmd = ['docker', 'push', image_name]
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
-
             stdout, stderr = await process.communicate()
 
             if process.returncode != 0:
