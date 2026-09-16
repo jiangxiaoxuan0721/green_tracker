@@ -15,6 +15,13 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger("MQTT.DeviceManager")
 
+# 设备心跳超时（秒）：超过此时间未收到任何消息则视为离线。
+# 与 backend/database/db_services/device_service.py 中 DB 路径的
+# HEARTBEAT_TIMEOUT_SECONDS 保持一致；该阈值确保即便 LWT 缺失或 broker
+# 未及时下发也能在 N 秒内自动转离线（由 get_all_devices/is_online 等
+# 读路径触发原地修正，前端无需轮询差异）。
+MQTT_OFFLINE_TIMEOUT_SECONDS = 90
+
 
 class DeviceStateManager:
     """
@@ -80,23 +87,59 @@ class DeviceStateManager:
     def get_device(self, device_id: str) -> Optional[dict]:
         """获取单个设备状态"""
         with self.lock:
+            self._sweep_if_stale(device_id)
             return self.devices.get(device_id)
 
     def get_all_devices(self) -> List[dict]:
         """获取所有设备状态列表"""
         with self.lock:
+            for did in list(self.devices.keys()):
+                self._sweep_if_stale(did)
             return list(self.devices.values())
 
     def get_online_count(self) -> int:
         """获取在线设备数"""
         with self.lock:
+            for did in list(self.devices.keys()):
+                self._sweep_if_stale(did)
             return sum(1 for d in self.devices.values() if d["status"] == "online")
 
     def is_online(self, device_id: str) -> bool:
         """检查指定设备是否在线"""
         with self.lock:
+            self._sweep_if_stale(device_id)
             dev = self.devices.get(device_id)
             return dev is not None and dev["status"] == "online"
+
+    def _sweep_if_stale(self, device_id: str) -> None:
+        """
+        若设备处于 online 状态但 last_seen 超过心跳超时窗口，
+        原地修正为 offline 并记录历史；保持锁内调用以避免并发不一致。
+
+        设备重新上线时 update_status('online') 会自动恢复。
+        """
+        dev = self.devices.get(device_id)
+        if not dev or dev.get("status") != "online":
+            return
+        last_seen = dev.get("last_seen")
+        if not last_seen:
+            return
+        try:
+            last_seen_dt = datetime.fromisoformat(last_seen)
+        except (ValueError, TypeError):
+            return
+        age = (datetime.now(timezone.utc) - last_seen_dt).total_seconds()
+        if age > MQTT_OFFLINE_TIMEOUT_SECONDS:
+            dev["status"] = "offline"
+            now_iso = datetime.now(timezone.utc).isoformat()
+            dev["last_seen"] = now_iso
+            history = dev.setdefault("connect_history", [])
+            history.append({"time": now_iso, "event": "disconnected", "reason": "heartbeat_timeout"})
+            if len(history) > 100:
+                dev["connect_history"] = history[-100:]
+            logger.warning(
+                f"⏱️ 设备心跳超时自动离线: {device_id} (last_seen={age:.0f}s 前)"
+            )
 
     # ------------------------------------------------------------------
     # 命令追踪
