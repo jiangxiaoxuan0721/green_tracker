@@ -39,6 +39,27 @@ export interface FieldUpdate {
   is_active?: boolean;
 }
 
+export interface FieldLight {
+  id: string;
+  name: string;
+  area_m2?: number;
+  /** [lng, lat]，WGS84 */
+  centroid?: [number, number];
+}
+
+export interface FieldGeometry {
+  id: string;
+  location_wkt?: string;
+}
+
+/** 视野包围盒，与后端 /api/fields/geometry 的查询参数一致 */
+export interface Bbox {
+  minLng: number;
+  minLat: number;
+  maxLng: number;
+  maxLat: number;
+}
+
 export interface PointQuery {
   longitude: number;
   latitude: number;
@@ -145,6 +166,33 @@ export const fieldService = {
     const response = await api.post<Field[]>('/api/fields/point-query', pointData);
     
     console.log('[前端FieldService] 点查询成功:', response.data);
+    return response.data;
+  },
+
+  // 获取地块轻量列表（仅 id / name / area_m2 / centroid），用于聚合展示
+  async getFieldsLight(): Promise<FieldLight[]> {
+    console.log('[前端FieldService] 发送获取地块轻量列表请求');
+
+    const response = await api.get<FieldLight[]>('/api/fields/light');
+
+    console.log('[前端FieldService] 获取地块轻量列表成功:', response.data.length);
+    return response.data;
+  },
+
+  // 按视野 bbox 增量获取地块几何
+  async getFieldsGeometry(bbox: Bbox): Promise<FieldGeometry[]> {
+    console.log('[前端FieldService] 发送获取地块几何请求:', bbox);
+
+    const response = await api.get<FieldGeometry[]>('/api/fields/geometry', {
+      params: {
+        minLng: bbox.minLng,
+        minLat: bbox.minLat,
+        maxLng: bbox.maxLng,
+        maxLat: bbox.maxLat,
+      },
+    });
+
+    console.log('[前端FieldService] 获取地块几何成功:', response.data.length);
     return response.data;
   }
 };
