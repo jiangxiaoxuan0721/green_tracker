@@ -5,13 +5,19 @@
 import os
 import logging
 import asyncio
+import subprocess
 from typing import Optional, List, Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
 # 容器配置
 CONTAINER_PREFIX = "green_tracker_algorithm_"
-MAX_CONTAINERS = 100
+CONTAINER_PORT_MIN = 8001
+CONTAINER_PORT_MAX = 9999  # 含
+
+
+class PortExhaustedError(Exception):
+    """8001-9999 端口池耗尽时抛出。"""
 
 
 class ContainerManager:
@@ -19,6 +25,52 @@ class ContainerManager:
 
     def __init__(self):
         self.registry = os.getenv("DOCKER_REGISTRY", "localhost:5000")
+        self._port_pool_lock = asyncio.Lock()
+        self._allocated_ports: set[int] = set()
+
+    @staticmethod
+    def container_name(uuid: str) -> str:
+        """完整 uuid 命名（去横杠）：保证全局唯一，零碰撞。"""
+        return f"green_tracker_algorithm_{uuid.replace('-', '')}"
+
+    @staticmethod
+    def image_tag(uuid: str) -> str:
+        """单 tag 命名：重建时由 ImageBuildService 显式清理旧 tag。"""
+        return f"algorithm_{uuid.replace('-', '')}:latest"
+
+    async def allocate_port(self) -> int:
+        async with self._port_pool_lock:
+            used = self._allocated_ports | await self._scan_docker_used_ports()
+            for p in range(CONTAINER_PORT_MIN, CONTAINER_PORT_MAX + 1):
+                if p not in used:
+                    self._allocated_ports.add(p)
+                    return p
+            raise PortExhaustedError("8001-9999 端口已用尽")
+
+    async def release_port(self, port: int) -> None:
+        async with self._port_pool_lock:
+            self._allocated_ports.discard(port)
+
+    async def _scan_docker_used_ports(self) -> set[int]:
+        """列出所有已暴露给 docker 容器的主机端口。失败时返回空集（保守行为）。"""
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "--format", "{{.Ports}}"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode != 0:
+                return set()
+            ports: set[int] = set()
+            import re
+            stdout = result.stdout
+            # 兼容 bytes 与 str（test mock 返回 bytes；text=True 真实路径返回 str）
+            if isinstance(stdout, bytes):
+                stdout = stdout.decode("utf-8", errors="ignore")
+            for m in re.finditer(r":(\d+)->", stdout):
+                ports.add(int(m.group(1)))
+            return ports
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return set()
 
     async def start_container(
         self,
@@ -29,13 +81,13 @@ class ContainerManager:
     ) -> Tuple[bool, str, int, str]:
         """
         启动算法容器
-        
+
         Args:
             algorithm_uuid: 算法UUID
             image_name: 镜像名称
             port: 端口（可能会被修改如果端口被占用）
             env: 环境变量
-        
+
         Returns:
             (成功标志, 容器ID, 实际端口, 错误信息)
         """
@@ -116,10 +168,10 @@ class ContainerManager:
     async def stop_container(self, algorithm_uuid: str) -> bool:
         """
         停止算法容器
-        
+
         Args:
             algorithm_uuid: 算法UUID
-        
+
         Returns:
             是否成功
         """
@@ -149,10 +201,10 @@ class ContainerManager:
     async def remove_container(self, algorithm_uuid: str) -> bool:
         """
         删除算法容器
-        
+
         Args:
             algorithm_uuid: 算法UUID
-        
+
         Returns:
             是否成功
         """
@@ -185,10 +237,10 @@ class ContainerManager:
     async def get_container_status(self, algorithm_uuid: str) -> Dict[str, Any]:
         """
         获取容器状态
-        
+
         Args:
             algorithm_uuid: 算法UUID
-        
+
         Returns:
             状态信息字典
         """
@@ -257,7 +309,7 @@ class ContainerManager:
             return []
 
     async def _is_port_in_use(self, port: int) -> bool:
-        """检查端口是否已被占用"""
+        """检查端口是否已被占用（start_container 内部使用）。"""
         try:
             cmd = ['docker', 'ps', '--format', '{{.Ports}}']
             process = await asyncio.create_subprocess_exec(
@@ -275,7 +327,7 @@ class ContainerManager:
             return False
 
     async def _find_available_port(self) -> Optional[int]:
-        """查找可用端口"""
+        """查找可用端口（start_container 内部使用）。"""
         import random
         for _ in range(20):
             port = random.randint(8001, 9100)
