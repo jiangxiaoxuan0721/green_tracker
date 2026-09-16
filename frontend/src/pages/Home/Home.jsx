@@ -79,21 +79,19 @@ const Home = () => {
                 animate="visible"
                 transition={{ delay: 0.2 }}
               >
-                <Button 
-                  variant="primary" 
+                <Button
+                  variant="primary"
                   size="large"
                   onClick={() => isAuthenticated ? navigate('/dashboard') : navigate('/login')}
                   icon="🚀"
-                  animateHover
                 >
                   {isAuthenticated ? '进入控制台' : '开始体验'}
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="large"
                   onClick={() => navigate('/about')}
                   icon="📚"
-                  animateHover
                 >
                   了解更多
                 </Button>
