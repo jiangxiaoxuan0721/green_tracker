@@ -5,6 +5,7 @@ import axios from 'axios'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { env } from '@/config/env'
 import { PageHeader } from '@/components/ui'
+import { useDeployTasksStore } from '@/store/useDeployTasksStore'
 import './AlgorithmSquare.css'
 import '../AdditionalStyles.css'
 
@@ -20,9 +21,9 @@ const AlgorithmSquare = () => {
   const [category, setCategory] = useState('')
   const [categories, setCategories] = useState([])
   const [showUpload, setShowUpload] = useState(false)
-  const [buildingAlgorithm, setBuildingAlgorithm] = useState(null) // 当前正在构建的算法
-  const [buildStatus, setBuildStatus] = useState('') // 构建状态消息
   const [showActionsForAlgorithm, setShowActionsForAlgorithm] = useState(null) // 控制哪个算法显示操作菜单
+
+  const submitDeployTask = useDeployTasksStore((s) => s.submit)
 
   // 加载算法列表
   const fetchAlgorithms = async () => {
@@ -127,164 +128,23 @@ const AlgorithmSquare = () => {
     navigate(`/dashboard/algorithm-use/${algorithm.id}`)
   }
 
-  // 构建部署算法
+  // 构建部署算法 —— 改为 store.submit；store 在后台订阅 NDJSON 流并实时更新顶部条
   const handleBuild = async (algorithmId, algorithmName) => {
-    // 防止重复点击
-    if (buildingAlgorithm) {
-      alert('已有算法正在构建中，请等待完成')
-      return
-    }
-    
-    // 确认构建
-    if (!window.confirm(`确定要构建并部署算法「${algorithmName}」吗？\n\n构建过程可能需要几分钟时间。`)) {
-      return
-    }
-    
-    setBuildingAlgorithm(algorithmId)
-    setBuildStatus('正在构建镜像，请稍候...')
-    
     try {
-      await axios.post(
-        `${API_BASE_URL}/api/algorithms/${algorithmId}/build`,
-        {},
-        { 
-          headers: getAuthHeaders(),
-          timeout: 600000  // 10分钟超时（构建可能需要较长时间）
-        }
-      )
-      
-      setBuildStatus('构建成功！正在启动服务...')
-      
-      // 刷新算法状态
-      await fetchAlgorithms()
-      
-      // 找到更新后的算法
-      const updatedAlgo = algorithms.find(a => a.id === algorithmId)
-      if (updatedAlgo?.status === 'running') {
-        setBuildStatus('部署成功！算法已上线运行。')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 2000)
-      } else if (updatedAlgo?.status === 'error') {
-        setBuildStatus('构建失败，请查看日志')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 3000)
+      await submitDeployTask(algorithmId, algorithmName, getAuthHeaders())
+    } catch (e) {
+      const msg = e?.message || '提交失败'
+      if (msg.includes('正在构建')) {
+        console.warn('已有构建任务，请到顶部条查看')
       } else {
-        setBuildStatus('构建完成，状态更新中...')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 3000)
+        console.error('构建提交失败:', msg)
       }
-    } catch (error) {
-      console.error('构建失败:', error)
-      // 提取详细错误信息
-      let errorMessage = '构建失败'
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message
-      } else if (error.message) {
-        errorMessage = error.message
-      } else if (error.response?.status === 500) {
-        errorMessage = '服务器内部错误，请查看后端日志'
-      }
-      setBuildStatus(`构建失败: ${errorMessage}`)
-      setTimeout(() => {
-        setBuildingAlgorithm(null)
-        setBuildStatus('')
-      }, 5000)
     }
   }
 
-  // 重新构建算法（先清理再构建）
+  // 重新构建 = 同样调 submit（后端幂等：先 stop+remove 再 build）
   const handleRebuild = async (algorithmId, algorithmName) => {
-    // 防止重复点击
-    if (buildingAlgorithm) {
-      alert('已有算法正在构建中，请等待完成')
-      return
-    }
-    
-    // 确认重新构建（这是破坏性操作，会删除旧的容器和镜像）
-    if (!window.confirm(`确定要重新构建算法「${algorithmName}」吗？\n\n⚠️ 警告：重建会删除旧的算法容器和镜像，然后重新构建。\n整个过程可能需要几分钟时间。`)) {
-      return
-    }
-    
-    setBuildingAlgorithm(algorithmId)
-    setBuildStatus('正在清理旧容器和镜像...')
-    
-    try {
-      // 1. 先尝试停止容器
-      try {
-        await axios.post(
-          `${API_BASE_URL}/api/algorithms/${algorithmId}/stop`,
-          {},
-          { headers: getAuthHeaders() }
-        )
-      } catch (stopError) {
-        // 忽略停止失败的错误，可能容器已经不存在
-        console.log('停止容器失败（可能容器已不存在）:', stopError)
-      }
-      
-      // 2. 重新构建
-      setBuildStatus('正在重新构建镜像，请稍候...')
-      await axios.post(
-        `${API_BASE_URL}/api/algorithms/${algorithmId}/build`,
-        {},
-        { 
-          headers: getAuthHeaders(),
-          timeout: 600000  // 10分钟超时
-        }
-      )
-      
-      setBuildStatus('重新构建成功！正在启动服务...')
-      
-      // 刷新算法状态
-      await fetchAlgorithms()
-      
-      // 找到更新后的算法
-      const updatedAlgo = algorithms.find(a => a.id === algorithmId)
-      if (updatedAlgo?.status === 'running') {
-        setBuildStatus('部署成功！算法已上线运行。')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 2000)
-      } else if (updatedAlgo?.status === 'error') {
-        setBuildStatus('重新构建失败，请查看日志')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 3000)
-      } else {
-        setBuildStatus('重新构建完成，状态更新中...')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 3000)
-      }
-    } catch (error) {
-      console.error('重新构建失败:', error)
-      // 提取详细错误信息
-      let errorMessage = '重新构建失败'
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message
-      } else if (error.message) {
-        errorMessage = error.message
-      } else if (error.response?.status === 500) {
-        errorMessage = '服务器内部错误，请查看后端日志'
-      }
-      setBuildStatus(`重新构建失败: ${errorMessage}`)
-      setTimeout(() => {
-        setBuildingAlgorithm(null)
-        setBuildStatus('')
-      }, 5000)
-    }
+    await handleBuild(algorithmId, algorithmName)
   }
 
   // 停止算法
@@ -465,10 +325,9 @@ const AlgorithmSquare = () => {
                     <button
                       className="action-btn primary"
                       onClick={() => handleBuild(algo.id, algo.name)}
-                      disabled={buildingAlgorithm !== null}
                     >
                       <PlayCircle size={14} />
-                      {buildingAlgorithm === algo.id ? '构建中...' : (algo.status === 'stopped' ? '启动' : '构建部署')}
+                      {algo.status === 'stopped' ? '启动' : '提交构建'}
                     </button>
                   ) : algo.status === 'building' && user?.id === algo.author_id ? (
                     <button className="action-btn primary" disabled>
@@ -541,10 +400,9 @@ const AlgorithmSquare = () => {
                                     handleRebuild(algo.id, algo.name)
                                     setShowActionsForAlgorithm(null)
                                   }}
-                                  disabled={buildingAlgorithm !== null}
                                 >
                                   <RotateCw size={14} />
-                                  重新构建
+                                  重新部署
                                 </button>
                               </>
                             )}
@@ -569,10 +427,9 @@ const AlgorithmSquare = () => {
                                   handleBuild(algo.id, algo.name)
                                   setShowActionsForAlgorithm(null)
                                 }}
-                                disabled={buildingAlgorithm !== null}
                               >
                                 <PlayCircle size={14} />
-                                构建部署
+                                提交构建
                               </button>
                             )}
                             
@@ -611,25 +468,7 @@ const AlgorithmSquare = () => {
         />
       )}
 
-      {/* 构建状态提示 */}
-      {buildingAlgorithm && (
-        <div className="modal-overlay">
-          <div className="modal-content build-status-modal">
-            <div className="dashboard-loading">
-              <div className="dashboard-loading-dots">
-                <div className="dashboard-loading-dot"></div>
-                <div className="dashboard-loading-dot"></div>
-                <div className="dashboard-loading-dot"></div>
-              </div>
-              <div className="dashboard-loading-text">正在构建算法...</div>
-            </div>
-            <h3>正在构建算法</h3>
-            <p className="build-status-message">{buildStatus}</p>
-            <p className="build-status-hint">构建过程可能需要几分钟，请勿关闭页面</p>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   )
 }
 
