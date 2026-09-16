@@ -1,0 +1,91 @@
+import { useCallback, useRef, useState } from 'react'
+import { fieldService } from '@/services/fieldService'
+import { boundsOf, parseWKT, type LngLat } from '@/utils/geo'
+import type { Bbox } from '@/utils/geo/cluster'
+
+export type RingCache = Map<string, LngLat[]>
+
+/** 求出尚未缓存的 id，供增量请求使用 */
+export const diffMissingIds = (ids: string[], cache: RingCache): string[] =>
+  ids.filter((id) => !cache.has(id))
+
+export interface FieldGeometryStore {
+  /** 同步读取缓存；未命中返回 undefined */
+  ringsOf: (id: string) => LngLat[] | undefined
+  has: (id: string) => boolean
+  /** 按视野增量拉取几何；始终返回本次响应的全部 id（调用方需自行丢弃过期响应） */
+  fetchVisible: (bbox: Bbox) => Promise<string[]>
+  /** 选中单个地块时优先拉取，不被节流阻塞 */
+  ensureGeometry: (id: string) => Promise<LngLat[] | null>
+  /** 让缓存失效（新增/编辑/删除后调用） */
+  invalidate: (id?: string) => void
+  loading: boolean
+  /** 缓存变更后自增，父组件据此重渲染 */
+  version: number
+}
+
+export const useFieldGeometry = (): FieldGeometryStore => {
+  const cacheRef = useRef<RingCache>(new Map())
+  const seqRef = useRef(0)
+  const [loading, setLoading] = useState(false)
+  const [version, setVersion] = useState(0)
+
+  const put = useCallback((id: string, wkt?: string | null) => {
+    if (!wkt) return
+    const ring = parseWKT(wkt)
+    if (!ring) return
+    cacheRef.current.set(id, ring)
+  }, [])
+
+  const fetchVisible = useCallback(
+    async (bbox: Bbox): Promise<string[]> => {
+      const seq = (seqRef.current += 1)
+      setLoading(true)
+      try {
+        const rows = await fieldService.getFieldsGeometry(bbox)
+        // 即使视野已变也写入缓存：数据可复用，不浪费
+        rows.forEach((r) => put(r.id, r.location_wkt))
+        // 只有最新一次请求才触发重渲染；返回值仍给调用方，由其按 seq 决定是否采用
+        if (seq === seqRef.current) setVersion((v) => v + 1)
+        return rows.map((r) => r.id)
+      } catch (e) {
+        console.error('[useFieldGeometry] 获取视野内几何失败:', e)
+        return []
+      } finally {
+        if (seq === seqRef.current) setLoading(false)
+      }
+    },
+    [put]
+  )
+
+  const ensureGeometry = useCallback(
+    async (id: string): Promise<LngLat[] | null> => {
+      const cached = cacheRef.current.get(id)
+      if (cached) return cached
+      try {
+        const field = await fieldService.getFieldById(id)
+        put(id, field.location_wkt)
+        setVersion((v) => v + 1)
+        return cacheRef.current.get(id) ?? null
+      } catch (e) {
+        console.error('[useFieldGeometry] 获取地块几何失败:', e)
+        return null
+      }
+    },
+    [put]
+  )
+
+  const invalidate = useCallback((id?: string) => {
+    if (id) cacheRef.current.delete(id)
+    else cacheRef.current.clear()
+    setVersion((v) => v + 1)
+  }, [])
+
+  const ringsOf = useCallback((id: string) => cacheRef.current.get(id), [])
+  const has = useCallback((id: string) => cacheRef.current.has(id), [])
+
+  return { ringsOf, has, fetchVisible, ensureGeometry, invalidate, loading, version }
+}
+
+/** 由顶点数组求包围盒，供 fitBounds 使用 */
+export const ringBounds = (ring: LngLat[]) => boundsOf(ring)
