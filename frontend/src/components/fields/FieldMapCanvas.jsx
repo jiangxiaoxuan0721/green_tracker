@@ -304,6 +304,11 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
     resetView: () => {
       mapRef.current?.setZoomAndCenter(DEFAULT_ZOOM, DEFAULT_CENTER)
     },
+
+    /** 容器 CSS 尺寸变化后重算画布（AMap 不会自动跟随容器尺寸） */
+    resize: () => {
+      mapRef.current?.resize()
+    },
   }))
 
   // 卸载时清理绘制态与地图，避免流程悬挂 / 内存泄漏
