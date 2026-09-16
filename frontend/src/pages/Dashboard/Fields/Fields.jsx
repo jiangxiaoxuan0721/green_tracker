@@ -256,8 +256,10 @@ const Fields = () => {
         setGeometryLoading(true)
         await geometryRef.current.ensureGeometry(selectedPlotId)
         if (cancelled) return
-        setGeometryLoading(false)
       }
+      // 必须放在 if 外：命中缓存时若只在 if 内清，改选已缓存地块会让
+      // geometryLoading 永久停在 true，侧栏骨架屏再也不消失。
+      setGeometryLoading(false)
       // ringsOf 已是 WGS84（R18），fitBounds 内部再转 GCJ-02
       const ring = geometryRef.current.ringsOf(selectedPlotId)
       if (ring && ring.length >= 3) canvas?.fitBounds(boundsOf(ring))

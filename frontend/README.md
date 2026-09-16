@@ -33,7 +33,7 @@ src/
 
 ### 1. 环境变量：唯一出口 `config/env.ts`
 
-- **禁止**在业务代码中直接读 `import.meta.env`（`components/map/*` 为存量豁免，逐步收敛）。
+- **禁止**在业务代码中直接读 `import.meta.env`（无豁免目录：`components/map/*` 已在地块管理页重构中删除）。
 - 所有 `VITE_*` 读取经 `env.ts`，类型声明补在 `src/vite-env.d.ts`。
 - `VITE_API_BASE_URL` 是 **origin 前缀，不含 `/api`**。请求路径自带 `/api`（如 `api.get('/api/auth/login')`）。误填 `/api` 会被 `normalizeApiBaseUrl` 剥离并告警。
 
