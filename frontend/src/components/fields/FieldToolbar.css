@@ -1,0 +1,119 @@
+/* 地块工具栏样式
+ * 颜色统一走 styles/variables.css 的主题变量，括号内为亮色主题兜底取色。
+ */
+
+.field-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-primary, rgba(148, 163, 184, 0.2));
+  background: var(--bg-component, #ffffff);
+}
+
+.toolbar-select {
+  min-width: 220px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-medium, rgba(148, 163, 184, 0.5));
+  border-radius: var(--radius-sm, 6px);
+  font-size: 13px;
+  color: var(--text-primary, #0f172a);
+  background: var(--bg-input, #ffffff);
+  transition: var(--transition-fast, 0.2s ease);
+}
+
+.toolbar-select:focus {
+  outline: none;
+  border-color: var(--primary-color, #22c55e);
+  box-shadow: 0 0 0 3px var(--primary-subtle, rgba(34, 197, 94, 0.15));
+}
+
+/* 绘制中下拉被禁用（disabled），给出可见反馈 */
+.toolbar-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+/* 说明：.icon-btn / .primary-btn / .secondary-btn / .danger-btn 在
+   pages/Dashboard/AdditionalStyles.css 中已有全局定义且被其它页面使用，
+   这里一律限定在工具栏与侧栏作用域内，避免全局覆盖到别的页面。 */
+.field-toolbar .icon-btn,
+.field-side-panel .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-medium, rgba(148, 163, 184, 0.4));
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-component, #ffffff);
+  color: var(--text-secondary, #64748b);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: var(--transition-fast, 0.2s ease);
+}
+
+.field-toolbar .icon-btn:hover,
+.field-side-panel .icon-btn:hover {
+  border-color: var(--primary-color, #22c55e);
+  color: var(--primary-color, #16a34a);
+}
+
+.field-toolbar .primary-btn,
+.field-toolbar .secondary-btn,
+.field-toolbar .danger-btn,
+.field-side-panel .primary-btn,
+.field-side-panel .secondary-btn,
+.field-side-panel .danger-btn {
+  padding: 7px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast, 0.2s ease);
+}
+
+.field-toolbar .primary-btn,
+.field-side-panel .primary-btn {
+  background: var(--primary-color, #22c55e);
+  color: var(--btn-text, #ffffff);
+}
+
+.field-toolbar .primary-btn:hover:not(:disabled),
+.field-side-panel .primary-btn:hover:not(:disabled) {
+  background: var(--primary-light, #16a34a);
+}
+
+.field-toolbar .secondary-btn,
+.field-side-panel .secondary-btn {
+  background: var(--bg-component, #ffffff);
+  border-color: var(--border-light, rgba(148, 163, 184, 0.6));
+  color: var(--text-secondary, #475569);
+}
+
+.field-toolbar .danger-btn,
+.field-side-panel .danger-btn {
+  background: var(--error-color, #ef4444);
+  color: var(--btn-text, #ffffff);
+}
+
+.field-toolbar .danger-btn:hover:not(:disabled),
+.field-side-panel .danger-btn:hover:not(:disabled) {
+  background: var(--error-light, #dc2626);
+}
+
+.field-toolbar .primary-btn:disabled,
+.field-toolbar .secondary-btn:disabled,
+.field-toolbar .danger-btn:disabled,
+.field-side-panel .primary-btn:disabled,
+.field-side-panel .secondary-btn:disabled,
+.field-side-panel .danger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
