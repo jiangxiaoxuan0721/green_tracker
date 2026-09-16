@@ -244,6 +244,17 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
     /** 进入绘制模式；返回 WGS84 顶点（R18：组件内部已 toStorageRing，调用方可直接入库） */
     startDraw: () =>
       new Promise((resolve) => {
+        // 重入保护：上一次绘制未结束就再次 startDraw 时，必须先关闭旧 MouseTool
+        // 并放行旧 promise，否则旧工具仍挂在地图上、旧 await 永久挂起（连 cancelDraw 也捞不到它）
+        if (mouseToolRef.current) {
+          mouseToolRef.current.close(true)
+          mouseToolRef.current = null
+        }
+        if (drawResolveRef.current) {
+          const prevResolve = drawResolveRef.current
+          drawResolveRef.current = null
+          prevResolve(null)
+        }
         const map = mapRef.current
         if (!map) {
           resolve(null)
