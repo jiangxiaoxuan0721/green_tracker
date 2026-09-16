@@ -9,7 +9,7 @@ const DEFAULT_CENTER = [104, 37.5]
 const DEFAULT_ZOOM = 4
 
 const FieldMapCanvas = forwardRef(function FieldMapCanvas(
-  { onViewportChange, onBlankClick, onPolygonClick },
+  { onViewportChange, onBlankClick, onPolygonClick, onClusterClick },
   ref
 ) {
   const { ready, error } = useAMap()
@@ -29,6 +29,16 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
   // 用 ref 承载回调，避免因父组件重渲染而反复解绑/重绑地图事件
   const handlersRef = useRef({ onViewportChange, onBlankClick, onPolygonClick })
   handlersRef.current = { onViewportChange, onBlankClick, onPolygonClick }
+
+  /**
+   * key -> Cluster。marker 会被复用（只 setCenter/setContent 不重建），
+   * 若在 click 闭包里捕获建点时的 c，平移后同一 key 的成员已变，会拿到过期 ids。
+   * 改为点击那一刻按 key 读最新数据（R21）。
+   */
+  const clusterDataRef = useRef(new Map())
+  /** 每次渲染同步最新 prop，避免 marker 只建一次导致回调闭包过期（R21） */
+  const onClusterClickRef = useRef(onClusterClick)
+  onClusterClickRef.current = onClusterClick
 
   const emitViewport = () => {
     const map = mapRef.current
@@ -162,6 +172,7 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
         if (!next.has(key)) {
           map.remove(marker)
           clusterMapRef.current.delete(key)
+          clusterDataRef.current.delete(key)
         }
       })
 
@@ -169,6 +180,8 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
         const content = `<div class="field-cluster" data-count="${c.count}">${c.count}</div>`
         // c.lng/c.lat 是 WGS84 均值，先转显示坐标再落点到地图
         const [lng, lat] = toDisplay([c.lng, c.lat])
+        // 新建与更新两条路径都要刷新，保证点击事件读到的是最新成员
+        clusterDataRef.current.set(c.key, c)
         const existing = clusterMapRef.current.get(c.key)
         if (existing) {
           existing.setCenter(new AMap.LngLat(lng, lat))
@@ -181,6 +194,11 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
           offset: new AMap.Pixel(-14, -14),
           bubble: false,
           cursor: 'pointer',
+        })
+        // 按 key 现读最新 Cluster：不捕获闭包里的 c，避免平移后成员过期（R21）
+        marker.on('click', () => {
+          const current = clusterDataRef.current.get(c.key)
+          if (current) onClusterClickRef.current?.(current)
         })
         map.add(marker)
         clusterMapRef.current.set(c.key, marker)
@@ -293,6 +311,7 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
       mapRef.current = null
       polygonMapRef.current.clear()
       clusterMapRef.current.clear()
+      clusterDataRef.current.clear()
     },
     []
   )
