@@ -14,8 +14,9 @@ make dev
 
 ### 2. 后台运行（推荐）
 ```bash
-# 一次性创建并启动（会自动分离）
-screen -S green-dev -dm -L -Logfile screen_dev.log bash -c "cd /home/jiangxiaoxuan/workspace/green_tracker && source ~/miniconda3/etc/profile.d/conda.sh && conda activate green && make dev"
+# 一次性创建并启动（会自动分离）。
+# 请把 <PROJECT_DIR> 替换为你的项目根目录（仓库 clone 后的位置）。
+screen -S green-dev -dm -L -Logfile screen_dev.log bash -c "cd <PROJECT_DIR> && source ~/miniconda3/etc/profile.d/conda.sh && conda activate green && make dev"
 ```
 
 ### 3. 常用命令

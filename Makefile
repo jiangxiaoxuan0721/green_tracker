@@ -54,13 +54,19 @@ check-env:
 	@echo "环境配置检查通过 ✓"
 
 # 声明 vs 运行 conda env 一致性扫描（仅读，不改环境）
-# 自动检测当前 conda env，激活 green 后跑 scripts/check_deps_env_sync.py
+# 优先使用当前激活的 conda env 的 python（$CONDA_PREFIX），否则回退到 PATH 里的 python；
+# 可通过 GREEN_PY 环境变量显式覆盖。
 check-deps:
-	@GREEN_PY="$${GREEN_PY:-/home/jiangxiaoxuan/miniconda3/envs/green/bin/python}"; \
-	if [ ! -x "$$GREEN_PY" ]; then \
-		echo "错误: 未找到 $$GREEN_PY，请先 make install 创建 green env 并装依赖"; exit 1; \
+	@if [ -n "$$CONDA_PREFIX" ] && [ -x "$$CONDA_PREFIX/bin/python" ]; then \
+		GREEN_PY="$$CONDA_PREFIX/bin/python"; \
+	elif [ -n "$$GREEN_PY" ] && [ -x "$$GREEN_PY" ]; then \
+		GREEN_PY="$$GREEN_PY"; \
+	else \
+		echo "错误: 未检测到 conda env ($$CONDA_PREFIX 为空) 且 GREEN_PY 未指定"; \
+		echo "提示: 请先 'conda activate green' 再 make check-deps，或显式 GREEN_PY=/path/to/python make check-deps"; \
+		exit 1; \
 	fi; \
-	$$GREEN_PY scripts/check_deps_env_sync.py
+	"$$GREEN_PY" scripts/check_deps_env_sync.py
 
 # 安装依赖
 install: check-env

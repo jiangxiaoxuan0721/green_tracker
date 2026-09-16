@@ -32,7 +32,8 @@
 - [ ] **Step 1: 创建工作分支**
 
 ```bash
-cd /home/jiangxiaoxuan/workspace/green_tracker
+# 注：以下路径为执行当时的本机环境实录，请在你的环境里替换为实际项目根目录。
+cd <PROJECT_DIR>
 git switch -c refactor/structure-normalization
 ```
 
@@ -624,7 +625,8 @@ const API_BASE_URL = env.API_BASE_URL
 - [ ] **Step 3: 双前缀防护端到端验收（关键）**
 
 ```bash
-cd /home/jiangxiaoxuan/workspace/green_tracker
+# 注：以下路径为执行当时的本机环境实录，请在你的环境里替换为实际项目根目录。
+cd <PROJECT_DIR>
 sed -i 's|^VITE_API_BASE_URL=.*|VITE_API_BASE_URL=/api|' .env
 sleep 5   # 等 Vite 重启重注入
 curl -s "http://localhost:3010/src/config/env.ts" | head -5   # 确认模块已更新
