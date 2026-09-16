@@ -28,6 +28,7 @@ dependencies = [
     "sqlalchemy==2.0.45",
     "psycopg2-binary==2.9.11",
     "passlib==1.7.4",
+    "bcrypt==4.0.1",  # passlib 1.7.4 兼容的 bcrypt 后端
     "python-jose[cryptography]==3.3.0",
     "email-validator==2.3.0",
     "dnspython==2.8.0",
