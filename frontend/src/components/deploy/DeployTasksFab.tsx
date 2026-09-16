@@ -9,6 +9,7 @@
  */
 import { useState } from 'react'
 import { Cpu, ChevronDown, ChevronUp, X, Circle } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
 import { useDeployTasksStore, type DeployTask } from '@/store/useDeployTasksStore'
 import styles from './DeployTasksFab.module.css'
 
@@ -23,7 +24,11 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export const DeployTasksFab = () => {
-  const tasks = useDeployTasksStore((s) => Object.values(s.tasks))
+  // 用 useShallow 包一下：Object.values(s.tasks) 每次返回新数组引用，
+  // 不包的话 zustand 默认 Object.is 判定为变化 → 触发无限循环（getSnapshot uncached）。
+  // useShallow 做浅比较：内部 task 引用不变就视为相等，不重渲染；
+  // store 替换某 task 引用时（如 _appendLog）仍会重渲染——符合预期。
+  const tasks = useDeployTasksStore(useShallow((s) => Object.values(s.tasks)))
   const collapsed = useDeployTasksStore((s) => s.collapsed)
   const toggleCollapsed = useDeployTasksStore((s) => s.toggleCollapsed)
   const removeTask = useDeployTasksStore((s) => s.removeTask)
