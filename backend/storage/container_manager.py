@@ -6,7 +6,7 @@ import os
 import logging
 import asyncio
 import subprocess
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +82,40 @@ class ContainerManager:
         stdout, stderr = await process.communicate()
         return process.returncode, stdout.decode(errors="replace"), stderr.decode(errors="replace")
 
+    async def _exec_stream(
+        self,
+        cmd: list[str],
+        log_sink: Optional[Callable[[str], None]] = None,
+    ) -> tuple[int, str, str]:
+        """流式执行：stdout 逐行写入 log_sink，返回 (rc, full_stdout, stderr)。
+
+        - 有 sink：异步迭代 stdout，逐行调 sink；完成后用 stderr.read() 取 stderr
+        - 无 sink：直接 process.communicate() 取全部 stdout/stderr
+        """
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        if log_sink is not None:
+            full_stdout_parts: list[str] = []
+            async for line in process.stdout:
+                decoded = line.decode(errors="replace").rstrip()
+                full_stdout_parts.append(decoded)
+                log_sink(decoded)
+            stderr_bytes = await process.stderr.read() if process.stderr else b""
+            return (
+                process.returncode,
+                "\n".join(full_stdout_parts),
+                stderr_bytes.decode(errors="replace"),
+            )
+        stdout_bytes, stderr_bytes = await process.communicate()
+        return (
+            process.returncode,
+            stdout_bytes.decode(errors="replace"),
+            stderr_bytes.decode(errors="replace"),
+        )
+
     async def wait_healthy(self, port: int, timeout: int = 30) -> bool:
         """等待容器内服务就绪（GET /health 返回 200）。"""
         import httpx
@@ -102,11 +136,13 @@ class ContainerManager:
         algorithm_uuid: str,
         image_name: str,
         env: Optional[Dict[str, str]] = None,
+        log_sink: Optional[Callable[[str], None]] = None,
     ) -> Tuple[bool, str, int, str]:
-        """启动算法容器（先清理同名旧容器；端口自管）。
+        """启动算法容器（先清理同名旧容器；端口自管；可选流式日志）。
 
         返回 (ok, container_id, port, error)。port 由 allocate_port 自管，
         调用方不再传入——确保不会和现存的同 uuid 容器撞端口。
+        log_sink 接受单行字符串回调，用于把 docker stdout 实时推给前端。
         """
         container_name = self.container_name(algorithm_uuid)
         port: Optional[int] = None
@@ -130,7 +166,7 @@ class ContainerManager:
                 '--memory-swap', '4g',
                 image_name,
             ]
-            rc, stdout, stderr = await self._exec(cmd)
+            rc, stdout, stderr = await self._exec_stream(cmd, log_sink)
             if rc != 0:
                 if port is not None:
                     await self.release_port(port)
