@@ -1,5 +1,6 @@
 from database.db_models.meta_model import Algorithm
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
 from database.main_db import get_meta_db
 from database.user_db_manager import get_user_db
@@ -11,6 +12,7 @@ from api.schemas.algorithm import (
     AlgorithmListResponse, AlgorithmUploadResponse, ReviewCreate, ReviewResponse
 )
 from api.routes.auth import get_current_user
+from storage.algorithm_deploy_service import get_deploy_service, BuildInProgressError
 from typing import List, Optional
 import json
 import logging
@@ -684,163 +686,116 @@ async def predict_algorithm(
         )
 
 
-@router.post("/{algorithm_id}/build")
+
+
+
+
+def _ndjson_line(d: dict) -> bytes:
+    return (json.dumps(d, ensure_ascii=False) + "\n").encode("utf-8")
+
+
+@router.post("/{algorithm_id}/build", status_code=202)
 async def trigger_build(
     algorithm_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_meta_db)
+    db: Session = Depends(get_meta_db),
 ):
-    """
-    触发算法镜像构建和部署
-    
-    1. 从MinIO下载算法包
-    2. 生成Dockerfile
-    3. 构建Docker镜像
-    4. 启动容器
-    """
-    try:
-        algorithm = algorithm_service.get_algorithm_by_id(db, algorithm_id)
-        if not algorithm:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="算法不存在"
-            )
-        
-        # 检查权限
-        if str(algorithm.author_id) != str(current_user.userid):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权操作此算法"
-            )
-        
-        # 检查算法包是否已上传
-        if not algorithm.minio_path:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="算法包未上传"
-            )
-        
-        # 更新状态为构建中
-        algorithm_service.update_algorithm(db, algorithm_id, status='building', build_log='开始构建...')
-        
-        # 导入服务
-        from storage.minio_client import minio_client
-        from storage.image_build_service import get_image_build_service
-        from storage.container_manager import get_container_manager
-        from storage.dockerfile_generator import get_dockerfile_generator
-        
-        # 1. 构建镜像
-        build_service = get_image_build_service()
-        generator = get_dockerfile_generator()
-        
-        # 获取可用端口
-        port = generator.get_next_port()
-        logger.info(f"[构建算法] 算法ID: {algorithm_id}, 分配端口: {port}")
-        
-        # 构建镜像时传递分配的端口，确保Dockerfile使用正确的内部端口
-        success, docker_image, result = await build_service.build_image(
-            algorithm_uuid=algorithm.uuid,
-            minio_path=algorithm.minio_path,
-            minio_client=minio_client,
-            assigned_port=port  # 传递分配的主机端口
-        )
-        
-        if not success:
-            algorithm_service.update_algorithm(
-                db, algorithm_id,
-                status='error',
-                build_log=f"镜像构建失败: {result}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"镜像构建失败: {result}"
-            )
-        
-        # result应该是返回的主机端口号
-        if isinstance(result, int):
-            # result是端口号，我们可以使用它（但我们已经有了port变量）
-            logger.info(f"镜像构建成功，返回端口: {result}, 分配的端口: {port}")
-            # 我们使用分配的端口，保持一致性
-            port = result  # 使用返回的端口，确保与分配的一致
-        elif isinstance(result, str) and result.isdigit():
-            port = int(result)
-            logger.info(f"转换字符串端口: {port}")
-        elif isinstance(result, str):
-            # result是错误信息
-            algorithm_service.update_algorithm(
-                db, algorithm_id,
-                status='error',
-                build_log=f"镜像构建失败: {result}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"镜像构建失败: {result}"
-            )
-        else:
-            logger.warning(f"返回的result类型: {type(result)}, 值: {result}")
-        
-        # 2. 启动容器
-        container_manager = get_container_manager()
-        container_success, container_id, actual_port, error = await container_manager.start_container(
-            algorithm_uuid=algorithm.uuid,
-            image_name=docker_image,
-            port=port,
-            env={"ALGORITHM_NAME": algorithm.name}
-        )
-        
-        if not container_success:
-            algorithm_service.update_algorithm(
-                db, algorithm_id,
-                status='error',
-                docker_image=docker_image,
-                container_port=port,  # 如果启动失败，仍然使用原始端口
-                build_log=f"容器启动失败: {error}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"容器启动失败: {error}"
-            )
-        
-        # 3. 更新算法状态为运行中，使用实际端口
-        algorithm_service.update_algorithm(
-            db, algorithm_id,
-            status='running',
-            docker_image=docker_image,
-            container_port=actual_port,  # 使用容器管理器返回的实际端口
-            build_log=f'构建并部署成功，容器端口: {actual_port}'
-        )
-        
-        # 记录操作日志
-        try:
-            user_db = get_user_db(str(current_user.userid))
-            create_log(user_db, "success", "algorithm.build",
-                       f"用户 {current_user.username} 构建并部署算法: {algorithm.name}, 端口: {actual_port}",
-                       related_id=algorithm_id, related_type="algorithm")
-            user_db.close()
-        except Exception:
-            pass
+    """触发算法构建：异步提交，立即返回 task_id + stream_url。
 
-        return {
-            "message": "算法构建并部署成功",
-            "algorithm_id": algorithm_id,
-            "docker_image": docker_image,
-            "container_port": actual_port,  # 返回实际端口给前端
-            "status": "running"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"触发构建失败: {str(e)}")
-        # 更新状态为错误
-        try:
-            algorithm_service.update_algorithm(db, algorithm_id, status='error', build_log=str(e))
-        except:
-            pass
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"触发构建失败: {str(e)}"
+    流式日志通过 GET /{id}/build/stream?task_id=X 订阅。
+    """
+    algorithm = algorithm_service.get_algorithm_by_id(db, algorithm_id)
+    if not algorithm:
+        raise HTTPException(404, "算法不存在")
+    if str(algorithm.author_id) != str(current_user.userid):
+        raise HTTPException(403, "无权操作此算法")
+    if not algorithm.minio_path:
+        raise HTTPException(400, "算法包未上传")
+
+    algorithm_service.update_algorithm(
+        db, algorithm_id, status="building", build_log="提交构建..."
+    )
+    svc = get_deploy_service()
+    try:
+        task = await svc.submit_build(
+            algorithm_id=int(algorithm_id),
+            algorithm_uuid=algorithm.uuid,
+            actor=str(current_user.userid),
         )
+    except BuildInProgressError as e:
+        raise HTTPException(409, str(e))
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "task_id": task.task_id,
+            "stream_url": f"/api/algorithms/{algorithm_id}/build/stream?task_id={task.task_id}",
+        },
+    )
+
+
+@router.get("/{algorithm_id}/build/stream")
+async def stream_build(
+    algorithm_id: str,
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """NDJSON 流式订阅构建进度。
+
+    每行一个 JSON：
+    {"type": "log", "line": "..."} 或
+    {"type": "status", "status": "running", "result": {...}, "error": null}
+    """
+    svc = get_deploy_service()
+    task = svc.get_task(task_id)
+    if not task:
+        raise HTTPException(404, "任务不存在（可能后端已重启）")
+    if str(task.algorithm_id) != str(algorithm_id):
+        raise HTTPException(404, "任务与算法不匹配")
+
+    async def gen():
+        yield _ndjson_line({
+            "type": "status",
+            "status": task.status,
+            "result": task.result,
+            "error": task.error,
+        })
+        q = task.subscribe()
+        while True:
+            line = await q.get()
+            if line is None:
+                yield _ndjson_line({
+                    "type": "status",
+                    "status": task.status,
+                    "result": task.result,
+                    "error": task.error,
+                })
+                break
+            yield _ndjson_line({"type": "log", "line": line})
+
+    return StreamingResponse(gen(), media_type="application/x-ndjson")
+
+
+@router.get("/{algorithm_id}/build")
+async def get_build_status(
+    algorithm_id: str,
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """一次性查询构建终态（流订阅失败时前端用此回查）。"""
+    svc = get_deploy_service()
+    task = svc.get_task(task_id)
+    if not task:
+        raise HTTPException(404, "任务不存在")
+    if str(task.algorithm_id) != str(algorithm_id):
+        raise HTTPException(404, "任务与算法不匹配")
+    return {
+        "task_id": task.task_id,
+        "status": task.status,
+        "result": task.result,
+        "error": task.error,
+        "log_lines": task.log_lines[-50:],
+    }
 
 
 @router.post("/{algorithm_id}/stop")
