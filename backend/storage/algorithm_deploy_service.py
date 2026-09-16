@@ -65,3 +65,72 @@ class BuildTask:
                 q.put_nowait(None)
             except asyncio.QueueFull:
                 pass
+import logging
+import uuid as _uuid
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
+class BuildInProgressError(Exception):
+    """同一算法已有构建任务在跑。"""
+    pass
+
+
+class AlgorithmDeployService:
+    def __init__(self):
+        self._tasks: dict[str, BuildTask] = {}
+        self._tasks_by_algorithm: dict[int, set[str]] = {}
+        self._build_locks: dict[int, asyncio.Lock] = {}
+
+    async def submit_build(
+        self,
+        algorithm_id: int,
+        algorithm_uuid: str,
+        *,
+        actor: Optional[str] = None,
+    ) -> BuildTask:
+        lock = self._build_locks.setdefault(algorithm_id, asyncio.Lock())
+        if lock.locked():
+            raise BuildInProgressError(
+                f"算法 {algorithm_id} 正在构建中，请等待当前构建完成后再提交"
+            )
+        await lock.acquire()
+        try:
+            task = BuildTask(
+                task_id=_uuid.uuid4().hex[:12],
+                algorithm_id=algorithm_id,
+                algorithm_uuid=algorithm_uuid,
+            )
+            self._tasks[task.task_id] = task
+            self._tasks_by_algorithm.setdefault(algorithm_id, set()).add(task.task_id)
+            task.publish(f"[submit] 算法 {algorithm_id} 构建已提交（actor={actor}）")
+            asyncio.create_task(self._run(task))
+            return task
+        except Exception:
+            lock.release()
+            raise
+
+    async def _run(self, task: BuildTask) -> None:
+        # 在 Task 7 实现完整编排
+        try:
+            await asyncio.sleep(0.1)
+            task.finish("running", result={"port": 0, "image": "stub", "container_id": "stub"})
+        finally:
+            self._build_locks[task.algorithm_id].release()
+            self._tasks_by_algorithm[task.algorithm_id].discard(task.task_id)
+
+    def get_task(self, task_id: str) -> Optional[BuildTask]:
+        return self._tasks.get(task_id)
+
+
+# 全局单例
+_deploy_service: Optional[AlgorithmDeployService] = None
+
+
+def get_deploy_service() -> AlgorithmDeployService:
+    """获取部署服务单例"""
+    global _deploy_service
+    if _deploy_service is None:
+        _deploy_service = AlgorithmDeployService()
+    return _deploy_service

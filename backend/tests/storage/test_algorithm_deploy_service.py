@@ -39,3 +39,37 @@ async def test_finished_task_immediately_yields_none():
     q = t.subscribe()
     assert (await asyncio.wait_for(q.get(), 1)) == "一行"
     assert await asyncio.wait_for(q.get(), 1) is None
+
+@pytest.mark.asyncio
+async def test_submit_build_creates_task(monkeypatch):
+    """submit_build 应创建 task 并立即返回（不阻塞等构建）。"""
+    from storage.algorithm_deploy_service import AlgorithmDeployService
+    svc = AlgorithmDeployService()
+
+    async def fake_run(task):
+        task.finish("running", result={"port": 8001, "image": "x:latest", "container_id": "cid"})
+
+    monkeypatch.setattr(svc, "_run", fake_run)
+
+    task = await svc.submit_build(1, "uuid-x", actor="user1")
+    assert task.algorithm_id == 1
+    assert task.algorithm_uuid == "uuid-x"
+    assert task.task_id in svc._tasks
+
+
+@pytest.mark.asyncio
+async def test_concurrent_submit_same_algorithm_rejected(monkeypatch):
+    """同一 algorithm 的第二次 submit_build 必须拒绝。"""
+    from storage.algorithm_deploy_service import AlgorithmDeployService, BuildInProgressError
+    svc = AlgorithmDeployService()
+
+    async def slow_run(task):
+        await asyncio.sleep(10)
+
+    monkeypatch.setattr(svc, "_run", slow_run)
+
+    task1 = await svc.submit_build(1, "uuid-x", actor="user1")
+    # 等慢任务开始占用锁
+    await asyncio.sleep(0)
+    with pytest.raises(BuildInProgressError):
+        await svc.submit_build(1, "uuid-x", actor="user2")
