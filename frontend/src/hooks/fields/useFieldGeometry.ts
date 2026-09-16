@@ -13,6 +13,23 @@ export type RingCache = Map<string, LngLat[]>
 export const diffMissingIds = (ids: string[], cache: RingCache): string[] =>
   ids.filter((id) => !cache.has(id))
 
+/**
+ * 会话级几何缓存。
+ *
+ * 原先挂在 hook 实例的 useRef 上：切到其他页面时 Fields 卸载，缓存连同地图实例一起
+ * 消失 —— 明明刚才刚看过的地块，回来还要重新拉一遍整屏 WKT。
+ * 提到模块作用域后，只要不刷新浏览器就一直命中。
+ *
+ * 安全性：地块数据的写操作只发生在 Fields 页（全仓仅三处调用），且每次写完都调用 invalidate，
+ * 会话期内因此不会读到过期几何。换账号由 resetSessionGeometry 兜底（见 Fields.jsx）。
+ */
+const SESSION_CACHE: RingCache = new Map()
+
+/** 清空会话缓存：换账号时必须调用，否则新账号会看到上一个账号的图斑 */
+export const resetSessionGeometry = (): void => {
+  SESSION_CACHE.clear()
+}
+
 export interface FieldGeometryStore {
   /** 同步读取缓存；未命中返回 undefined */
   ringsOf: (id: string) => LngLat[] | undefined
@@ -33,7 +50,7 @@ export interface FieldGeometryStore {
 }
 
 export const useFieldGeometry = (): FieldGeometryStore => {
-  const cacheRef = useRef<RingCache>(new Map())
+  const cacheRef = useRef<RingCache>(SESSION_CACHE)
   const seqRef = useRef(0)
   const [loading, setLoading] = useState(false)
   const [version, setVersion] = useState(0)

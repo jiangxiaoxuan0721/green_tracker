@@ -6,6 +6,7 @@ import FieldMapErrorBoundary from '@/components/fields/FieldMapErrorBoundary'
 import { useFieldCatalog } from '@/hooks/fields/useFieldCatalog'
 import { useFieldGeometry } from '@/hooks/fields/useFieldGeometry'
 import { useFieldDraw } from '@/hooks/fields/useFieldDraw'
+import { resetSessionGeometry } from '@/hooks/fields/useFieldGeometry'
 import { fieldService } from '@/services/fieldService'
 import {
   areaOf,
@@ -27,6 +28,39 @@ const COLLAPSE_STORAGE_KEY = 'fields:sidepanel:collapsed'
 const TILE_SIZE = 256
 /** 退化包围盒的撑开幅度（度），避免 AMap 缩放到最大级别 */
 const DEGENERATE_PAD = 0.002
+
+/**
+ * 会话级视图记忆：切到别的页面再回来时，还原上次的视角与选中地块。
+ *
+ * 刻意只用内存、不落 localStorage —— 要记住的是「这台机器上刚才在看哪」，
+ * 刷新浏览器就该从头来。落盘反而要在下一次会话去偿还一堆过期债
+ * （地块可能已被删、权限可能已变、继而 json 还要做失效修护）。
+ *
+ * 和 R20「已取过即短路」共用同一前提：地块数据的写操作只发生在本页
+ * （已核过全仓，唯三处 fieldService 增删改调用都在 Fields.jsx），且每次写都调 invalidate，
+ * 故会话期缓存不会读到过期几何。
+ */
+let sessionView = null
+/** 「已取过的 bbox」记录同寿命保留：配合会话级几何缓存，回来时零请求还原图斑 */
+const sessionFetched = []
+/** 记住这批会话数据属于哪个账号，用于换账号时丢弃 */
+let sessionOwner = null
+
+/**
+ * 换账号保护：单页应用里登出再登入不会重载 bundle，会话缓存会原样留到下一个账号，
+ * 于是新账号在本页会看到上一个账号的图斑（几何是逐 vertex 缓存的，比列表泄露更实）。
+ * 本页每次 render 核一次 user_id（读一次 localStorage，可忽略；幂等），
+ * 变了就把全套会话记忆连同几何缓存一起丢掉。首次进入时 sessionOwner 为 null，什么都不做。
+ */
+const dropStaleSession = () => {
+  const uid = localStorage.getItem('user_id')
+  if (sessionOwner !== null && sessionOwner !== uid) {
+    sessionView = null
+    sessionFetched.length = 0
+    resetSessionGeometry()
+  }
+  sessionOwner = uid
+}
 
 const EMPTY_FORM = {
   name: '',
@@ -68,18 +102,28 @@ const makeProjector = (zoom) => ([lng, lat]) => {
  * 也不对 canvas 输出做二次转换（否则偏移翻倍，图上会整体偏 300~500m）。
  */
 const Fields = () => {
+  // 先裁决会话记忆是否还可用（幂等，双调用无害），再让下面的 useState 去读 sessionView
+  dropStaleSession()
   const canvasRef = useRef(null)
   const catalog = useFieldCatalog()
   const geometry = useFieldGeometry()
   const draw = useFieldDraw(canvasRef)
 
-  const [selectedPlotId, setSelectedPlotId] = useState(null)
-  const [panelMode, setPanelMode] = useState('empty')
+  const [selectedPlotId, setSelectedPlotId] = useState(
+    () => sessionView?.selectedPlotId ?? null
+  )
+  // 还原时只恢复到 view 态：绝不能恢复 confirmDelete —— 那等于跨页面重新给用户
+  // 弹出一个待确认的删除框；create/edit 的未提交草稿同理，不跨会话追逐。
+  const [panelMode, setPanelMode] = useState(() =>
+    sessionView?.selectedPlotId ? 'view' : 'empty'
+  )
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1'
   )
   const [layer, setLayer] = useState('cluster')
-  const [zoom, setZoom] = useState(4)
+  // 会话还原时若仍从 4 起步，首帧会拿 zoom=4 去算聚合粒度（R19），出现一次多余闪跳，
+  // 出现一次多余的闪跳，等地图 'complete' 回调把真实 zoom 灌回来才修正。
+  const [zoom, setZoom] = useState(() => sessionView?.zoom ?? 4)
   const [visibleIds, setVisibleIds] = useState([])
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
@@ -89,12 +133,26 @@ const Fields = () => {
   const viewportRef = useRef({ zoom: 4, bounds: null })
   const throttleRef = useRef(null)
   /**
+   * 卸载时的 cleanup 要写盘，但那个 effect 的依赖必须为空 —— 否则每次相关 state
+   * 变化都会重建清理逻辑。用它读最新值，语义上等价于「闭包穿透」。
+   */
+  const uiStateRef = useRef(null)
+  uiStateRef.current = { selectedPlotId, panelMode }
+  /**
+   * 只有用户主动选中时才 fitBounds 缩放过去。
+   * 会话还原的选中是从记忆里恢复的，再 fit 一次会顶掉用户上次的视角 ——
+   * 那恰恰是本次需求要保住的东西。
+   */
+  const fitOnSelectRef = useRef(false)
+  /** 首次渲染快照，供 FieldMapCanvas 建图用；此后不再变化，避免重复传值导致重建地图 */
+  const initialViewRef = useRef(sessionView)
+  /**
    * 已成功取过的 bbox 记录：{ bbox, ids }。
    * 缓存是永久的（Task 9 约定），所以「已取过的 bbox 覆盖了当前 bbox」⇒ 数据必在缓存中，
    * 可零请求短路（R20）。ids 只作为「该 bbox 命中过哪些地块」的索引，
    * 不作为「当前视野有哪些地块」的判定依据 —— 后者每次都重新算（见 syncVisible）。
    */
-  const fetchedRef = useRef([])
+  const fetchedRef = useRef(sessionFetched)
   // 供依赖 [selectedPlotId] 的 effect 读取最新值，避免把整个 hook 放进依赖数组
   const geometryRef = useRef(geometry)
   geometryRef.current = geometry
@@ -120,6 +178,8 @@ const Fields = () => {
 
   /** 三个选中入口（下拉 / 点击图斑 / 点击聚合点）统一走这里 */
   const selectPlot = useCallback((id) => {
+    // 用户主动选中 → 允许缩放到地块；会话还原走的是 useState 初始值，不经过这里
+    fitOnSelectRef.current = Boolean(id)
     setSelectedPlotId(id || null)
     setPanelMode(id ? 'view' : 'empty')
     setErrors({})
@@ -161,7 +221,13 @@ const Fields = () => {
   const loadViewport = useCallback(async () => {
     const bbox = readViewportBbox()
     if (!bbox) return
-    if (fetchedRef.current.some((rec) => containsBbox(rec.bbox, bbox))) return
+    if (fetchedRef.current.some((rec) => containsBbox(rec.bbox, bbox))) {
+      // 缓存已覆盖：省掉请求，但仍要用这份缓存把当前视野的图斑算出来。
+      // 会话还原后走的正是这条路 —— 漏掉 syncVisible，visibleIds 会一直是空数组，
+      // 于是「图斑一个都不显示」，而请求数却是 0，看不出哪里出错。
+      syncVisible()
+      return
+    }
     // 返回值不参与新鲜度判定，仅登记到该 bbox 名下
     const ids = await geometryRef.current.fetchVisible(bbox)
     // R25：null = 请求失败，绝不登记该 bbox。
@@ -261,9 +327,13 @@ const Fields = () => {
       // 必须放在 if 外：命中缓存时若只在 if 内清，改选已缓存地块会让
       // geometryLoading 永久停在 true，侧栏骨架屏再也不消失。
       setGeometryLoading(false)
-      // ringsOf 已是 WGS84（R18），fitBounds 内部再转 GCJ-02
-      const ring = geometryRef.current.ringsOf(selectedPlotId)
-      if (ring && ring.length >= 3) canvas?.fitBounds(boundsOf(ring))
+      // ringsOf 已是 WGS84（R18），fitBounds 内部再转 GCJ-02。
+      // 只在用户主动选中时缩放：会话还原的场景必须保住上次 camera，否则等于没记住。
+      if (fitOnSelectRef.current) {
+        fitOnSelectRef.current = false
+        const ring = geometryRef.current.ringsOf(selectedPlotId)
+        if (ring && ring.length >= 3) canvas?.fitBounds(boundsOf(ring))
+      }
 
       const entry = catalogRef.current.byId.get(selectedPlotId)
       if (!entry?.detail) {
@@ -297,7 +367,26 @@ const Fields = () => {
     canvasRef.current?.resize()
   }, [panelMode, collapsed])
 
-  useEffect(() => () => { if (throttleRef.current) clearTimeout(throttleRef.current) }, [])
+  useEffect(
+    () => () => {
+      if (throttleRef.current) clearTimeout(throttleRef.current)
+      // 离开本页前记下视角与选中态，下次回来据此还原（会话级）。
+      // 地图还没就绪时 getViewport 返回 null，此时绝不覆盖旧值：
+      // 拿到的会是 DEFAULT 全国视角，写进去等于把上次记住的位置抹掉。
+      const vp = canvasRef.current?.getViewport()
+      if (!vp) return
+      sessionView = { center: vp.center, zoom: vp.zoom, ...uiStateRef.current }
+    },
+    []
+  )
+
+  // 还原出来的选中地块可能已在本会话内被删除 / 不再存在于列表里。
+  // 必须等列表加载完再裁决：过早判定时 byId 还是空的，会把刚还原的选中误清掉。
+  useEffect(() => {
+    if (catalog.loading || !selectedPlotId) return
+    if (catalog.byId.has(selectedPlotId)) return
+    selectPlot(null)
+  }, [catalog.loading, catalog.byId, selectedPlotId, selectPlot])
 
   const draft = draw.draftRing
   const draftAreaM2 = draft ? areaOf(draft) : null
@@ -497,6 +586,7 @@ const Fields = () => {
           <FieldMapErrorBoundary>
             <FieldMapCanvas
               ref={canvasRef}
+              initialView={initialViewRef.current}
               onViewportChange={handleViewportChange}
               onBlankClick={handleBlankClick}
               onPolygonClick={handlePolygonClick}

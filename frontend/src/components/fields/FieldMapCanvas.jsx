@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { useAMap } from '@/hooks/fields/useAMap'
 // R18：对外边界（ref API + props）一律 WGS84，组件内部负责 WGS84 <-> GCJ-02 转换
-import { toDisplay, toDisplayRing, toStorageRing } from '@/utils/geo'
+import { toDisplay, toDisplayRing, toStorage, toStorageRing } from '@/utils/geo'
 import './FieldMapCanvas.css'
 
 /** 全国视野：未选中任何地块时的默认视角 */
@@ -9,13 +9,19 @@ const DEFAULT_CENTER = [104, 37.5]
 const DEFAULT_ZOOM = 4
 
 const FieldMapCanvas = forwardRef(function FieldMapCanvas(
-  { onViewportChange, onBlankClick, onPolygonClick, onClusterClick },
+  { onViewportChange, onBlankClick, onPolygonClick, onClusterClick, initialView },
   ref
 ) {
   const { ready, error } = useAMap()
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const mouseToolRef = useRef(null)
+  /**
+   * 只在建图那一次读 initialView，之后父组件怎么改都不重建地图。
+   * 放进 ref 而不是直接读 prop：地图初始化 effect 的依赖固定为 [ready]，
+   * 直接读 prop 会被 exhaustive-deps 要求进依赖数组，反而误导后来者以为它会重建地图。
+   */
+  const initialViewRef = useRef(initialView)
 
   /** id -> AMap.Polygon */
   const polygonMapRef = useRef(new Map())
@@ -58,10 +64,13 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
   useEffect(() => {
     if (!ready || mapRef.current || !containerRef.current) return
     const AMap = window.AMap
+    // 会话还原：入参 initialView.center 是 WGS84（R18），转 GCJ-02 后再交给 AMap
+    const iv = initialViewRef.current
+    const center = iv?.center ? toDisplay(iv.center) : DEFAULT_CENTER
 
     const map = new AMap.Map(containerRef.current, {
-      zoom: DEFAULT_ZOOM,
-      center: DEFAULT_CENTER,
+      zoom: iv?.zoom ?? DEFAULT_ZOOM,
+      center,
       viewMode: '2D',
       layers: [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()],
     })
@@ -91,8 +100,11 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
         [sw.getLng(), sw.getLat()],
         [ne.getLng(), ne.getLat()],
       ])
+      const c = map.getCenter()
       return {
         zoom: map.getZoom(),
+        // center 供「切走再回来还原上次视角」使用，同样必须转回 WGS84
+        center: toStorage([c.getLng(), c.getLat()]),
         bounds: [bounds[0], bounds[1]],
       }
     },
