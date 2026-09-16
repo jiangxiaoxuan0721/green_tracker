@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FieldToolbar from '@/components/fields/FieldToolbar'
 import FieldSidePanel from '@/components/fields/FieldSidePanel'
 import FieldMapCanvas from '@/components/fields/FieldMapCanvas'
+import FieldMapErrorBoundary from '@/components/fields/FieldMapErrorBoundary'
 import { useFieldCatalog } from '@/hooks/fields/useFieldCatalog'
 import { useFieldGeometry } from '@/hooks/fields/useFieldGeometry'
 import { useFieldDraw } from '@/hooks/fields/useFieldDraw'
@@ -493,13 +494,15 @@ const Fields = () => {
 
       <div className="fields-body">
         <div className="fields-map">
-          <FieldMapCanvas
-            ref={canvasRef}
-            onViewportChange={handleViewportChange}
-            onBlankClick={handleBlankClick}
-            onPolygonClick={handlePolygonClick}
-            onClusterClick={handleClusterClick}
-          />
+          <FieldMapErrorBoundary>
+            <FieldMapCanvas
+              ref={canvasRef}
+              onViewportChange={handleViewportChange}
+              onBlankClick={handleBlankClick}
+              onPolygonClick={handlePolygonClick}
+              onClusterClick={handleClusterClick}
+            />
+          </FieldMapErrorBoundary>
         </div>
 
         {!collapsed && (

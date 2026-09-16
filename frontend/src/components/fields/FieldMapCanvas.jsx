@@ -215,8 +215,11 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
           strokeWeight: selected ? 4 : 2,
           fillColor: selected ? '#f59e0b' : '#22c55e',
           fillOpacity: selected ? 0.35 : 0.18,
+          // 层级必须随选中态一起还原，否则取消选中后图斑仍压在别人上面。
+          // 另：zIndex 只能走 setOptions —— setzIndex 是 Marker 的方法，
+          // Polygon 上没有，调用会抛 TypeError 并整页崩溃。
+          zIndex: selected ? 200 : 10,
         })
-        if (selected) poly.setzIndex(200)
       })
     },
 
