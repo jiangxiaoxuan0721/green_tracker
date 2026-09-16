@@ -163,7 +163,11 @@ const Fields = () => {
     if (fetchedRef.current.some((rec) => containsBbox(rec.bbox, bbox))) return
     // 返回值不参与新鲜度判定，仅登记到该 bbox 名下
     const ids = await geometryRef.current.fetchVisible(bbox)
-    fetchedRef.current.push({ bbox, ids: Array.isArray(ids) ? ids : [] })
+    // R25：null = 请求失败，绝不登记该 bbox。
+    // 否则一次网络抖动就会让这片区域被判为「已取过」而永久留白，直到刷新页面。
+    // 注意：tsc 抓不到这里 —— 本页是 .jsx，不在 tsconfig 编译程序内，只能靠这个判断守住。
+    if (ids === null) return
+    fetchedRef.current.push({ bbox, ids })
     syncVisible()
   }, [readViewportBbox, syncVisible])
 
