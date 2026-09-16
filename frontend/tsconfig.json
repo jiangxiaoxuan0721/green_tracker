@@ -19,6 +19,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+
+    /* vitest globals（vite.config.js 中 test.globals = true） */
+    "types": ["vitest/globals"],
     
     /* Path aliases */
     "baseUrl": ".",
