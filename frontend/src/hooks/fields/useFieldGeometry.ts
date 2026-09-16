@@ -13,8 +13,12 @@ export interface FieldGeometryStore {
   /** 同步读取缓存；未命中返回 undefined */
   ringsOf: (id: string) => LngLat[] | undefined
   has: (id: string) => boolean
-  /** 按视野增量拉取几何；始终返回本次响应的全部 id（调用方需自行丢弃过期响应） */
-  fetchVisible: (bbox: Bbox) => Promise<string[]>
+  /**
+   * 按视野增量拉取几何；返回本次响应的全部 id（调用方需自行丢弃过期响应）。
+   * 请求失败时返回 null —— 与「该区域确实没有地块」的空数组区分开，
+   * 避免调用方把失败的 bbox 记成「已取过」而永久留白。
+   */
+  fetchVisible: (bbox: Bbox) => Promise<string[] | null>
   /** 选中单个地块时优先拉取，不被节流阻塞 */
   ensureGeometry: (id: string) => Promise<LngLat[] | null>
   /** 让缓存失效（新增/编辑/删除后调用） */
@@ -38,7 +42,7 @@ export const useFieldGeometry = (): FieldGeometryStore => {
   }, [])
 
   const fetchVisible = useCallback(
-    async (bbox: Bbox): Promise<string[]> => {
+    async (bbox: Bbox): Promise<string[] | null> => {
       const seq = (seqRef.current += 1)
       setLoading(true)
       try {
@@ -50,7 +54,8 @@ export const useFieldGeometry = (): FieldGeometryStore => {
         return rows.map((r) => r.id)
       } catch (e) {
         console.error('[useFieldGeometry] 获取视野内几何失败:', e)
-        return []
+        // 不抛错：调用方不期望 rejection；返回 null 以便其区分「失败」与「确实没有地块」
+        return null
       } finally {
         if (seq === seqRef.current) setLoading(false)
       }
