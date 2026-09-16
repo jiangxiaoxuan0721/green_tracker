@@ -81,6 +81,14 @@ export const env = {
   AMAP_SERVICE_KEY: readString(import.meta.env.VITE_AMAP_SERVICE_KEY, ''),
   AMAP_SECURITY_CODE: readString(import.meta.env.VITE_AMAP_SECURITY_CODE, ''),
 
+  /**
+   * 库内地块几何的坐标系假设。
+   * wgs84 = 库内存标准 WGS84，渲染需转 GCJ-02；
+   * gcj02 = 存量数据直接存的是 GCJ-02，渲染不做变换。
+   * 校准方法见 spec §6.3。
+   */
+  FIELD_SOURCE_CRS: readString(import.meta.env.VITE_FIELD_SOURCE_CRS, 'wgs84') as 'wgs84' | 'gcj02',
+
   MAX_FILE_SIZE: readInt(import.meta.env.VITE_MAX_FILE_SIZE, 10 * 1024 * 1024),
   ALLOWED_IMAGE_FORMATS: readList(import.meta.env.VITE_ALLOWED_IMAGE_FORMATS, [
     'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp',
