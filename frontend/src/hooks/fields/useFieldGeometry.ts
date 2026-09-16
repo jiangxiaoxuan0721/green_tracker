@@ -5,7 +5,11 @@ import type { Bbox } from '@/utils/geo/cluster'
 
 export type RingCache = Map<string, LngLat[]>
 
-/** 求出尚未缓存的 id，供增量请求使用 */
+/**
+ * 求出尚未缓存的 id，供增量请求使用。
+ * 注意：hook 内部走缓存直查，不调用本函数；它是按计划刻意导出的纯函数，
+ * 作为几何缓存逻辑唯一的单测入口（useFieldGeometry.test.ts）。勿当作死代码删除。
+ */
 export const diffMissingIds = (ids: string[], cache: RingCache): string[] =>
   ids.filter((id) => !cache.has(id))
 

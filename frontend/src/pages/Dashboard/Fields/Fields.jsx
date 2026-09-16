@@ -512,6 +512,7 @@ const Fields = () => {
             form={form}
             errors={errors}
             submitting={submitting}
+            drawing={draw.drawing}
             onFormChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
             onStartEdit={handleStartEdit}
             onStartDelete={() => enterMode('confirmDelete')}

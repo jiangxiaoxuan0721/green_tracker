@@ -21,6 +21,7 @@ const FieldSidePanel = ({
   form,
   errors,
   submitting,
+  drawing,
   onFormChange,
   onStartEdit,
   onStartDelete,
@@ -110,7 +111,11 @@ const FieldSidePanel = ({
               disabled={submitting}
             />
             {mode === 'edit' && (
-              <button className="ghost-btn" onClick={onStartRedraw} disabled={submitting}>
+              <button
+                className="ghost-btn"
+                onClick={onStartRedraw}
+                disabled={submitting || drawing}
+              >
                 重绘边界
               </button>
             )}

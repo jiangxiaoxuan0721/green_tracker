@@ -15,8 +15,7 @@ const AMapSecurityCode = env.AMAP_SECURITY_CODE
 
 /**
  * 判定 Key 是否可用。
- * 保留自 FieldMapPicker 的 `isKeyConfigured`：除占位符判断外还要求长度 > 10，
- * 避免把明显无效的超短值拼进 SDK URL（会静默加载失败）。
+ * 除占位符判断外还要求长度 > 10，避免把明显无效的超短值拼进 SDK URL（会静默加载失败）。
  */
 const isKeyConfigured = Boolean(AMapKey) && !AMapKey.includes('your_') && AMapKey.length > 10
 
