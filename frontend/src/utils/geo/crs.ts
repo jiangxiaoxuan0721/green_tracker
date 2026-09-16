@@ -56,9 +56,9 @@ export const wgs84ToGcj02 = ([lng, lat]: LngLat): LngLat => {
 
 export const gcj02ToWgs84 = ([lng, lat]: LngLat): LngLat => {
   if (outOfChina(lng, lat)) return [lng, lat]
-  // 偏置：直接减去 delta(lng, lat) 只是一次近似，往返会残留 ~6e-7 deg（约 7cm）
-  // 误差，超出 1e-6 deg 的往返精度要求。用不动点迭代解 wgs = gcj - delta(wgs)，
-  // 3 次即收敛到 ~1e-14 deg，且每轮都不越界。
+  // 偏差校正：直接减去 delta(lng, lat) 只是一阶近似，往返会残留 ~6e-7 deg（约 7cm）
+  // 误差，超出 1e-6 deg 的往返精度要求。改为不动点迭代解 wgs = gcj - delta(wgs)，
+  // 3 次即收敛到 ~1e-14 deg。
   let wgsLng = lng
   let wgsLat = lat
   for (let i = 0; i < 3; i += 1) {
