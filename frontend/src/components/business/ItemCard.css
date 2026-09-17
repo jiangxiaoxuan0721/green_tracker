@@ -66,15 +66,15 @@
 .item-card-actions {
   display: flex;
   gap: var(--spacing-sm);
-  justify-content: flex-end;
   flex-wrap: wrap;
 }
 
 .item-card-actions .btn {
-  flex: 1;
-  max-width: none;
-  min-width: 0;
+  /* 水平等分：按钮同宽、随卡片一起缩放；一行放不下时整行换行 */
+  flex: 1 1 0;
+  /* 不小于文字自身宽度：保证文字完整，同时让放不下时触发换行 */
+  min-width: max-content;
   white-space: nowrap;
   font-size: 0.8125rem;
-  padding: 6px 12px;
+  padding: 6px 10px;
 }

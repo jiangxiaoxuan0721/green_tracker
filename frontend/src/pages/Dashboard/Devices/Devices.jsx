@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDataList, useModal } from '@/hooks/common'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { deviceService } from '@/services/deviceService'
@@ -6,7 +7,7 @@ import { mqttService } from '@/services/mqttService'
 import useToast from '@/hooks/useToast'
 import { Button, Card, Modal, PageHeader } from '@/components/ui'
 import { ItemCard } from '@/components/business'
-import { Radio, Plus, Copy, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { Radio, Plus, Copy, Eye, EyeOff, RefreshCw, Monitor, Server, Wifi, WifiOff } from 'lucide-react'
 import DeviceForm from './components/DeviceForm'
 import DeviceDetail from './components/DeviceDetail'
 import './Devices.css'
@@ -14,6 +15,7 @@ import '../AdditionalStyles.css'
 
 const Devices = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const { success: showSuccess, error: showError } = useToast()
 
   const fetchDevices = useCallback(async () => {
@@ -33,6 +35,30 @@ const Devices = () => {
       pageSize: 100
     }
   )
+
+  // Broker 运维视图：Broker 连接状态 / 在线 / 离线 / 待响应指令数
+  const [stats, setStats] = useState(null)
+
+  const fetchStats = useCallback(async () => {
+    try {
+      setStats(await mqttService.getStats())
+    } catch {
+      setStats(null) // Broker 不可达时静默隐藏统计条，不影响设备列表本身
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
+
+  // 设备列表与 Broker 状态始终每 10 秒自动刷新
+  useEffect(() => {
+    const timer = setInterval(() => {
+      refresh()
+      fetchStats()
+    }, 10000)
+    return () => clearInterval(timer)
+  }, [refresh, fetchStats])
 
   const { isOpen: isFormOpen, modalData: formDevice, openModal: openForm, closeModal: closeForm } = useModal()
   const { isOpen: isDetailOpen, modalData: detailDevice, openModal: openDetail, closeModal: closeDetail } = useModal()
@@ -77,6 +103,13 @@ const Devices = () => {
     openDetail(device)
   }
 
+  // 跳转到独立全屏远程控制台，并记录来源以便「返回」按钮回到设备管理页
+  const handleOpenConsole = (device) => {
+    navigate(`/remote_control/${device.id}`, {
+      state: { from: '/dashboard/devices', device }
+    })
+  }
+
   const handleDelete = async (device) => {
     if (!window.confirm('确定要删除这个设备吗？')) {
       return
@@ -108,20 +141,6 @@ const Devices = () => {
       showSuccess('MQTT 凭证配置成功')
     } catch (err) {
       showError(err?.response?.data?.detail || '凭证配置失败')
-    } finally {
-      setCredentialLoading(false)
-    }
-  }
-
-  const handleGetCredentials = async (deviceId) => {
-    setCredentialLoading(true)
-    setCurrentCredentialDeviceId(deviceId)
-    try {
-      const result = await mqttService.getDeviceCredentials(deviceId)
-      openCredential(result)
-      showSuccess('已获取 MQTT 凭证')
-    } catch (err) {
-      showError(err?.response?.data?.detail || '获取凭证失败')
     } finally {
       setCredentialLoading(false)
     }
@@ -172,11 +191,52 @@ const Devices = () => {
         title="设备管理"
         description="管理多种类型的监测设备（卫星、无人机、传感器等）"
         actions={
-          <Button variant="primary" onClick={handleCreate} icon={Plus}>
-            添加设备
-          </Button>
+          <div className="devices-header-actions">
+            <Button
+              variant="outline"
+              size="small"
+              icon={RefreshCw}
+              onClick={() => { refresh(); fetchStats() }}
+              title="刷新设备列表与 Broker 状态"
+            >
+              刷新
+            </Button>
+            <Button variant="primary" onClick={handleCreate} icon={Plus}>
+              添加设备
+            </Button>
+          </div>
         }
       />
+
+      {/* Broker 运维视图 */}
+      {stats && (
+        <div className="mqtt-stats-bar">
+          <div className="mqtt-stat-item">
+            <Server size={18} />
+            <span className="mqtt-stat-label">Broker</span>
+            <span className={`mqtt-stat-dot ${stats.mqtt_connected ? 'online' : 'offline'}`} />
+            <span className="mqtt-stat-text">{stats.mqtt_connected ? '已连接' : '未连接'}</span>
+          </div>
+          <div className="mqtt-stats-sep" />
+          <div className="mqtt-stat-item">
+            <Wifi size={18} />
+            <span className="mqtt-stat-label">在线</span>
+            <span className="mqtt-stat-num online">{stats.online_devices}</span>
+          </div>
+          <div className="mqtt-stats-sep" />
+          <div className="mqtt-stat-item">
+            <WifiOff size={18} />
+            <span className="mqtt-stat-label">离线</span>
+            <span className="mqtt-stat-num offline">{stats.offline_devices}</span>
+          </div>
+          <div className="mqtt-stats-sep" />
+          <div className="mqtt-stat-item">
+            <RefreshCw size={18} />
+            <span className="mqtt-stat-label">待响应</span>
+            <span className="mqtt-stat-num pending">{stats.pending_commands}</span>
+          </div>
+        </div>
+      )}
 
       {initialLoading && (
         <div className="dashboard-loading">
@@ -224,10 +284,20 @@ const Devices = () => {
               onDelete={handleDelete}
               actions={(item) => (
                 <div className="item-card-actions">
+                  <Button
+                    size="small"
+                    variant="primary"
+                    icon={Monitor}
+                    onClick={() => handleOpenConsole(item)}
+                    disabled={!item.online}
+                    title={item.online ? '进入远程控制台' : '设备离线，无法进入控制台'}
+                  >
+                    控制台
+                  </Button>
                   <Button size="small" variant="outline" onClick={() => handleView(item)}>
                     详情
                   </Button>
-                  <Button size="small" variant="primary" onClick={() => handleEdit(item)}>
+                  <Button size="small" variant="outline" onClick={() => handleEdit(item)}>
                     编辑
                   </Button>
                   <Button size="small" variant="outline" onClick={() => handleProvision(item.id)}>

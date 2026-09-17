@@ -1,0 +1,531 @@
+/**
+ * CommandConsole 命令控制台样式
+ *
+ * 布局：左侧「执行记录 + 命令行输入」面板 + 可拖拽分隔条 + 右侧「预设命令」面板。
+ * 右栏宽度由拖拽条调整并持久化（--cmd-preset-w），窄屏（≤768px）回落为上下堆叠。
+ * 随组件迁移自 pages/Dashboard/MQTT/MQTT.css（该页面已合并进设备管理），
+ * 现由独立控制台页面（/remote_control/:deviceId）使用。
+ */
+
+/* ── 容器：左记录 / 拖拽条 / 右预设 ──
+   右栏宽度由 JS 写入 --cmd-preset-w（拖拽结果，跨页面保持）；
+   未写入时回退到 clamp(240px, 24vw, 340px) */
+.command-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--cmd-resizer-w, 14px) var(--cmd-preset-w, clamp(240px, 24vw, 340px));
+  column-gap: 0;
+  row-gap: var(--spacing-md);
+  align-items: stretch;
+  min-height: 0;
+}
+
+/* 拖拽中：禁止选中文本，光标统一为调整宽度 */
+.command-console--resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* 撑满父容器高度（独立控制台页面使用）：自身不滚动，滚动交给各面板内部 */
+.command-console--fill {
+  height: 100%;
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* 与控制台页面的断点保持一致：窄屏改为上下堆叠 */
+@media (max-width: 768px) {
+  .command-console {
+    grid-template-columns: 1fr;
+  }
+
+  /* 窄屏改为上下堆叠时没有左右分隔，隐藏拖拽条 */
+  .cmd-resizer {
+    display: none;
+  }
+
+  .cmd-journal-body {
+    min-height: 200px;
+    max-height: 45vh;
+  }
+}
+
+/* ── 拖拽分隔条 ── */
+.cmd-resizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  cursor: col-resize;
+  touch-action: none;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+
+.cmd-resizer::before {
+  content: '';
+  width: 2px;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--border-light);
+  transition: background 0.15s, height 0.15s;
+}
+
+.cmd-resizer:hover::before,
+.cmd-resizer--active::before {
+  height: 72px;
+  background: var(--primary-color);
+}
+
+.cmd-resizer:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+/* ── 面板通用 ── */
+.cmd-journal,
+.cmd-presets {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--bg-component);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.cmd-journal-head,
+.cmd-presets-head {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.cmd-journal-title,
+.cmd-presets-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── 左侧：只读执行记录 ── */
+.cmd-journal-count {
+  font-size: 0.6875rem;
+  background: var(--bg-component);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.cmd-journal-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-family: inherit;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.cmd-journal-clear:hover:not(:disabled) {
+  color: var(--error-color);
+  border-color: var(--error-color);
+  background: rgba(var(--error-color-rgb), 0.08);
+}
+
+.cmd-journal-clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cmd-journal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--spacing-sm) 0;
+  background: var(--bg-input);
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+
+/* 非 fill 模式（Modal 内）：限制高度，避免日志把 Modal 撑得过长 */
+.command-console:not(.command-console--fill) .cmd-journal-body {
+  max-height: 45vh;
+}
+
+.cmd-journal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  min-height: 140px;
+  padding: var(--spacing-md);
+  text-align: center;
+}
+
+.cmd-journal-empty-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.cmd-journal-empty-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.cmd-jl-entry {
+  padding: 2px var(--spacing-md);
+  border-left: 2px solid transparent;
+}
+
+.cmd-jl-entry:hover {
+  background: var(--bg-subtle);
+}
+
+.cmd-jl-pending { border-left-color: var(--warning-color); }
+.cmd-jl-acknowledged { border-left-color: var(--success-color); }
+.cmd-jl-timeout,
+.cmd-jl-error { border-left-color: var(--error-color); }
+
+.cmd-jl-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  line-height: 1.5;
+}
+
+.cmd-jl-line--clickable {
+  cursor: pointer;
+}
+
+.cmd-jl-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+.cmd-jl-chevron.rotated {
+  transform: rotate(180deg);
+}
+.cmd-jl-chevron-hidden {
+  visibility: hidden;
+}
+
+.cmd-jl-time {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.cmd-jl-prompt {
+  flex-shrink: 0;
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.cmd-jl-cmd {
+  color: var(--text-primary);
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.cmd-jl-params {
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.cmd-jl-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0 6px;
+  line-height: 18px;
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+}
+.cmd-jl-status-pending {
+  background: rgba(var(--warning-color-rgb), 0.12);
+  color: var(--warning-color);
+}
+.cmd-jl-status-acknowledged {
+  background: rgba(var(--success-color-rgb), 0.12);
+  color: var(--success-color);
+}
+.cmd-jl-status-timeout,
+.cmd-jl-status-error {
+  background: rgba(var(--error-color-rgb), 0.1);
+  color: var(--error-color);
+}
+
+.cmd-jl-out {
+  margin: 2px 0 4px 18px;
+  padding: 6px 10px;
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  line-height: 1.55;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 220px;
+  overflow: auto;
+}
+
+/* ── 命令行输入行 ── */
+.cmd-cli {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px var(--spacing-md);
+  background: var(--bg-input);
+  border-top: 1px solid var(--border-light);
+}
+
+.cmd-cli-prompt {
+  flex-shrink: 0;
+  color: var(--primary-color);
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.cmd-cli-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-component);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.cmd-cli-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.cmd-cli-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cmd-cli-input::placeholder {
+  color: var(--text-muted);
+  font-family: inherit;
+}
+
+.cmd-journal-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px var(--spacing-md);
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.cmd-journal-foot > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmd-journal-blink {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success-color);
+  animation: cmd-journal-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes cmd-journal-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* ── 右侧：预设命令 ── */
+.cmd-presets-device {
+  margin-left: auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.cmd-presets-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+}
+
+.command-console:not(.command-console--fill) .cmd-presets-body {
+  max-height: 60vh;
+}
+
+.command-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.command-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.command-item-info {
+  min-width: 0;
+}
+
+.command-item-name {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.command-item-desc {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* 需要确认的小标记 */
+.cmd-confirm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 16px;
+  border-radius: 3px;
+  color: var(--warning-color);
+  background: rgba(var(--warning-color-rgb), 0.12);
+}
+
+/* 参数输入区域 — 整行换行 */
+.cmd-param-fields {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+}
+
+.cmd-param-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cmd-param-label {
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.cmd-param-input {
+  width: 100%;
+  padding: 3px 6px;
+  font-size: 0.75rem;
+  font-family: monospace;
+  line-height: 1.4;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.cmd-param-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.cmd-param-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cmd-param-input::placeholder {
+  color: var(--text-muted);
+  font-family: inherit;
+}
+
+.spinning-inline {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+.command-console-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.command-console-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  background: rgba(var(--warning-color-rgb), 0.08);
+  border-radius: var(--radius-sm);
+  color: var(--warning-color);
+  font-size: 0.75rem;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

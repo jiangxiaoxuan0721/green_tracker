@@ -1,35 +1,435 @@
-/* 设备详情样式 - 紧凑版，复用 Modal 样式 */
+/* 设备详情 - 分区卡片式布局（自包含，不依赖其他页面的 .modal-content） */
 
-.detail-item {
+.dd-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
-  align-items: flex-start;
-  margin-bottom: var(--spacing-xs);
-  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: dd-fade-in 0.15s ease-out;
 }
 
-.detail-item .label {
-  font-weight: 500;
-  color: var(--text-primary);
-  width: 80px;
+.dd-modal {
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-component);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-default);
+  overflow: hidden;
+  animation: dd-slide-in 0.2s ease-out;
+}
+
+/* 头部：头像 + 名称 + 类型胶囊 + 在线状态 */
+.dd-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-primary);
   flex-shrink: 0;
-  font-size: 0.75rem;
 }
 
-.detail-item .value {
-  color: var(--text-secondary);
-  word-break: break-word;
+.dd-avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-color);
+  background: var(--primary-subtle);
+  border: 1px solid var(--border-medium);
+}
+
+.dd-title-block {
   flex: 1;
-  font-size: 0.8125rem;
+  min-width: 0;
 }
 
-/* 响应式设计 */
+.dd-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dd-chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+.dd-chip {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  color: var(--text-medium);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.dd-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+}
+
+.dd-status.is-online {
+  color: var(--success-color);
+  background: rgba(var(--success-color-rgb), 0.12);
+  border-color: rgba(var(--success-color-rgb), 0.35);
+}
+
+.dd-status.is-offline {
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border-color: var(--border-light);
+}
+
+.dd-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dd-close {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-subtle);
+  font-size: 20px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.dd-close:hover {
+  background: var(--bg-subtle-hover);
+  color: var(--text-primary);
+}
+
+/* 主体 */
+.dd-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 20px 16px;
+}
+
+.dd-section {
+  padding-top: 14px;
+}
+
+.dd-section + .dd-section {
+  margin-top: 4px;
+  border-top: 1px solid var(--border-primary);
+}
+
+.dd-section-title {
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.dd-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+}
+
+.dd-field {
+  min-width: 0;
+}
+
+.dd-field-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-bottom: 2px;
+}
+
+.dd-field-value {
+  font-size: 13px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.dd-field-value.is-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.dd-field-value.is-success {
+  color: var(--success-color);
+}
+
+.dd-field-value.is-muted {
+  color: var(--text-muted);
+}
+
+/* 能力标签 */
+.dd-cap-group + .dd-cap-group {
+  margin-top: 10px;
+}
+
+.dd-cap-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-bottom: 5px;
+}
+
+.dd-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dd-tag {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  color: var(--text-medium);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+}
+
+.dd-tag-accent {
+  color: var(--warning-color);
+  background: rgba(var(--warning-color-rgb), 0.12);
+  border-color: rgba(var(--warning-color-rgb), 0.3);
+}
+
+.dd-description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* 连接历史（默认折叠） */
+.dd-history-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  cursor: pointer;
+}
+
+.dd-history-toggle:hover {
+  color: var(--text-primary);
+}
+
+.dd-caret {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.dd-caret.is-open {
+  transform: rotate(90deg);
+}
+
+.dd-count {
+  font-size: 10px;
+  letter-spacing: 0;
+  padding: 0 6px;
+  border-radius: 99px;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+}
+
+.dd-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.dd-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.dd-history-item:last-child {
+  border-bottom: none;
+}
+
+.dd-history-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dd-history-event {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+}
+
+.dd-history-event.is-connect {
+  color: var(--success-color);
+  background: rgba(var(--success-color-rgb), 0.12);
+  border-color: rgba(var(--success-color-rgb), 0.35);
+}
+
+.dd-history-event.is-disconnect {
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border-color: var(--border-light);
+}
+
+/* 底部：次要信息降为小字 */
+.dd-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-subtle);
+  flex-shrink: 0;
+}
+
+.dd-meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.dd-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.dd-btn {
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.dd-btn-ghost {
+  background: var(--btn-default-bg);
+  color: var(--btn-text);
+  border-color: var(--border-primary);
+}
+
+.dd-btn-ghost:hover {
+  background: var(--btn-hover-bg);
+}
+
+.dd-btn-primary {
+  background: var(--primary-color);
+  color: var(--btn-text);
+  border-color: var(--primary-color);
+}
+
+.dd-btn-primary:hover {
+  background: var(--primary-light);
+}
+
+@keyframes dd-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dd-slide-in {
+  from {
+    transform: translateY(-12px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 响应式：窄屏单列 */
 @media (max-width: 768px) {
-  .detail-item {
-    flex-direction: column;
+  .dd-overlay {
+    padding: 10px;
   }
 
-  .detail-item .label {
-    margin-bottom: 2px;
-    width: auto;
+  .dd-modal {
+    max-height: 94vh;
+  }
+
+  .dd-header {
+    padding: 14px 16px;
+    flex-wrap: wrap;
+  }
+
+  .dd-body {
+    padding: 4px 16px 14px;
+  }
+
+  .dd-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dd-footer {
+    padding: 12px 16px;
+  }
+
+  .dd-actions {
+    width: 100%;
+  }
+
+  .dd-btn {
+    flex: 1;
   }
 }

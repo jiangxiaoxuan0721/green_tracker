@@ -12,21 +12,6 @@
   gap: var(--spacing-sm);
 }
 
-.mqtt-auto-refresh {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  user-select: none;
-}
-
-.mqtt-auto-refresh input[type="checkbox"] {
-  accent-color: var(--primary-color);
-  cursor: pointer;
-}
-
 .refresh-btn {
   display: flex;
   align-items: center;

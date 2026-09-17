@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { rawDataService } from '@/services/rawDataService'
 import { 
@@ -25,8 +25,6 @@ const Overview = () => {
     disk_usage: '未知'
   })
   const [loading, setLoading] = useState(true)
-  const [autoRefresh, setAutoRefresh] = useState(true)
-  const intervalRef = useRef(null)
 
   const statItems = [
     { key: 'totalDevices', label: '设备总数', icon: Radio, color: 'var(--primary-color)' },
@@ -66,14 +64,11 @@ const Overview = () => {
     fetchOverviewData()
   }, [fetchOverviewData])
 
+  // 概览数据始终每 10 秒自动刷新
   useEffect(() => {
-    if (!autoRefresh) {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      return
-    }
-    intervalRef.current = setInterval(fetchOverviewData, 10000)
-    return () => clearInterval(intervalRef.current)
-  }, [autoRefresh, fetchOverviewData])
+    const timer = setInterval(fetchOverviewData, 10000)
+    return () => clearInterval(timer)
+  }, [fetchOverviewData])
 
   const getStatusIcon = (status) => {
     if (status === '正常') return <CheckCircle size={18} className="status-good-icon" />
@@ -95,10 +90,6 @@ const Overview = () => {
         description="实时了解系统运行状态和数据统计"
         actions={
           <div className="mqtt-header-actions">
-            <label className="mqtt-auto-refresh">
-              <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-              <span>自动刷新</span>
-            </label>
             <button className="refresh-btn" onClick={fetchOverviewData} title="手动刷新">
               <RefreshCw size={16} />
             </button>
