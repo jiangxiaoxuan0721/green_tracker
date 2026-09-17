@@ -83,13 +83,21 @@ export const env = {
 
   /**
    * 库内地块几何的坐标系假设。
-   * wgs84 = 库内存标准 WGS84，渲染需转 GCJ-02；
+   * wgs84 = 库内存标准 WGS84，渲染需转 GCJ-02（新部署的正确默认值）；
    * gcj02 = 存量数据直接存的是 GCJ-02，渲染不做变换。
-   * 校准方法见 spec §6.3。
+   *
+   * 校准结论（2026-09-16，spec §6.3 一次性校准已完成）：
+   * 本库存量数据为 **GCJ-02**。证据：重构前的 FieldMapPicker 用 AMap.MouseTool
+   * 取点后原样入库，当时全仓无任何坐标转换代码（crs.ts 是本次重构才引入），
+   * 且不存在种子数据或外部导入来源 —— 几何只有「在高德上绘制」这一个入口。
+   * 因此 .env 设为 VITE_FIELD_SOURCE_CRS=gcj02。
+   * 若将来把存量数据迁移为 WGS84，必须同步改回 wgs84，否则会向反方向偏移。
    */
   FIELD_SOURCE_CRS: readString(import.meta.env.VITE_FIELD_SOURCE_CRS, 'wgs84') as 'wgs84' | 'gcj02',
 
-  MAX_FILE_SIZE: readInt(import.meta.env.VITE_MAX_FILE_SIZE, 10 * 1024 * 1024),
+  // 算法压缩包默认上限 1 GB（覆盖大型 ML 模型 + 依赖 + 数据集打包场景）
+  // 通过 VITE_MAX_FILE_SIZE 环境变量覆盖；后端 nginx client_max_body_size 0 无限制
+  MAX_FILE_SIZE: readInt(import.meta.env.VITE_MAX_FILE_SIZE, 1024 * 1024 * 1024),
   ALLOWED_IMAGE_FORMATS: readList(import.meta.env.VITE_ALLOWED_IMAGE_FORMATS, [
     'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp',
   ]),
@@ -120,6 +128,7 @@ if (env.isDevelopment) {
     MODE: env.MODE,
     API_BASE_URL: env.API_BASE_URL,
     MINIO_PUBLIC_URL: env.MINIO_PUBLIC_URL,
+    MAX_FILE_SIZE: `${env.MAX_FILE_SIZE} bytes (${(env.MAX_FILE_SIZE / 1024 / 1024).toFixed(0)} MB)`,
   })
 }
 

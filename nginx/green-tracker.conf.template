@@ -49,6 +49,36 @@ server {
     # 上传文件较大（图片 / 视频 / 模型），放宽请求体限制
     client_max_body_size 0;
 
+    # ============================================================
+    # Gzip 压缩
+    # 系统 /etc/nginx/nginx.conf 只有 `gzip on;`，gzip_types / gzip_proxied
+    # 均被注释，默认仅压缩 text/html —— JS / CSS / JSON 全部明文传输。
+    # 实测构建产物 1474 KB，gzip 后 366 KB（约 4 倍）。
+    # 这里在站点级显式声明，不依赖系统默认配置，保证可复现。
+    # 注意：gzip_proxied any 必须开启，否则 dev 模式下经 Nginx 反代
+    #       Vite dev server 的响应不会被压缩。
+    # ============================================================
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/javascript
+        application/x-javascript
+        application/json
+        application/xml
+        application/rss+xml
+        application/atom+xml
+        application/manifest+json
+        image/svg+xml
+        font/ttf
+        font/otf;
+
     # 日志（可用 journalctl 或 filebeat 收集）
     access_log /var/log/nginx/green-tracker.access.log;
     error_log  /var/log/nginx/green-tracker.error.log warn;

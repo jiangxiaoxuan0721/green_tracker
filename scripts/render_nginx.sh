@@ -149,6 +149,48 @@ log_info "  后端端口    : $BACKEND_PORT"
 log_info "  证书        : $SSL_CERT_PATH"
 log_info "================================================="
 
+# ---------- 静态根目录可访问性预检（仅 prod）----------
+# nginx worker 以非特权用户（默认 www-data）运行，必须能「穿越」STATIC_ROOT
+# 的每一级父目录。典型故障：/home/<user> 默认 750（other 无 x），
+# dev 模式只做 proxy_pass 不读文件系统因此不暴露，切到 prod 后立刻 403 Forbidden。
+if [ "$MODE" = "prod" ]; then
+    NGINX_USER="$(awk '/^[[:space:]]*user[[:space:]]/{print $2}' /etc/nginx/nginx.conf 2>/dev/null | tr -d ';' | head -1)"
+    NGINX_USER="${NGINX_USER:-www-data}"
+
+    dir_traversable() {
+        local dir="$1" mode
+        mode="$(stat -c '%A' "$dir" 2>/dev/null || echo '')"
+        # other 用户位（10 字符权限串的索引 9）
+        case "${mode:9:1}" in
+            x|s|t) return 0 ;;
+        esac
+        # 或经由 ACL 显式授予 nginx worker 用户 x 权限
+        if command -v getfacl >/dev/null 2>&1; then
+            if getfacl "$dir" 2>/dev/null | grep -qE "^user:${NGINX_USER}:[r-]?[w-]?x"; then
+                return 0
+            fi
+        fi
+        return 1
+    }
+
+    BLOCKED_DIR=""
+    CHECK_DIR="$(dirname "$STATIC_ROOT")"
+    while [ -n "$CHECK_DIR" ] && [ "$CHECK_DIR" != "/" ]; do
+        if [ -d "$CHECK_DIR" ] && ! dir_traversable "$CHECK_DIR"; then
+            BLOCKED_DIR="$CHECK_DIR"
+            break
+        fi
+        CHECK_DIR="$(dirname "$CHECK_DIR")"
+    done
+
+    if [ -n "$BLOCKED_DIR" ]; then
+        log_warn "Nginx worker（$NGINX_USER）无法穿越目录: $BLOCKED_DIR"
+        log_warn "prod 模式下静态资源将返回 403 Forbidden，请任选一种修复："
+        log_warn "  A) sudo chmod o+x $BLOCKED_DIR"
+        log_warn "  B) sudo apt-get install -y acl && sudo setfacl -m u:$NGINX_USER:x $BLOCKED_DIR"
+    fi
+fi
+
 # ---------- 工具检测 ----------
 command -v perl >/dev/null 2>&1 || { log_error "未找到 perl（渲染模板必需）"; exit 1; }
 
