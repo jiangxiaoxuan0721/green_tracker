@@ -168,14 +168,24 @@ app.include_router(mqtt_router, prefix="/api") # /api/mqtt/*
 async def health_check():
     return {"status": "healthy", "message": "Green Tracker API is running"}
 
-# 根路径
-@app.get("/") # /
-async def root():
-    return {"message": "Welcome to Green Tracker API"}
-
 # 运行配置
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("API_PORT", "6130"))  # 默认使用6130端口，与前端配置一致
-    host = os.getenv("API_HOST", "0.0.0.0")
-    uvicorn.run("main:app", host=host, port=port, reload=True)
+    # 默认 6130 端口，与前端配置一致
+    port = int(os.getenv("API_PORT", "6130"))
+    # 默认 127.0.0.1（仅本地监听，由 Nginx 反向代理对外提供 HTTPS）
+    # 调试时如需从局域网直连，可设为 0.0.0.0
+    host = os.getenv("API_HOST", "127.0.0.1")
+
+    # 可选：后端独立启用 HTTPS（一般不需要，Nginx 已经做了 HTTPS 终结）
+    ssl_certfile = os.getenv("BACKEND_SSL_CERTFILE") or None
+    ssl_keyfile  = os.getenv("BACKEND_SSL_KEYFILE")  or None
+
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=True,
+        ssl_certfile=ssl_certfile,
+        ssl_keyfile=ssl_keyfile,
+    )

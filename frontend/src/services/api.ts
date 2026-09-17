@@ -1,42 +1,22 @@
-/// <reference path="../utils/vite-env.d.ts" />
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { env } from '@/config/env';
 
-// 动态检测后端 API 地址
-// 从环境变量获取，如果没有则根据当前访问地址动态判断
-let apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-
-if (!apiBaseUrl) {
-  // 如果没有配置环境变量，根据当前访问地址自动判断
-  const currentHost = window.location.hostname;
-  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-    // 本地访问：使用 localhost:6130
-    apiBaseUrl = 'http://localhost:6130';
-  } else {
-    // 外部访问：使用当前主机地址 + 6130 端口
-    apiBaseUrl = `http://${currentHost}:6130`;
-  }
-}
+// API 基址来自唯一出口 config/env.ts（已归一化：不含尾部 /api，空 = 同源相对路径）
+const apiBaseUrl = env.API_BASE_URL;
 
 // 创建axios实例
 const api: AxiosInstance = axios.create({
   baseURL: apiBaseUrl,
-  timeout: 30000, // 默认30秒超时
+  timeout: env.API_TIMEOUT, // 默认30秒超时
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// 调试信息
-console.log('[前端API] 初始化API');
-console.log('- import.meta.env.VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
-console.log('- 检测到的API地址:', apiBaseUrl);
-console.log('- 最终baseURL:', api.defaults.baseURL);
-
 // 请求拦截器 - 添加token到请求头
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     console.log(`[前端API] 发送请求: ${config.method?.toUpperCase()} ${config.url}`);
-    console.log('[前端API] 请求数据:', config.data);
     console.log('[前端API] 请求参数:', config.params);
     
     const token = localStorage.getItem('token');

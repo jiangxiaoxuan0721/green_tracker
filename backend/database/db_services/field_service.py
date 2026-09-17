@@ -1,4 +1,5 @@
 import uuid
+import re
 from sqlalchemy import and_, or_, func, text
 from sqlalchemy.orm import Session
 from database.db_models.user_models import Field
@@ -593,3 +594,140 @@ def delete_field(db: Session, field_id: str) -> bool:
 
     print(f"[后端FieldService] 地块删除成功: {field_id}")
     return True
+
+
+def _parse_wkt_ring(wkt) -> List[tuple]:
+    """
+    解析 'POLYGON((lng lat, ...))' 的外环，返回 [(lng, lat), ...]。
+    仅供无 PostGIS 环境降级使用；解析失败返回空列表。
+    """
+    if not wkt or not isinstance(wkt, str):
+        return []
+    match = re.match(r"POLYGON\s*\(\s*\(([^)]*)\)", wkt.strip(), re.IGNORECASE)
+    if not match:
+        return []
+    ring = []
+    for part in match.group(1).split(","):
+        nums = part.split()
+        if len(nums) < 2:
+            continue
+        try:
+            ring.append((float(nums[0]), float(nums[1])))
+        except ValueError:
+            continue
+    return ring
+
+
+def _ring_bbox(ring: List[tuple]):
+    """返回 (min_lng, min_lat, max_lng, max_lat)；空环返回 None"""
+    if not ring:
+        return None
+    lngs = [p[0] for p in ring]
+    lats = [p[1] for p in ring]
+    return min(lngs), min(lats), max(lngs), max(lats)
+
+
+def get_all_fields_light(db: Session, active_only: bool = True) -> List[dict[str, Any]]:
+    """
+    获取地块轻量列表：仅 id / name / area_m2 / centroid（WGS84 [lng, lat]）。
+
+    用于 zoom < 13 的聚合展示，避免一次拉回全部 WKT。
+    """
+    if HAS_POSTGIS:
+        where = " WHERE is_active = true" if active_only else ""
+        rows = db.execute(
+            text(f"""
+                SELECT id, name, area_m2,
+                       ST_X(ST_Centroid(location_geom)) AS cx,
+                       ST_Y(ST_Centroid(location_geom)) AS cy
+                FROM fields{where}
+            """)
+        ).fetchall()
+        result = []
+        for r in rows:
+            centroid = (
+                [float(r.cx), float(r.cy)] if r.cx is not None and r.cy is not None else None
+            )
+            result.append({
+                'id': str(r.id),
+                'name': r.name,
+                'area_m2': r.area_m2,
+                'centroid': centroid,
+            })
+        return result
+
+    # 无 PostGIS：location_geom 是 WKT 文本，退化到 Python 侧解析
+    print("[后端FieldService] PostGIS 不可用，地块质心改为 Python 侧解析")
+    query = db.query(Field.id, Field.name, Field.area_m2, Field.location_geom)
+    if active_only:
+        query = query.filter(Field.is_active == True)
+    result = []
+    for r in query.all():
+        ring = _parse_wkt_ring(r.location_geom)
+        centroid = None
+        if ring:
+            centroid = [
+                sum(p[0] for p in ring) / len(ring),
+                sum(p[1] for p in ring) / len(ring),
+            ]
+        result.append({
+            'id': str(r.id),
+            'name': r.name,
+            'area_m2': r.area_m2,
+            'centroid': centroid,
+        })
+    return result
+
+
+def get_fields_geometry_in_bbox(
+    db: Session,
+    min_lng: float,
+    min_lat: float,
+    max_lng: float,
+    max_lat: float,
+    active_only: bool = True,
+) -> List[dict[str, Any]]:
+    """
+    获取与给定 bbox 相交的地块几何（WKT）。
+
+    用于 zoom >= 13 时按视野增量请求，避免全量下载。
+    """
+    if HAS_POSTGIS:
+        where = " AND is_active = true" if active_only else ""
+        rows = db.execute(
+            text(f"""
+                SELECT id, ST_AsText(location_geom) AS location_wkt
+                FROM fields
+                WHERE ST_Intersects(
+                    location_geom,
+                    ST_MakeEnvelope(:min_lng, :min_lat, :max_lng, :max_lat, 4326)
+                ){where}
+            """),
+            {
+                "min_lng": min_lng,
+                "min_lat": min_lat,
+                "max_lng": max_lng,
+                "max_lat": max_lat,
+            },
+        ).fetchall()
+        return [
+            {'id': str(r.id), 'location_wkt': str(r.location_wkt) if r.location_wkt else None}
+            for r in rows
+        ]
+
+    # 无 PostGIS：全量取出后在 Python 侧按 bbox 过滤
+    print("[后端FieldService] PostGIS 不可用，bbox 过滤退化为 Python 侧计算")
+    query = db.query(Field.id, Field.location_geom)
+    if active_only:
+        query = query.filter(Field.is_active == True)
+    result = []
+    for r in query.all():
+        ring = _parse_wkt_ring(r.location_geom)
+        box = _ring_bbox(ring)
+        if not box:
+            continue
+        lng0, lat0, lng1, lat1 = box
+        if lng1 < min_lng or lng0 > max_lng or lat1 < min_lat or lat0 > max_lat:
+            continue
+        result.append({'id': str(r.id), 'location_wkt': r.location_geom})
+    return result

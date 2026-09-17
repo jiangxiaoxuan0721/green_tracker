@@ -459,6 +459,14 @@
   cursor: not-allowed;
 }
 
+/* 已选文件信息 */
+.algorithm-file-info {
+  display: block;
+  margin-top: var(--spacing-xs);
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
 /* 文件上传区域 */
 .file-upload-area {
   border: 2px dashed var(--border-medium);

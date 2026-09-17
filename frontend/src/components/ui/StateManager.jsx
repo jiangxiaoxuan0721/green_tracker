@@ -155,7 +155,6 @@ export const DataGridState = ({
         transition={{ duration: 0.4 }}
       >
         <div className="data-grid-empty">
-          <div className="data-grid-empty-icon">📊</div>
           <h4 className="data-grid-empty-title">{emptyTitle}</h4>
           <p className="data-grid-empty-message">{emptyMessage}</p>
           {onRefresh && (

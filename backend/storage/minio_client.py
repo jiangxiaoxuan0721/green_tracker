@@ -7,7 +7,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import logging
 import io
-from typing import Optional
+from typing import BinaryIO, Iterator, Optional, Union
 
 # 加载环境变量
 project_root = Path(__file__).parent.parent.parent
@@ -68,27 +68,44 @@ class MinioClient:
         self,
         bucket: str,
         object_name: str,
-        data: bytes,
-        content_type: str = "application/zip"
-    ):
+        data: Union[bytes, bytearray, BinaryIO],
+        content_type: str = "application/zip",
+        length: Optional[int] = None,
+    ) -> int:
         """
-        上传文件到 MinIO
-        
+        上传文件到 MinIO（支持 bytes 与 file-like 流式对象）
+
         Args:
             bucket: 存储桶名称
             object_name: 对象名称
-            data: 文件数据
+            data: 文件数据；bytes/bytearray，或实现了 read() 的 file-like 对象
             content_type: 内容类型
+            length: 字节数；data 为 bytes 时可省略，file-like 时必须显式提供
+
+        Returns:
+            实际上传的字节数
+
+        Note:
+            file-like 分支不做任何整块读取，1GB 级大包不会驻留内存。
         """
+        if isinstance(data, (bytes, bytearray)):
+            length = len(data) if length is None else length
+            stream: BinaryIO = io.BytesIO(data)
+        else:
+            stream = data
+            if length is None:
+                raise ValueError("file-like 数据必须显式提供 length")
+
         try:
             self._client.put_object(
                 bucket_name=bucket,
                 object_name=object_name,
-                data=io.BytesIO(data),
-                length=len(data),
+                data=stream,
+                length=length,
                 content_type=content_type
             )
-            logger.info(f"文件上传成功: {bucket}/{object_name}")
+            logger.info(f"文件上传成功: {bucket}/{object_name} ({length} bytes)")
+            return length
         except Exception as e:
             logger.error(f"文件上传失败: {e}")
             raise
@@ -132,12 +149,12 @@ class MinioClient:
     def get_presigned_url(self, bucket: str, object_name: str, expires: int = 3600) -> str:
         """
         生成预签名URL
-        
+
         Args:
             bucket: 存储桶名称
             object_name: 对象名称
             expires: 过期时间(秒)
-        
+
         Returns:
             预签名URL
         """
@@ -153,18 +170,71 @@ class MinioClient:
             logger.error(f"生成预签名URL失败: {e}")
             raise
 
+    def iter_object(
+        self,
+        bucket: str,
+        object_name: str,
+        chunk_size: int = 1024 * 1024,
+    ) -> Iterator[bytes]:
+        """流式读取对象 chunk（生成器）。
+
+        - 调用方应 `iter.close()` 或消费完退出 with 块，触发底层 response.release_conn()
+        - generator 被 GC 时 finally 也会兜底释放（但不保证立即）
+        - 用法：
+            chunks = minio_client.iter_object(bucket, key)
+            try:
+                for chunk in chunks:
+                    ...
+            finally:
+                chunks.close()
+        """
+        response = self._client.get_object(bucket, object_name)
+        try:
+            while True:
+                chunk = response.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            try:
+                response.close()
+                response.release_conn()
+            except Exception:
+                pass
+
+    def stat_object_size(self, bucket: str, object_name: str) -> Optional[int]:
+        """查询对象字节大小；不可用时返回 None（调用方降级到无 Content-Length 流）。"""
+        try:
+            return self._client.stat_object(bucket, object_name).size
+        except Exception as e:
+            logger.warning(f"stat_object 失败 {bucket}/{object_name}: {e}")
+            return None
+
 
 # 全局单例
-_minio_client = None
+_minio_client: Optional["MinioClient"] = None
 
 
-def get_minio_client() -> MinioClient:
-    """获取 MinIO 客户端单例"""
+def get_minio_client() -> "MinioClient":
+    """获取 MinIO 客户端单例（懒加载：仅在首次调用时才连接 MinIO）。"""
     global _minio_client
     if _minio_client is None:
         _minio_client = MinioClient()
     return _minio_client
 
 
-# 导出简化版
-minio_client = get_minio_client()
+class _LazyMinioProxy:
+    """惰性代理：访问任意属性时才真正实例化 MinioClient。
+
+    替换原先 `minio_client = get_minio_client()` 的模块顶层副作用，
+    让 `from storage.minio_client import minio_client` 不再因为 MinIO 不可达
+    而导致后端启动失败。所有方法调用（包括 ._client 直访）都通过 __getattr__
+    转发到底层真实实例。
+    """
+
+    def __getattr__(self, name):
+        return getattr(get_minio_client(), name)
+
+
+# 保留同名符号；调用方继续用 `minio_client.xxx(...)` 即可，无需改导入
+minio_client = _LazyMinioProxy()

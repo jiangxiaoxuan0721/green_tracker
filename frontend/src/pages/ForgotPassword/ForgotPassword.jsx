@@ -14,7 +14,7 @@ import './ForgotPassword.css'
 
 const ForgotPassword = () => {
   const navigate = useNavigate()
-  const { toasts, removeToast, success: showSuccess, error: showError } = useToast()
+  const { success: showSuccess, error: showError } = useToast()
   
   const [step, setStep] = useState(1) // 1: enter email, 2: enter code + new password
   const [email, setEmail] = useState('')
@@ -122,7 +122,7 @@ const ForgotPassword = () => {
   return (
     <>
       <Navbar />
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer />
       <div className="forgot-split-container">
         {/* 品牌展示区域 */}
         <motion.div 

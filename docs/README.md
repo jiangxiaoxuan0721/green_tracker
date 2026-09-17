@@ -1,87 +1,30 @@
-# Green Tracker 文档
+# Green Tracker 文档索引
 
-本文档目录包含 Green Tracker 项目的所有设计文档、迁移指南和测试文档。
+按主题分层维护。改文档请同步本索引。
 
-## 📚 文档目录
+## setup/ — 环境与部署
 
-### 架构设计
+- **[ENV_CONFIG.md](setup/ENV_CONFIG.md)** — 全部环境变量（前端 VITE_* 与后端）参考
+- **[HTTPS_SETUP.md](setup/HTTPS_SETUP.md)** — Nginx + HTTPS 证书与双模式（dev/prod）渲染
 
-- **[database_redesign_v2.md](database_redesign_v2.md)**
-  - 当前数据库架构设计 v2.0
-  - 独立用户数据库架构
-  - 元数据库和用户数据库分离
-  - 数据模型和关系
+## architecture/ — 架构与数据模型
 
-### 迁移和计划
+- **[database_redesign_v2.md](architecture/database_redesign_v2.md)** — 数据库 v2 重设计方案（含历史迁移脚本记录）
+- **[minio_documentation.md](architecture/minio_documentation.md)** — MinIO 对象存储设计与实现
 
-- **[migration_plan.md](migration_plan.md)**
-  - 从旧架构到新架构的迁移计划
-  - 迁移步骤和验证方法
-  - 回滚策略
+## features/ — 功能专题
 
-### 测试文档
+- **[algorithm_development_guide.md](features/algorithm_development_guide.md)** — 算法接入开发指南
+- **[thumbnail_feature_guide.md](features/thumbnail_feature_guide.md)** — 图像缩略图链路
 
-- **[registration_flow_testing.md](registration_flow_testing.md)**
-  - 用户注册流程测试
-  - 测试用例和预期结果
-  - 验证方法
+## ops/ — 运维操作
 
-### MinIO 文档
+- **[screen_guide.md](ops/screen_guide.md)** — screen 会话日常操作
 
-- **[minio_documentation.md](minio_documentation.md)**
-  - MinIO 对象存储配置
-  - 文件上传下载
-  - 最佳实践
+## plans/ — 设计与实施计划
 
-### 算法开发
+- 结构规范化设计与实施计划（2026-09-15）
 
-- **[algorithm_development_guide.md](algorithm_development_guide.md)**
-  - 算法包结构规范
-  - algorithm.yaml 配置详解
-  - predict.py 服务入口编写规范
-  - requirements.txt 依赖管理
-  - 完整示例和常见问题
+> 前端目录约定见 `frontend/README.md`；Nginx 配置说明见 `nginx/README.md`；样式规范见 `frontend/src/styles/README.md`。
 
-### 其他文档
-
-- **[thumbnail_feature_guide.md](thumbnail_feature_guide.md)**
-  - 缩略图功能指南
-
-- **[cleanup_report_2026-01-27.md](cleanup_report_2026-01-27.md)**
-  - 代码清理报告
-
-## 🔧 快速链接
-
-- [项目 README](../README.md)
-- [环境配置](../ENV_CONFIG.md)
-- [更新日志](../CHANGELOG.md)
-- [界面截图指南](../screen_guide.md)
-
-## 📝 文档维护
-
-### 更新规范
-
-1. 所有文档应包含：
-   - 文档标题和目的
-   - 最后更新日期
-   - 相关链接
-
-2. 文档命名规范：
-   - 使用小写字母和下划线
-   - 使用描述性名称
-   - 避免使用版本号（除非必要）
-
-3. 过时文档：
-   - 移动到 `archived/` 目录
-   - 添加说明为何归档
-   - 保留参考价值的内容
-
-### 文档审查
-
-- 每月审查一次文档的准确性
-- 删除过时或不再需要的文档
-- 更新有重大变更的文档
-
-## 📞 联系方式
-
-如有文档相关的问题或建议，请联系项目维护者。
+> 历史文件 `cleanup_report_2026-01-27.md`、`migration_plan.md`、`registration_flow_testing.md` 已不存在，相关链接已清除。

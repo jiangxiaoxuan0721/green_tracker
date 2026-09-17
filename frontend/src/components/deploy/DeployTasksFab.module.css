@@ -1,0 +1,121 @@
+/* 嵌入式任务栏：随 Dashboard 内容流排布（不再是 fixed 悬浮层），
+   由父级 .dashboard-content（flex column）决定宽度，任务展开时向下挤压内容而非遮挡 */
+.fab {
+  flex-shrink: 0;
+  margin: 0 var(--spacing-md);
+  padding-top: var(--spacing-md);
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  font-size: 13px;
+}
+.fab[data-collapsed='true'] {
+  border-color: rgba(148, 163, 184, 0.25);
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #94a3b8;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 16px;
+  max-height: 50vh;
+  overflow-y: auto;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+.row {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.rowName {
+  flex: 1;
+}
+.headerHint {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.2);
+  font-size: 11px;
+  opacity: 0.85;
+}
+.rowStatus {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.rowPort {
+  font-family: monospace;
+  opacity: 0.7;
+}
+.rowClose {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+.rowLog {
+  margin: 4px 0 0 16px;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-size: 11px;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.row--green .rowStatus {
+  background: #16a34a;
+}
+.row--red .rowStatus {
+  background: #dc2626;
+}
+.row--blue .rowStatus {
+  background: #2563eb;
+}
+.row--gray .rowStatus {
+  background: #64748b;
+}
+
+/* 上传阶段行内进度条（视觉沿用 AlgorithmSquare.css 的 upload-progress） */
+.rowProgress {
+  width: calc(100% - 16px);
+  height: 4px;
+  margin: 6px 0 0 16px;
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rowProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  transition: width 120ms ease-out;
+}

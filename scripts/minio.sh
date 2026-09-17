@@ -2,7 +2,9 @@
 # MinIO 统一管理脚本
 # 用法: bash minio.sh {install|start|stop|restart|status|test}
 
-set -e
+set -euo pipefail
+# FORCE_INSTALL 默认值（原仅在 --force 分支赋值，set -u 下其余路径会断）
+FORCE_INSTALL="false"
 
 # 颜色定义
 GREEN='\033[0;32m'
@@ -339,15 +341,10 @@ test_connection() {
 
     cd "$PROJECT_DIR/backend"
 
-    if [ -f "storage/check_minio.py" ]; then
-        python storage/check_minio.py
-    elif [ -f "storage/test_storage.py" ]; then
-        echo "运行存储测试..."
-        python storage/test_storage.py
-    else
-        echo -e "${RED}错误: 未找到测试脚本${NC}"
-        return 1
-    fi
+    # 连通性自检：MinioClient 构造会真实连接并确保桶存在（原指向的
+    # storage/check_minio.py 与 test_storage.py 从未存在过，已删除死代码分支）
+    echo -e "${RED}运行存储连通性自检...${NC}"
+    python -c "from storage.minio_client import MinioClient; MinioClient(); print('MinIO 连接 OK')" || return 1
 }
 
 # 清理数据目录
@@ -380,7 +377,7 @@ main() {
                 use_docker="false"
                 ;;
             --force)
-                FORCE_INSTALL="true"
+                FORCE_INSTALL="--force"
                 ;;
         esac
     done
@@ -412,9 +409,17 @@ main() {
             fi
             ;;
         restart)
-            stop
-            sleep 2
-            start
+            # 修复：原实现直接调用不存在的 stop/start 命令（case 标签不是函数），
+            # set -e 下必然中断；守卫与主 stop) 分支一致（容器不存在时走 binary 路径）
+            if [ "$use_docker" = "true" ] && check_docker && [ "$(docker ps -q -f name=minio)" ]; then
+                stop_docker
+                sleep 2
+                start_docker
+            else
+                stop_binary
+                sleep 2
+                start_binary
+            fi
             ;;
         status)
             show_status

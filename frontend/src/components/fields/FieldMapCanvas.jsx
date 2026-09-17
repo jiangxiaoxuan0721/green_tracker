@@ -1,0 +1,367 @@
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { useAMap } from '@/hooks/fields/useAMap'
+// R18：对外边界（ref API + props）一律 WGS84，组件内部负责 WGS84 <-> GCJ-02 转换
+import { toDisplay, toDisplayRing, toStorage, toStorageRing } from '@/utils/geo'
+import './FieldMapCanvas.css'
+
+/** 全国视野：未选中任何地块时的默认视角 */
+const DEFAULT_CENTER = [104, 37.5]
+const DEFAULT_ZOOM = 4
+
+const FieldMapCanvas = forwardRef(function FieldMapCanvas(
+  { onViewportChange, onBlankClick, onPolygonClick, onClusterClick, initialView },
+  ref
+) {
+  const { ready, error } = useAMap()
+  const containerRef = useRef(null)
+  const mapRef = useRef(null)
+  const mouseToolRef = useRef(null)
+  /**
+   * 只在建图那一次读 initialView，之后父组件怎么改都不重建地图。
+   * 放进 ref 而不是直接读 prop：地图初始化 effect 的依赖固定为 [ready]，
+   * 直接读 prop 会被 exhaustive-deps 要求进依赖数组，反而误导后来者以为它会重建地图。
+   */
+  const initialViewRef = useRef(initialView)
+
+  /** id -> AMap.Polygon */
+  const polygonMapRef = useRef(new Map())
+  /** key -> AMap.Marker（聚合点） */
+  const clusterMapRef = useRef(new Map())
+  const draftRef = useRef(null)
+  const hoverIdRef = useRef(null)
+  /** startDraw 的 pending resolve，cancelDraw 时必须 resolve(null) */
+  const drawResolveRef = useRef(null)
+
+  // 用 ref 承载回调，避免因父组件重渲染而反复解绑/重绑地图事件
+  const handlersRef = useRef({ onViewportChange, onBlankClick, onPolygonClick })
+  handlersRef.current = { onViewportChange, onBlankClick, onPolygonClick }
+
+  /**
+   * key -> Cluster。marker 会被复用（只 setPosition/setContent 不重建），
+   * 若在 click 闭包里捕获建点时的 c，平移后同一 key 的成员已变，会拿到过期 ids。
+   * 改为点击那一刻按 key 读最新数据（R21）。
+   */
+  const clusterDataRef = useRef(new Map())
+  /** 每次渲染同步最新 prop，避免 marker 只建一次导致回调闭包过期（R21） */
+  const onClusterClickRef = useRef(onClusterClick)
+  onClusterClickRef.current = onClusterClick
+
+  const emitViewport = () => {
+    const map = mapRef.current
+    if (!map) return
+    const b = map.getBounds()
+    const sw = b.getSouthWest()
+    const ne = b.getNorthEast()
+    // AMap 的 getBounds() 是 GCJ-02；对外统一输出 WGS84，供 getFieldsGeometry(bbox) 直接使用
+    const bounds = toStorageRing([
+      [sw.getLng(), sw.getLat()],
+      [ne.getLng(), ne.getLat()],
+    ])
+    handlersRef.current.onViewportChange?.(map.getZoom(), [bounds[0], bounds[1]])
+  }
+
+  // 初始化地图（只跑一次）
+  useEffect(() => {
+    if (!ready || mapRef.current || !containerRef.current) return
+    const AMap = window.AMap
+    // 会话还原：入参 initialView.center 是 WGS84（R18），转 GCJ-02 后再交给 AMap
+    const iv = initialViewRef.current
+    const center = iv?.center ? toDisplay(iv.center) : DEFAULT_CENTER
+
+    const map = new AMap.Map(containerRef.current, {
+      zoom: iv?.zoom ?? DEFAULT_ZOOM,
+      center,
+      viewMode: '2D',
+      layers: [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()],
+    })
+    map.addControl(new AMap.Scale())
+    map.addControl(new AMap.ToolBar({ position: { right: '16px', bottom: '48px' } }))
+    mapRef.current = map
+
+    map.on('moveend', emitViewport)
+    map.on('zoomend', emitViewport)
+    map.on('complete', emitViewport)
+    map.on('click', () => {
+      // 绘制中：点击属于绘制行为，不触发取消选中
+      if (mouseToolRef.current) return
+      handlersRef.current.onBlankClick?.()
+    })
+  }, [ready])
+
+  useImperativeHandle(ref, () => ({
+    getViewport: () => {
+      const map = mapRef.current
+      if (!map) return null
+      const b = map.getBounds()
+      const sw = b.getSouthWest()
+      const ne = b.getNorthEast()
+      // 同 emitViewport：AMap 返回 GCJ-02，转回 WGS84 后交给调用方
+      const bounds = toStorageRing([
+        [sw.getLng(), sw.getLat()],
+        [ne.getLng(), ne.getLat()],
+      ])
+      const c = map.getCenter()
+      return {
+        zoom: map.getZoom(),
+        // center 供「切走再回来还原上次视角」使用，同样必须转回 WGS84
+        center: toStorage([c.getLng(), c.getLat()]),
+        bounds: [bounds[0], bounds[1]],
+      }
+    },
+
+    fitBounds: (bounds, padding = 80) => {
+      const map = mapRef.current
+      if (!map || !bounds) return
+      const AMap = window.AMap
+      // 入参是 WGS84，先转 GCJ-02 再交给 AMap
+      const [[minLng, minLat], [maxLng, maxLat]] = toDisplayRing([bounds[0], bounds[1]])
+      map.setBounds(
+        new AMap.Bounds(
+          new AMap.LngLat(minLng, minLat),
+          new AMap.LngLat(maxLng, maxLat)
+        ),
+        false,
+        [padding, padding, padding, padding]
+      )
+    },
+
+    /** 增量 diff：复用已存在 Polygon，只增删差异 */
+    setPolygons: (list) => {
+      const map = mapRef.current
+      if (!map) return
+      const AMap = window.AMap
+      const next = new Set(list.map((p) => p.id))
+
+      polygonMapRef.current.forEach((poly, id) => {
+        if (!next.has(id)) {
+          map.remove(poly)
+          polygonMapRef.current.delete(id)
+        }
+      })
+
+      list.forEach(({ id, ring }) => {
+        if (!ring || ring.length < 3) return
+        const path = toDisplayRing(ring)
+        const existing = polygonMapRef.current.get(id)
+        if (existing) {
+          existing.setPath(path)
+          return
+        }
+        const poly = new AMap.Polygon({
+          path,
+          strokeColor: '#22c55e',
+          strokeWeight: 2,
+          strokeOpacity: 0.9,
+          fillColor: '#22c55e',
+          fillOpacity: 0.18,
+          bubble: false,
+          cursor: 'pointer',
+          extData: { id },
+        })
+        poly.on('click', () => handlersRef.current.onPolygonClick?.(id))
+        poly.on('mouseover', () => {
+          if (hoverIdRef.current === id) return
+          hoverIdRef.current = id
+          poly.setOptions({ strokeWeight: 4, fillOpacity: 0.35 })
+        })
+        poly.on('mouseout', () => {
+          if (hoverIdRef.current !== id) return
+          hoverIdRef.current = null
+          poly.setOptions({ strokeWeight: 2, fillOpacity: 0.18 })
+        })
+        map.add(poly)
+        polygonMapRef.current.set(id, poly)
+      })
+    },
+
+    setClusters: (clusters) => {
+      const map = mapRef.current
+      if (!map) return
+      const AMap = window.AMap
+      const next = new Set(clusters.map((c) => c.key))
+
+      clusterMapRef.current.forEach((marker, key) => {
+        if (!next.has(key)) {
+          map.remove(marker)
+          clusterMapRef.current.delete(key)
+          clusterDataRef.current.delete(key)
+        }
+      })
+
+      clusters.forEach((c) => {
+        const content = `<div class="field-cluster" data-count="${c.count}">${c.count}</div>`
+        // c.lng/c.lat 是 WGS84 均值，先转显示坐标再落点到地图
+        const [lng, lat] = toDisplay([c.lng, c.lat])
+        // 新建与更新两条路径都要刷新，保证点击事件读到的是最新成员
+        clusterDataRef.current.set(c.key, c)
+        const existing = clusterMapRef.current.get(c.key)
+        if (existing) {
+          // Marker 更新位置用 setPosition（setCenter 是 Circle 的方法，Marker 上没有，
+          // 调用会抛 TypeError 并整页崩溃；window.AMap 是 any，tsc 与 eslint 都拦不住）
+          existing.setPosition(new AMap.LngLat(lng, lat))
+          existing.setContent(content)
+          return
+        }
+        const marker = new AMap.Marker({
+          position: new AMap.LngLat(lng, lat),
+          content,
+          offset: new AMap.Pixel(-14, -14),
+          bubble: false,
+          cursor: 'pointer',
+        })
+        // 按 key 现读最新 Cluster：不捕获闭包里的 c，避免平移后成员过期（R21）
+        marker.on('click', () => {
+          const current = clusterDataRef.current.get(c.key)
+          if (current) onClusterClickRef.current?.(current)
+        })
+        map.add(marker)
+        clusterMapRef.current.set(c.key, marker)
+      })
+    },
+
+    setHighlight: (id) => {
+      polygonMapRef.current.forEach((poly, pid) => {
+        const selected = pid === id
+        poly.setOptions({
+          strokeColor: selected ? '#f59e0b' : '#22c55e',
+          strokeWeight: selected ? 4 : 2,
+          fillColor: selected ? '#f59e0b' : '#22c55e',
+          fillOpacity: selected ? 0.35 : 0.18,
+          // 层级必须随选中态一起还原，否则取消选中后图斑仍压在别人上面。
+          // 另：zIndex 只能走 setOptions —— setzIndex 是 Marker 的方法，
+          // Polygon 上没有，调用会抛 TypeError 并整页崩溃。
+          zIndex: selected ? 200 : 10,
+        })
+      })
+    },
+
+    /** 绘制中 / 重绘时的临时预览（虚线） */
+    setDraftPolygon: (ring) => {
+      const map = mapRef.current
+      if (!map) return
+      const AMap = window.AMap
+      if (draftRef.current) {
+        map.remove(draftRef.current)
+        draftRef.current = null
+      }
+      if (!ring || ring.length < 3) return
+      const poly = new AMap.Polygon({
+        path: toDisplayRing(ring),
+        strokeColor: '#f59e0b',
+        strokeWeight: 3,
+        strokeStyle: 'dashed',
+        fillColor: '#f59e0b',
+        fillOpacity: 0.2,
+        bubble: true,
+      })
+      map.add(poly)
+      draftRef.current = poly
+    },
+
+    /** 进入绘制模式；返回 WGS84 顶点（R18：组件内部已 toStorageRing，调用方可直接入库） */
+    startDraw: () =>
+      new Promise((resolve) => {
+        // 重入保护：上一次绘制未结束就再次 startDraw 时，必须先关闭旧 MouseTool
+        // 并放行旧 promise，否则旧工具仍挂在地图上、旧 await 永久挂起（连 cancelDraw 也捞不到它）
+        if (mouseToolRef.current) {
+          mouseToolRef.current.close(true)
+          mouseToolRef.current = null
+        }
+        if (drawResolveRef.current) {
+          const prevResolve = drawResolveRef.current
+          drawResolveRef.current = null
+          prevResolve(null)
+        }
+        const map = mapRef.current
+        if (!map) {
+          resolve(null)
+          return
+        }
+        const AMap = window.AMap
+        AMap.plugin(['AMap.MouseTool'], () => {
+          const tool = new AMap.MouseTool(map)
+          mouseToolRef.current = tool
+          drawResolveRef.current = resolve
+          tool.polygon({
+            strokeColor: '#f59e0b',
+            strokeWeight: 3,
+            fillColor: '#f59e0b',
+            fillOpacity: 0.2,
+          })
+          tool.on('draw', (e) => {
+            const path = e.obj?.getPath?.() ?? []
+            // MouseTool 画出的顶点是 GCJ-02，统一转成 WGS84 再交给调用方
+            const ring = toStorageRing(path.map((p) => [p.getLng(), p.getLat()]))
+            if (mouseToolRef.current) {
+              mouseToolRef.current.close(true)
+              mouseToolRef.current = null
+            }
+            drawResolveRef.current = null
+            resolve(ring.length >= 3 ? ring : null)
+          })
+        })
+      }),
+
+    /**
+     * 取消绘制。必须 resolve(null)，否则 await startDraw() 永远挂起，
+     * 导致侧栏 create 态无法退出。
+     */
+    cancelDraw: () => {
+      if (mouseToolRef.current) {
+        mouseToolRef.current.close(true)
+        mouseToolRef.current = null
+      }
+      if (drawResolveRef.current) {
+        const resolve = drawResolveRef.current
+        drawResolveRef.current = null
+        resolve(null)
+      }
+    },
+
+    resetView: () => {
+      mapRef.current?.setZoomAndCenter(DEFAULT_ZOOM, DEFAULT_CENTER)
+    },
+
+    /** 容器 CSS 尺寸变化后重算画布（AMap 不会自动跟随容器尺寸） */
+    resize: () => {
+      mapRef.current?.resize()
+    },
+  }))
+
+  // 卸载时清理绘制态与地图，避免流程悬挂 / 内存泄漏
+  useEffect(
+    () => () => {
+      if (mouseToolRef.current) {
+        mouseToolRef.current.close(true)
+        mouseToolRef.current = null
+      }
+      if (drawResolveRef.current) {
+        const resolve = drawResolveRef.current
+        drawResolveRef.current = null
+        resolve(null)
+      }
+      mapRef.current?.destroy?.()
+      mapRef.current = null
+      polygonMapRef.current.clear()
+      clusterMapRef.current.clear()
+      clusterDataRef.current.clear()
+    },
+    []
+  )
+
+  if (error) {
+    return (
+      <div className="field-map-canvas field-map-canvas--error">
+        <span className="placeholder-icon">🗺️</span>
+        <p className="placeholder-title">地图功能需要配置 API Key</p>
+        <p className="placeholder-hint">
+          请在 <code>.env</code> 文件中配置 <code>VITE_AMAP_KEY</code>（{error}）
+        </p>
+      </div>
+    )
+  }
+
+  return <div ref={containerRef} className="field-map-canvas" />
+})
+
+export default FieldMapCanvas

@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { getMinioUrl } from '@/config/environment'
+import { getMinioUrl } from '@/config/minio'
 
 /**
  * 简化的图片链接组件

@@ -1,26 +1,32 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Upload, Download, Play, Star, User, PlayCircle, PauseCircle, RotateCw, Trash2, MoreVertical, Cpu } from 'lucide-react'
 import axios from 'axios'
 import { useAuth } from '@/hooks/auth/useAuth'
+import useToast from '@/hooks/useToast'
+import { env } from '@/config/env'
+import { formatFileSize } from '@/utils/format'
 import { PageHeader } from '@/components/ui'
+import { useDeployTasksStore } from '@/store/useDeployTasksStore'
 import './AlgorithmSquare.css'
 import '../AdditionalStyles.css'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6130'
+// API 基址：来自唯一出口 config/env.ts（已归一化，不含 /api）
+const API_BASE_URL = env.API_BASE_URL
 
 const AlgorithmSquare = () => {
   const navigate = useNavigate()
   const { getAuthHeaders, user } = useAuth()
+  const { addToast } = useToast()
   const [algorithms, setAlgorithms] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [categories, setCategories] = useState([])
   const [showUpload, setShowUpload] = useState(false)
-  const [buildingAlgorithm, setBuildingAlgorithm] = useState(null) // 当前正在构建的算法
-  const [buildStatus, setBuildStatus] = useState('') // 构建状态消息
   const [showActionsForAlgorithm, setShowActionsForAlgorithm] = useState(null) // 控制哪个算法显示操作菜单
+
+  const submitDeployTask = useDeployTasksStore((s) => s.submit)
 
   // 加载算法列表
   const fetchAlgorithms = async () => {
@@ -61,6 +67,24 @@ const AlgorithmSquare = () => {
     fetchAlgorithms()
     fetchCategories()
   }, [search, category])
+
+  // 构建任务一出终态就重拉列表：否则「构建成功」只能靠重进页面才看得到新状态。
+  // 后端在推终态帧之前就已落库，此时拉到的一定是最新状态。
+  const finishedSig = useDeployTasksStore((s) =>
+    Object.values(s.tasks)
+      .filter((t) => t.finishedAt)
+      .map((t) => `${t.taskId}:${t.status}`)
+      .join('|'),
+  )
+  // fetchAlgorithms 每次渲染都是新闭包；用 ref 拿最新的（带当前 search/category），
+  // 这样 effect 只依赖 finishedSig，不会每次重渲染都重拉。
+  const fetchRef = useRef(fetchAlgorithms)
+  fetchRef.current = fetchAlgorithms
+
+  useEffect(() => {
+    if (!finishedSig) return
+    fetchRef.current()
+  }, [finishedSig])
 
   // 监听全局点击，用于关闭操作菜单
   useEffect(() => {
@@ -105,184 +129,47 @@ const AlgorithmSquare = () => {
       
       // 显示提示告诉用户查看哪里
       setTimeout(() => {
-        alert('下载已开始！请查看：\n1. 浏览器底部下载栏\n2. 浏览器下载管理器\n3. 如果没反应，请检查浏览器是否阻止了下载')
+        addToast('下载已开始，请查看浏览器底部下载栏', 'info')
       }, 500)
-      
+
     } catch (error) {
       console.error('下载失败:', error)
-      
-      // 提供备用方案
-      alert(`下载失败：${error.message || '未知错误'}\n\n您可以手动下载：\n右键复制链接 -> 在新标签页打开\n${API_BASE_URL}/api/algorithms/${algorithmId}/download`)
+
+      const fallbackUrl = `${API_BASE_URL}/api/algorithms/${algorithmId}/download`
+      addToast(`下载失败：${error.message || '未知错误'}。可手动复制链接 ${fallbackUrl} 在新标签页打开`, 'error')
     }
   }
 
   // 在线使用 - 跳转到使用页面
   const handleUseOnline = (algorithm) => {
     if (algorithm.status !== 'running') {
-      alert('算法尚未部署，请等待部署完成后再使用')
+      addToast('算法尚未部署，请等待部署完成后再使用', 'warning')
       return
     }
     navigate(`/dashboard/algorithm-use/${algorithm.id}`)
   }
 
-  // 构建部署算法
+  // 构建部署算法 —— 改为 store.submit；store 在后台订阅 NDJSON 流并实时更新顶部条
   const handleBuild = async (algorithmId, algorithmName) => {
-    // 防止重复点击
-    if (buildingAlgorithm) {
-      alert('已有算法正在构建中，请等待完成')
-      return
-    }
-    
-    // 确认构建
-    if (!window.confirm(`确定要构建并部署算法「${algorithmName}」吗？\n\n构建过程可能需要几分钟时间。`)) {
-      return
-    }
-    
-    setBuildingAlgorithm(algorithmId)
-    setBuildStatus('正在构建镜像，请稍候...')
-    
     try {
-      await axios.post(
-        `${API_BASE_URL}/api/algorithms/${algorithmId}/build`,
-        {},
-        { 
-          headers: getAuthHeaders(),
-          timeout: 600000  // 10分钟超时（构建可能需要较长时间）
-        }
+      await submitDeployTask(algorithmId, algorithmName, getAuthHeaders())
+      // 乐观更新：后端此刻已把 DB 置为 building，卡片立刻跟着走，不用等流推回来
+      setAlgorithms((prev) =>
+        prev.map((a) => (String(a.id) === String(algorithmId) ? { ...a, status: 'building' } : a)),
       )
-      
-      setBuildStatus('构建成功！正在启动服务...')
-      
-      // 刷新算法状态
-      await fetchAlgorithms()
-      
-      // 找到更新后的算法
-      const updatedAlgo = algorithms.find(a => a.id === algorithmId)
-      if (updatedAlgo?.status === 'running') {
-        setBuildStatus('部署成功！算法已上线运行。')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 2000)
-      } else if (updatedAlgo?.status === 'error') {
-        setBuildStatus('构建失败，请查看日志')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 3000)
+    } catch (e) {
+      const msg = e?.message || '提交失败'
+      if (msg.includes('正在构建')) {
+        console.warn('已有构建任务，请到顶部条查看')
       } else {
-        setBuildStatus('构建完成，状态更新中...')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 3000)
+        console.error('构建提交失败:', msg)
       }
-    } catch (error) {
-      console.error('构建失败:', error)
-      // 提取详细错误信息
-      let errorMessage = '构建失败'
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message
-      } else if (error.message) {
-        errorMessage = error.message
-      } else if (error.response?.status === 500) {
-        errorMessage = '服务器内部错误，请查看后端日志'
-      }
-      setBuildStatus(`构建失败: ${errorMessage}`)
-      setTimeout(() => {
-        setBuildingAlgorithm(null)
-        setBuildStatus('')
-      }, 5000)
     }
   }
 
-  // 重新构建算法（先清理再构建）
+  // 重新构建 = 同样调 submit（后端幂等：先 stop+remove 再 build）
   const handleRebuild = async (algorithmId, algorithmName) => {
-    // 防止重复点击
-    if (buildingAlgorithm) {
-      alert('已有算法正在构建中，请等待完成')
-      return
-    }
-    
-    // 确认重新构建（这是破坏性操作，会删除旧的容器和镜像）
-    if (!window.confirm(`确定要重新构建算法「${algorithmName}」吗？\n\n⚠️ 警告：重建会删除旧的算法容器和镜像，然后重新构建。\n整个过程可能需要几分钟时间。`)) {
-      return
-    }
-    
-    setBuildingAlgorithm(algorithmId)
-    setBuildStatus('正在清理旧容器和镜像...')
-    
-    try {
-      // 1. 先尝试停止容器
-      try {
-        await axios.post(
-          `${API_BASE_URL}/api/algorithms/${algorithmId}/stop`,
-          {},
-          { headers: getAuthHeaders() }
-        )
-      } catch (stopError) {
-        // 忽略停止失败的错误，可能容器已经不存在
-        console.log('停止容器失败（可能容器已不存在）:', stopError)
-      }
-      
-      // 2. 重新构建
-      setBuildStatus('正在重新构建镜像，请稍候...')
-      await axios.post(
-        `${API_BASE_URL}/api/algorithms/${algorithmId}/build`,
-        {},
-        { 
-          headers: getAuthHeaders(),
-          timeout: 600000  // 10分钟超时
-        }
-      )
-      
-      setBuildStatus('重新构建成功！正在启动服务...')
-      
-      // 刷新算法状态
-      await fetchAlgorithms()
-      
-      // 找到更新后的算法
-      const updatedAlgo = algorithms.find(a => a.id === algorithmId)
-      if (updatedAlgo?.status === 'running') {
-        setBuildStatus('部署成功！算法已上线运行。')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 2000)
-      } else if (updatedAlgo?.status === 'error') {
-        setBuildStatus('重新构建失败，请查看日志')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 3000)
-      } else {
-        setBuildStatus('重新构建完成，状态更新中...')
-        setTimeout(() => {
-          setBuildingAlgorithm(null)
-          setBuildStatus('')
-        }, 3000)
-      }
-    } catch (error) {
-      console.error('重新构建失败:', error)
-      // 提取详细错误信息
-      let errorMessage = '重新构建失败'
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message
-      } else if (error.message) {
-        errorMessage = error.message
-      } else if (error.response?.status === 500) {
-        errorMessage = '服务器内部错误，请查看后端日志'
-      }
-      setBuildStatus(`重新构建失败: ${errorMessage}`)
-      setTimeout(() => {
-        setBuildingAlgorithm(null)
-        setBuildStatus('')
-      }, 5000)
-    }
+    await handleBuild(algorithmId, algorithmName)
   }
 
   // 停止算法
@@ -293,11 +180,11 @@ const AlgorithmSquare = () => {
         {},
         { headers: getAuthHeaders() }
       )
-      alert('算法已停止')
+      addToast('算法已停止', 'success')
       fetchAlgorithms()
     } catch (error) {
       console.error('停止失败:', error)
-      alert('停止失败: ' + (error.response?.data?.detail || error.message))
+      addToast('停止失败: ' + (error.response?.data?.detail || error.message), 'error')
     }
   }
 
@@ -309,18 +196,18 @@ const AlgorithmSquare = () => {
         {},
         { headers: getAuthHeaders() }
       )
-      alert('算法已重启')
+      addToast('算法已重启', 'success')
       fetchAlgorithms()
     } catch (error) {
       console.error('重启失败:', error)
-      alert('重启失败: ' + (error.response?.data?.detail || error.message))
+      addToast('重启失败: ' + (error.response?.data?.detail || error.message), 'error')
     }
   }
 
   // 删除算法
   const handleDelete = async (algorithmId, algorithmName) => {
-    // 确认删除
-    if (!window.confirm(`确定要删除算法「${algorithmName}」吗？此操作不可恢复。`)) {
+    // 破坏性操作保留原生 confirm：toast 容易被忽略；删除不可逆需强提示
+    if (!window.confirm(`确定要删除算法「${algorithmName}」吗？此操作不可恢复（容器、镜像、算法包都将被清理）。`)) {
       return
     }
     try {
@@ -328,11 +215,11 @@ const AlgorithmSquare = () => {
         `${API_BASE_URL}/api/algorithms/${algorithmId}`,
         { headers: getAuthHeaders() }
       )
-      alert('算法已删除')
+      addToast('算法已删除', 'success')
       fetchAlgorithms()
     } catch (error) {
       console.error('删除失败:', error)
-      alert('删除失败: ' + (error.response?.data?.detail || error.message))
+      addToast('删除失败: ' + (error.response?.data?.detail || error.message), 'error')
     }
   }
 
@@ -463,10 +350,9 @@ const AlgorithmSquare = () => {
                     <button
                       className="action-btn primary"
                       onClick={() => handleBuild(algo.id, algo.name)}
-                      disabled={buildingAlgorithm !== null}
                     >
                       <PlayCircle size={14} />
-                      {buildingAlgorithm === algo.id ? '构建中...' : (algo.status === 'stopped' ? '启动' : '构建部署')}
+                      {algo.status === 'stopped' ? '启动' : '提交构建'}
                     </button>
                   ) : algo.status === 'building' && user?.id === algo.author_id ? (
                     <button className="action-btn primary" disabled>
@@ -539,10 +425,9 @@ const AlgorithmSquare = () => {
                                     handleRebuild(algo.id, algo.name)
                                     setShowActionsForAlgorithm(null)
                                   }}
-                                  disabled={buildingAlgorithm !== null}
                                 >
                                   <RotateCw size={14} />
-                                  重新构建
+                                  重新部署
                                 </button>
                               </>
                             )}
@@ -567,10 +452,9 @@ const AlgorithmSquare = () => {
                                   handleBuild(algo.id, algo.name)
                                   setShowActionsForAlgorithm(null)
                                 }}
-                                disabled={buildingAlgorithm !== null}
                               >
                                 <PlayCircle size={14} />
-                                构建部署
+                                提交构建
                               </button>
                             )}
                             
@@ -609,31 +493,15 @@ const AlgorithmSquare = () => {
         />
       )}
 
-      {/* 构建状态提示 */}
-      {buildingAlgorithm && (
-        <div className="modal-overlay">
-          <div className="modal-content build-status-modal">
-            <div className="dashboard-loading">
-              <div className="dashboard-loading-dots">
-                <div className="dashboard-loading-dot"></div>
-                <div className="dashboard-loading-dot"></div>
-                <div className="dashboard-loading-dot"></div>
-              </div>
-              <div className="dashboard-loading-text">正在构建算法...</div>
-            </div>
-            <h3>正在构建算法</h3>
-            <p className="build-status-message">{buildStatus}</p>
-            <p className="build-status-hint">构建过程可能需要几分钟，请勿关闭页面</p>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   )
 }
 
 // 上传弹窗组件
 const AlgorithmUploadModal = ({ onClose, onSuccess }) => {
   const { getAuthHeaders } = useAuth()
+  const { addToast } = useToast()
+  const uploadTask = useDeployTasksStore((s) => s.upload)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -641,50 +509,55 @@ const AlgorithmUploadModal = ({ onClose, onSuccess }) => {
     tags: '',
     version: '1.0.0',
     framework: 'pytorch',
-    input_type: 'image',
-    output_type: 'json'
   })
   const [file, setFile] = useState(null)
-  const [uploading, setUploading] = useState(false)
 
-  const handleSubmit = async (e) => {
+  const handleFileChange = (e) => {
+    const f = e.target.files?.[0] || null
+    if (!f) {
+      setFile(null)
+      return
+    }
+    // 前端先做大小 + 后缀校验，避免无效上传打到后端
+    // 防御：某些宿主/扩展会注入非标准 File 对象，name 可能缺失
+    const filename = typeof f.name === 'string' ? f.name : ''
+    if (!filename.toLowerCase().endsWith('.zip')) {
+      addToast('仅支持 .zip 格式算法包', 'warning')
+      e.target.value = ''
+      setFile(null)
+      return
+    }
+    if (f.size > env.MAX_FILE_SIZE) {
+      addToast(`文件大小超过限制（${formatFileSize(env.MAX_FILE_SIZE)}），请压缩后重试`, 'error')
+      e.target.value = ''
+      setFile(null)
+      return
+    }
+    setFile(f)
+  }
+
+  const handleSubmit = (e) => {
     e.preventDefault()
     if (!file) {
-      alert('请选择算法文件')
+      addToast('请选择算法文件', 'warning')
       return
     }
 
-    try {
-      setUploading(true)
-      const data = new FormData()
-      data.append('file', file)
-      data.append('name', formData.name)
-      data.append('description', formData.description)
-      data.append('category', formData.category)
-      data.append('tags', JSON.stringify(formData.tags.split(',').map(t => t.trim()).filter(Boolean)))
-      data.append('version', formData.version)
-      data.append('framework', formData.framework)
-      data.append('input_type', formData.input_type)
-      data.append('output_type', formData.output_type)
+    const data = new FormData()
+    data.append('file', file)
+    data.append('name', formData.name)
+    data.append('description', formData.description)
+    data.append('category', formData.category)
+    data.append('tags', JSON.stringify(formData.tags.split(',').map(t => t.trim()).filter(Boolean)))
+    data.append('version', formData.version)
+    data.append('framework', formData.framework)
+    // input_type / output_type 由后端 algorithm.yaml 覆盖，前端表单不再冗余展示
 
-      await axios.post(
-        `${API_BASE_URL}/api/algorithms/upload`,
-        data,
-        {
-          headers: {
-            ...getAuthHeaders(),
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      )
-      alert('上传成功！算法正在构建中...')
-      onSuccess()
-    } catch (error) {
-      console.error('上传失败:', error)
-      alert('上传失败: ' + (error.response?.data?.detail || error.message))
-    } finally {
-      setUploading(false)
-    }
+    // ★ fire-and-forget：把上传动作移交给 store，弹窗立刻关闭；
+    // 顶部 FAB 实时显示进度；后端返回 task_id 后自动订阅 build/stream。
+    uploadTask(data, formData.name, getAuthHeaders())
+    addToast('已转入后台上传，可在顶部查看进度', 'success')
+    onSuccess()
   }
 
   return (
@@ -761,17 +634,24 @@ const AlgorithmUploadModal = ({ onClose, onSuccess }) => {
             <input
               type="file"
               accept=".zip"
-              onChange={e => setFile(e.target.files[0])}
+              onChange={handleFileChange}
               required
             />
-            <small>请上传包含 algorithm.yaml 的 ZIP 包</small>
+            <small>
+              请上传包含 algorithm.yaml 的 ZIP 包，单文件 ≤ {formatFileSize(env.MAX_FILE_SIZE)}
+            </small>
+            {file && (
+              <small className="algorithm-file-info">
+                已选择：{file.name}（{formatFileSize(file.size)}）
+              </small>
+            )}
           </div>
           <div className="modal-actions">
             <button type="button" className="btn-cancel" onClick={onClose}>
               取消
             </button>
-            <button type="submit" className="btn-submit" disabled={uploading}>
-              {uploading ? '上传中...' : '上传'}
+            <button type="submit" className="btn-submit">
+              上传
             </button>
           </div>
         </form>

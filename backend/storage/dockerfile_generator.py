@@ -5,7 +5,7 @@ Dockerfile 生成器 - 根据算法包自动生成 Dockerfile
 import os
 import yaml
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +28,6 @@ class DockerfileGenerator:
 
     def __init__(self):
         self.port_counter = CONTAINER_PORT_START
-
-    def get_next_port(self) -> int:
-        """获取下一个可用端口"""
-        port = self.port_counter
-        if self.port_counter < CONTAINER_PORT_END:
-            self.port_counter += 1
-        return port
 
     def reset_port_counter(self):
         """重置端口计数器"""
@@ -132,57 +125,6 @@ CMD ["python", "-m", "uvicorn", "src.predict:app", "--host", "0.0.0.0", "--port"
                 logger.warning(f"解析 algorithm.yaml 失败: {e}")
 
         return requirements
-
-    def generate_docker_compose(
-        self,
-        algorithm_name: str,
-        algorithm_uuid: str,
-        docker_image: str,
-        port: int,
-        environment: Optional[Dict[str, str]] = None
-    ) -> str:
-        """
-        生成 docker-compose.yml
-        
-        Args:
-            algorithm_name: 算法名称
-            algorithm_uuid: 算法UUID
-            docker_image: 镜像名称
-            port: 端口
-            environment: 环境变量
-        
-        Returns:
-            docker-compose.yml 内容
-        """
-        env_str = ""
-        if environment:
-            env_items = [f"      {k}: {v}" for k, v in environment.items()]
-            env_str = "\n".join(env_items)
-
-        compose = f"""version: '3.8'
-
-services:
-  {algorithm_uuid}:
-    image: {docker_image}
-    container_name: algorithm_{algorithm_uuid[:8]}
-    ports:
-      - "{port}:8000"
-    environment:
-{env_str}
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-        reservations:
-          memory: 1G
-"""
-        return compose
 
 
 # 全局单例

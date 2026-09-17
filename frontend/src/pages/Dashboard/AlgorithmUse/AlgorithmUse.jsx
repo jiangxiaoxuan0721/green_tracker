@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Upload, ArrowLeft, Image as ImageIcon, Loader } from 'lucide-react'
 import axios from 'axios'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { env } from '@/config/env'
 import './AlgorithmUse.css'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:6130'
+// API 基址：来自唯一出口 config/env.ts（已归一化，不含 /api）
+const API_BASE_URL = env.API_BASE_URL
 
 const AlgorithmUse = () => {
   const { algorithmId } = useParams()

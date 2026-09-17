@@ -3,6 +3,11 @@
 # PostgreSQL 一键安装脚本
 # 用于在Ubuntu/Debian系统上安装和配置PostgreSQL
 
+set -euo pipefail
+
+# 数据库端口（修复：原打印 $DB_PORT 但从未定义，输出为空；与 start-services.sh 对齐为 5433）
+DB_PORT="5433"
+
 # 颜色定义
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -36,8 +41,10 @@ echo -e "${GREEN}更新包列表...${NC}"
 apt update
 
 # 安装PostgreSQL和PostGIS
+# 修复：去掉硬编码的 postgresql-16-postgis-3（版本钉死，跨 Ubuntu 版本必挂），
+# postgis 元包会自动拉取当前 PostgreSQL 大版本对应的扩展包
 echo -e "${GREEN}正在安装PostgreSQL和PostGIS...${NC}"
-apt install -y postgresql postgresql-contrib postgis postgresql-16-postgis-3
+apt install -y postgresql postgresql-contrib postgis
 
 # 启动PostgreSQL服务
 echo -e "${GREEN}启动PostgreSQL服务...${NC}"

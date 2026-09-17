@@ -4,9 +4,10 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { 
   LayoutDashboard, Grid3X3, Radio, ListTodo, Upload, Eye, BarChart3, 
-  Cpu, Settings, FileText, LogOut, Wifi 
+  Cpu, Settings, FileText, LogOut, KeyRound 
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { DeployTasksFab } from '@/components/deploy/DeployTasksFab'
 import './Dashboard.css'
 import './AdditionalStyles.css'
 
@@ -47,12 +48,12 @@ const Dashboard = () => {
     { id: 'overview', label: '概览', path: '/dashboard', icon: LayoutDashboard },
     { id: 'fields', label: '地块管理', path: '/dashboard/fields', icon: Grid3X3 },
     { id: 'devices', label: '设备管理', path: '/dashboard/devices', icon: Radio },
-    { id: 'mqtt', label: '远程控制', path: '/dashboard/mqtt', icon: Wifi },
     { id: 'sessions', label: '任务管理', path: '/dashboard/sessions', icon: ListTodo },
     { id: 'data-upload', label: '数据上传', path: '/dashboard/data-upload', icon: Upload },
     { id: 'data-view', label: '数据查看', path: '/dashboard/data-view', icon: Eye },
     { id: 'data-analyze', label: '数据分析', path: '/dashboard/data-analyze', icon: BarChart3 },
     { id: 'algorithm-square', label: '算法广场', path: '/dashboard/algorithm-square', icon: Cpu },
+    { id: 'api-keys', label: '密钥管理', path: '/dashboard/api-keys', icon: KeyRound },
     { id: 'system', label: '系统设置', path: '/dashboard/system', icon: Settings },
     { id: 'logs', label: '日志查看', path: '/dashboard/logs', icon: FileText }
   ]
@@ -126,6 +127,8 @@ const Dashboard = () => {
         </ul>
       </div>
       <div className="dashboard-content">
+        {/* 构建任务栏：嵌入内容流（侧边栏与页面内容之间），不再悬浮遮挡 */}
+        <DeployTasksFab />
         <div className="content-section">
           <Outlet />
         </div>

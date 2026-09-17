@@ -6,11 +6,13 @@ from database.db_services.field_service import (
     create_field, get_field_by_id, get_all_fields,
     search_fields, update_field, delete_field,
     get_field_with_wkt, get_all_fields_with_wkt,
-    search_fields_with_wkt
+    search_fields_with_wkt,
+    get_all_fields_light, get_fields_geometry_in_bbox
 )
 from database.db_services.log_service import create_log
 from api.schemas.field import (
-    FieldCreate, FieldUpdate, FieldResponse, FieldListParams
+    FieldCreate, FieldUpdate, FieldResponse, FieldListParams,
+    FieldLight, FieldGeometry
 )
 from typing import List, Optional
 
@@ -18,6 +20,26 @@ from typing import List, Optional
 from api.routes.auth import get_current_user
 
 router = APIRouter(prefix="/fields", tags=["fields"])
+
+
+def validate_bbox(min_lng: float, min_lat: float, max_lng: float, max_lat: float) -> None:
+    """校验 bbox 参数，非法时抛出 400。"""
+    for name, value, low, high in (
+        ("minLng", min_lng, -180, 180),
+        ("maxLng", max_lng, -180, 180),
+        ("minLat", min_lat, -90, 90),
+        ("maxLat", max_lat, -90, 90),
+    ):
+        if value is None or not (low <= value <= high):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"bbox 参数非法：{name}={value} 超出 [{low}, {high}]"
+            )
+    if min_lng >= max_lng or min_lat >= max_lat:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="bbox 参数非法：min 必须小于 max"
+        )
 
 
 @router.post("/", response_model=FieldResponse, status_code=status.HTTP_201_CREATED)
@@ -119,6 +141,69 @@ async def get_fields(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取地块列表失败: {str(e)}"
+        )
+    finally:
+        if db:
+            db.close()
+
+
+@router.get("/light", response_model=List[FieldLight])
+async def get_fields_light(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    获取地块轻量列表（id / name / area_m2 / centroid）
+
+    只返回聚合展示所需的最小字段，不含 WKT，供 zoom < 13 使用。
+    """
+    db = None
+    try:
+        db = get_user_db(str(current_user.userid))
+        return get_all_fields_light(db, active_only=True)
+    except Exception as e:
+        print(f"[API] 获取地块轻量列表失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取地块轻量列表失败: {str(e)}"
+        )
+    finally:
+        if db:
+            db.close()
+
+
+@router.get("/geometry", response_model=List[FieldGeometry])
+async def get_fields_geometry(
+    minLng: float = Query(..., description="视野最小经度"),
+    minLat: float = Query(..., description="视野最小纬度"),
+    maxLng: float = Query(..., description="视野最大经度"),
+    maxLat: float = Query(..., description="视野最大纬度"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    按视野 bbox 增量获取地块几何（WKT）
+
+    只返回与 bbox 相交的地块，供 zoom >= 13 使用。
+    """
+    validate_bbox(minLng, minLat, maxLng, maxLat)
+
+    db = None
+    try:
+        db = get_user_db(str(current_user.userid))
+        return get_fields_geometry_in_bbox(
+            db,
+            min_lng=minLng,
+            min_lat=minLat,
+            max_lng=maxLng,
+            max_lat=maxLat,
+            active_only=True,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[API] 获取地块几何失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取地块几何失败: {str(e)}"
         )
     finally:
         if db:

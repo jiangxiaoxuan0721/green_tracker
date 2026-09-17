@@ -130,9 +130,15 @@ dmypy.json
 /reports
 
 # MQTT 运行时数据目录
-mqtt/mosquitto/data/
-mqtt/mosquitto/log/
-mqtt/mosquitto/config/passwd
+mqtt-broker/mosquitto/data/
+mqtt-broker/mosquitto/log/
+mqtt-broker/mosquitto/config/passwd
+
+# Nginx 运行状态与渲染产物（由 scripts/render_nginx.sh 生成）
+/nginx/.current-mode
+/nginx/build/
 
 # 屏幕日志
 /screen_dev.log
+# Subagent-Driven Development plan workspaces（每个 plan 独立目录）
+/.superpowers/

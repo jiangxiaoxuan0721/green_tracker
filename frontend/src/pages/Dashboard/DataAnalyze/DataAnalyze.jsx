@@ -36,7 +36,6 @@ const LineChartCard = ({ title, data, dataKey, color, unit, span = 1 }) => {
           <h3>{title}</h3>
         </div>
         <div className="chart-empty-state">
-          <span className="chart-empty-icon">📊</span>
           <p>暂无数据</p>
         </div>
       </Card>

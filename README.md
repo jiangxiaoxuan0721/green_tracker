@@ -6,7 +6,7 @@
 [![React](https://img.shields.io/badge/React-18.2.0-61DAFB?style=flat-square&logo=react)](https://reactjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](https://opensource.org/licenses/MIT)
 
 ---
 
@@ -74,7 +74,7 @@ cp .env.example .env
 # 编辑 .env 配置数据库和MinIO连接
 ```
 
-详细配置请参考 [ENV_CONFIG.md](ENV_CONFIG.md)
+详细配置请参考 [ENV_CONFIG.md](docs/setup/ENV_CONFIG.md)
 
 ### 3. 安装依赖
 
@@ -102,6 +102,57 @@ sudo -u postgres psql -d green_tracker_meta -c "CREATE EXTENSION IF NOT EXISTS p
 
 # 启动后端时会自动初始化表结构
 ```
+
+---
+
+## 🌐 开发环境 vs 生产部署
+
+项目采用「同一份前端源码，两种运行模式」，无需分支或改代码即可切换：
+
+| 模式 | 前端由谁提供 | 热加载 | 性能 | 入口命令 |
+|------|--------------|:------:|------|----------|
+| **开发** | Nginx 反代 **Vite dev server** (`:3010`) | ✅ 支持 | 一般 | `make dev` / `make serve-dev` |
+| **生产** | Nginx 直接服务**静态成品** `frontend/dist` | ❌ 不支持 | ⭐ 最优 | `make deploy` / `make serve-prod` |
+
+### 架构对比
+
+```
+开发模式   浏览器 → Nginx(:443) ─┬─ /      → Vite dev server (3010)   [HMR]
+                                └─ /api/  → FastAPI (127.0.0.1:6130)
+
+生产模式   浏览器 → Nginx(:443) ─┬─ /      → 静态文件 frontend/dist  [构建产物]
+                                └─ /api/  → FastAPI (127.0.0.1:6130)
+```
+
+两种模式共用**完全相同的源码**与**相同的相对路径 API**（`/api`），
+只有 Nginx 的「前端片段」不同，由 `scripts/render_nginx.sh` 渲染切换。
+
+### 切换方式
+
+```bash
+# —— 开发：改源码即时生效（HMR）——
+make dev            # 启动前后端（Vite + FastAPI）
+make serve-dev      # 让 Nginx 指向 Vite（若当前是生产模式）
+
+# —— 生产：构建静态成品并切换到静态服务（发版流程）——
+make deploy         # 等价于 make build + make serve-prod
+make build          # 只构建 frontend/dist
+make serve-prod     # 只切换 Nginx 到静态成品模式
+
+# 查看当前处于哪个模式
+make mode
+```
+
+> ⚠️ 生产模式下改动源码不会生效，必须重新执行 `make build && make serve-prod`（或 `make deploy`）。
+
+### 工作原理
+
+- `scripts/render_nginx.sh <dev|prod>` 渲染主站配置，并把对应的前端片段安装为
+  `/etc/nginx/snippets/green-tracker-frontend.conf`：
+  - `dev` → `nginx/snippets/frontend-dev.conf`（`proxy_pass` 到 Vite）
+  - `prod` → `nginx/snippets/frontend-static.conf`（`root frontend/dist` + SPA 回退）
+- 生产片段内置 SPA 路由回退（`try_files $uri $uri/ /index.html`），
+  保证刷新 `/dashboard/api-keys` 等子路由不 404；带哈希的静态资源强缓存 7 天，`index.html` 不缓存。
 
 ---
 
@@ -161,7 +212,17 @@ green_tracker/
 │   │   └── styles/            # 主题样式
 │   └── package.json
 │
+├── nginx/                     # Nginx 配置
+│   ├── green-tracker.conf.template   # 主站配置模板（占位符渲染）
+│   ├── snippets/
+│   │   ├── frontend-dev.conf         # 开发模式片段：反代 Vite dev server
+│   │   └── frontend-static.conf      # 生产模式片段：服务 frontend/dist
+│   └── ssl-params.conf               # TLS / 安全响应头通用参数
+│
 ├── scripts/                   # 运维脚本
+│   ├── render_nginx.sh        # Nginx 配置渲染 + dev/prod 模式切换
+│   ├── setup_https.sh         # HTTPS 证书申请与一键部署
+│   └── nginx.sh               # Nginx 服务管理与模式切换
 ├── docs/                      # 项目文档
 ├── .env.example               # 环境变量模板
 ├── Makefile                   # 项目命令
@@ -278,13 +339,28 @@ green_tracker/
 make help          # 查看所有可用命令
 make install       # 安装所有依赖
 make check-env     # 检查环境配置
-make start         # 启动基础服务
-make dev           # 开发模式（热加载）
+make start         # 启动基础服务 (数据库 / MinIO / Nginx)
+make dev           # 开发模式（前后端热加载）
 make dev-frontend  # 仅前端
 make dev-backend   # 仅后端
 make stop          # 停止所有服务
 make restart       # 重启服务
 make clean         # 清理
+
+# 构建 / 部署模式（开发热加载 vs 生产静态成品）
+make build         # 构建前端生产产物到 frontend/dist
+make deploy        # 一键: build + 切换到生产静态模式
+make serve-prod    # 切换 Nginx 到生产模式（服务 dist/ 静态成品）
+make serve-dev     # 切换 Nginx 到开发模式（反代 Vite，热加载）
+make mode          # 查看当前前端模式（dev / prod）
+
+# HTTPS / Nginx 管理
+make setup-https   # 一键申请 HTTPS 证书并配置反向代理
+make nginx-install # 安装 Nginx（首次部署）
+make nginx-start   # 启动 Nginx
+make nginx-stop    # 停止 Nginx
+make nginx-reload  # 热加载 Nginx 配置
+make nginx-status  # Nginx 状态
 ```
 
 ---
@@ -295,10 +371,14 @@ make clean         # 清理
 
 ```bash
 cd frontend
-npm run dev        # 开发模式
-npm run build      # 生产构建
+npm run dev        # 开发模式（Vite，HMR 热加载）
+npm run build      # 生产构建（产物输出到 dist/）
+npm run preview    # 本地预览构建产物
 npm run lint       # 代码检查
 ```
+
+构建完成后，用 `make serve-prod` 让 Nginx 切换到静态成品模式；
+开发调试时用 `make serve-dev` 切回 Vite 热加载模式。
 
 ### 后端开发
 
@@ -362,10 +442,11 @@ import { StateManager } from '@/components/ui'
 
 | 文档 | 说明 |
 |------|------|
-| [ENV_CONFIG.md](ENV_CONFIG.md) | 环境变量配置详解 |
+| [ENV_CONFIG.md](docs/setup/ENV_CONFIG.md) | 环境变量配置详解 |
+| [HTTPS_SETUP.md](docs/setup/HTTPS_SETUP.md) | **HTTPS 一键部署指南** |
 | [docs/](docs/) | 详细技术文档 |
 | [CHANGELOG.md](CHANGELOG.md) | 版本更新历史 |
-| [screen_guide.md](screen_guide.md) | 界面截图指南 |
+| [screen_guide.md](docs/ops/screen_guide.md) | 界面截图指南 |
 
 ---
 
@@ -383,7 +464,7 @@ import { StateManager } from '@/components/ui'
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+本项目采用 MIT 许可证 - （仓库暂未附 LICENSE 文件，采用 MIT 条款）
 
 ---
 

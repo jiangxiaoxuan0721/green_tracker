@@ -6,7 +6,7 @@ import { FormContainer } from '@/components/business'
 import './DeviceForm.css'
 
 const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
-  const { toasts, removeToast, error: showError, success: showSuccess } = useToast()
+  const { error: showError, success: showSuccess } = useToast()
   const [formData, setFormData] = useState({
     name: '',
     device_type: '',
@@ -145,7 +145,7 @@ const DeviceForm = ({ mode, device, onClose, onSuccess, isOpen }) => {
 
   return (
     <>
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer />
       <FormContainer
         isOpen={isOpen}
         onClose={onClose}

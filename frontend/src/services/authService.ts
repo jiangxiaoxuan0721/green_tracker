@@ -67,7 +67,7 @@ export const authService = {
   },
 
   // 验证token有效性
-  async verifyToken(token: string): Promise<boolean> {
+  async verifyToken(_token: string): Promise<boolean> {
     try {
       const response = await api.get('/api/auth/verify');
       return response.data.valid === true;

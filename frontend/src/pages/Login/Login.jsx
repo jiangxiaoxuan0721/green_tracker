@@ -19,7 +19,7 @@ const Login = () => {
   const navigate = useNavigate()
   const { login, loginByCode, loading, authenticating } = useAuth()
   const { formData, errors, handleChange, handleSubmit } = useLoginForm(login)
-  const { toasts, removeToast, error: showError, success: showSuccess } = useToast()
+  const { error: showError, success: showSuccess } = useToast()
   const [showPassword, setShowPassword] = useState(false)
   const [loginMode, setLoginMode] = useState('password') // 'password' | 'code'
 
@@ -548,7 +548,7 @@ const Login = () => {
   return (
     <>
       <Navbar />
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer />
       <div className="login-split-container">
         {/* 品牌展示区域 */}
         <motion.div 

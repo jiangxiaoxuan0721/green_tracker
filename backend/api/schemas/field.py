@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -77,6 +77,20 @@ class FieldResponse(BaseModel):
 
     class Config:
         from_attributes = False
+
+
+class FieldLight(BaseModel):
+    """地块轻量信息，用于聚合展示（zoom < 13）"""
+    id: str
+    name: str
+    area_m2: Optional[float] = None
+    centroid: Optional[List[float]] = None
+
+
+class FieldGeometry(BaseModel):
+    """地块几何，用于按视野增量请求（zoom >= 13）"""
+    id: str
+    location_wkt: Optional[str] = None
 
 
 class FieldListParams(BaseModel):

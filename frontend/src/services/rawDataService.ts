@@ -354,7 +354,6 @@ export const rawDataService = {
 
       // 对于 JSON 格式，2xx 响应直接信任（后端已设置 Content-Disposition header）
       // 对于 CSV/ZIP，通过检查 content-type 来判断是否为错误
-      const status = response.status;
       const contentType = response.headers['content-type'];
 
       // 只有 CSV 和 ZIP 格式才需要检查 content-type（JSON 格式的 content-type 就是 application/json）

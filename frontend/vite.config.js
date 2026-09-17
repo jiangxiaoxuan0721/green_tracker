@@ -28,6 +28,13 @@ export default defineConfig(({ mode }) => {
   console.log('[Vite配置] 允许的主机列表:', allowedHosts)
   
   return {
+    test: {
+      environment: 'jsdom',
+      include: ['src/**/*.test.{ts,tsx}'],
+      globals: true,
+      // 注册 jest-dom 匹配器 + 每个用例后 cleanup（见 src/test-setup.ts）
+      setupFiles: ['./src/test-setup.ts'],
+    },
     envDir: projectRoot,
     plugins: [react()],
     resolve: {
@@ -39,13 +46,38 @@ export default defineConfig(({ mode }) => {
         '@/utils': path.resolve(__dirname, './src/utils'),
       },
     },
+    build: {
+      outDir: 'dist',
+      // 生产构建不产出 sourcemap，避免把源码体积带入公网传输
+      sourcemap: false,
+      // 单 chunk 体积告警阈值（默认 500KB 会持续告警）
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          // 手动拆包：把体积大、变更频率低的第三方库独立成 chunk。
+          // 首屏只下载 react 核心，图表（recharts）/ 动画（framer-motion）
+          // 等重库被拆出后可长期命中浏览器缓存，不再随业务代码失效。
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            'chart-vendor': ['recharts'],
+            'motion-vendor': ['framer-motion'],
+            'icons-vendor': ['lucide-react'],
+            'state-vendor': ['zustand', 'axios'],
+          },
+        },
+      },
+    },
     server: {
       host: '0.0.0.0', // 允许外部访问
-      port: 3010, // 前端服务器端口
+      port: 3010, // 前端服务器端口（仅本地监听，由 Nginx 反向代理对外提供 https）
       allowedHosts: allowedHosts,
       proxy: {
+        // 推荐：使用相对路径 /api，让浏览器走当前协议（http/https），
+        // 配合 Nginx 反向代理可避免 HTTPS 下出现 mixed content 错误。
         '/api': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:6130',
+          target: env.VITE_API_BASE_URL && env.VITE_API_BASE_URL.startsWith('http')
+            ? env.VITE_API_BASE_URL
+            : 'http://localhost:6130',
           changeOrigin: true,
           secure: false,
         },

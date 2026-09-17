@@ -234,6 +234,74 @@
   white-space: pre;
 }
 
+/* 页面头部操作区（刷新 / 添加设备） */
+.devices-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+/* ── Broker 运维统计栏（紧凑横向）── */
+.mqtt-stats-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-top: var(--spacing-sm);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  flex-wrap: wrap;
+}
+
+.mqtt-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.mqtt-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.mqtt-stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.mqtt-stat-dot.online {
+  background: var(--success-color);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+.mqtt-stat-dot.offline {
+  background: var(--error-color);
+}
+
+.mqtt-stat-text {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.mqtt-stat-num {
+  font-weight: 700;
+  font-size: 1rem;
+  min-width: 20px;
+  text-align: center;
+}
+.mqtt-stat-num.online { color: var(--success-color); }
+.mqtt-stat-num.offline { color: var(--warning-color); }
+.mqtt-stat-num.pending { color: var(--info-color); }
+
+.mqtt-stats-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-light);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .devices-grid {
@@ -246,5 +314,10 @@
 
   .checkbox-grid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .mqtt-stats-bar {
+    justify-content: center;
+    gap: var(--spacing-sm) var(--spacing-md);
   }
 }
