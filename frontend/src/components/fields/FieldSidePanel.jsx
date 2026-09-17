@@ -1,4 +1,5 @@
 import FieldFormFields from './FieldFormFields'
+import { Button } from '@/components/ui'
 import './FieldSidePanel.css'
 
 const formatDate = (v) => (v ? new Date(v).toLocaleString() : '—')
@@ -29,7 +30,6 @@ const FieldSidePanel = ({
   onCancel,
   onSubmit,
   onStartRedraw,
-  onCollapse,
 }) => {
   const detail = field?.detail
   const isDetailMode = mode === 'view' || mode === 'edit' || mode === 'confirmDelete'
@@ -37,11 +37,9 @@ const FieldSidePanel = ({
 
   return (
     <aside className="field-side-panel">
+      {/* 收起按钮只在顶部 field-toolbar 保留一份，这里不再重复 */}
       <header className="panel-header">
         <h2 className="panel-title">{mode === 'create' ? '新建地块' : name || '地块信息'}</h2>
-        <button className="icon-btn" onClick={onCollapse} title="收起侧栏" aria-label="收起侧栏">
-          ›
-        </button>
       </header>
 
       <div className="panel-body">
@@ -130,41 +128,43 @@ const FieldSidePanel = ({
         )}
       </div>
 
+      {/* 底栏按钮用共用 Button：它的 .btn 自带 justify-content: center，
+          配合 .panel-footer button { flex: 1 } 等宽拉伸后文字仍然居中 */}
       <footer className="panel-footer">
         {mode === 'view' && (
           <>
-            <button className="primary-btn" onClick={onStartEdit}>
+            <Button variant="primary" onClick={onStartEdit}>
               编辑
-            </button>
-            <button className="danger-btn" onClick={onStartDelete}>
+            </Button>
+            <Button variant="danger" onClick={onStartDelete}>
               删除
-            </button>
+            </Button>
           </>
         )}
 
         {(mode === 'create' || mode === 'edit') && (
           <>
-            <button
-              className="primary-btn"
+            <Button
+              variant="primary"
               onClick={onSubmit}
               disabled={submitting || (mode === 'create' && !draftVertexCount)}
             >
               {submitting ? '保存中…' : '保存'}
-            </button>
-            <button className="secondary-btn" onClick={onCancel} disabled={submitting}>
+            </Button>
+            <Button variant="outline" onClick={onCancel} disabled={submitting}>
               取消
-            </button>
+            </Button>
           </>
         )}
 
         {mode === 'confirmDelete' && (
           <>
-            <button className="danger-btn" onClick={onConfirmDelete} disabled={submitting}>
+            <Button variant="danger" onClick={onConfirmDelete} disabled={submitting}>
               {submitting ? '删除中…' : '确认删除'}
-            </button>
-            <button className="secondary-btn" onClick={onCancel} disabled={submitting}>
+            </Button>
+            <Button variant="outline" onClick={onCancel} disabled={submitting}>
               取消
-            </button>
+            </Button>
           </>
         )}
       </footer>

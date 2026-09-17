@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FieldToolbar from '@/components/fields/FieldToolbar'
+import { PanelResizer } from '@/components/ui'
 import FieldSidePanel from '@/components/fields/FieldSidePanel'
 import FieldMapCanvas from '@/components/fields/FieldMapCanvas'
 import FieldMapErrorBoundary from '@/components/fields/FieldMapErrorBoundary'
@@ -25,6 +26,20 @@ const VIEWPORT_THROTTLE_MS = 300
 const BBOX_EXPAND_RATIO = 0.2
 const CLUSTER_CELL_PX = 44
 const COLLAPSE_STORAGE_KEY = 'fields:sidepanel:collapsed'
+const WIDTH_STORAGE_KEY = 'fields:sidepanel:width'
+
+// 侧栏宽度边界：拖到最窄也要放得下表单，同时给地图留够可视宽度
+const DEFAULT_PANEL_WIDTH = 340
+const PANEL_WIDTH_MIN = 300
+const PANEL_WIDTH_MAX = 720
+const MAP_WIDTH_MIN = 320
+
+const readStoredWidth = () => {
+  const raw = Number(localStorage.getItem(WIDTH_STORAGE_KEY))
+  if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_PANEL_WIDTH
+  return Math.round(Math.min(Math.max(raw, PANEL_WIDTH_MIN), PANEL_WIDTH_MAX))
+}
+
 const TILE_SIZE = 256
 /** 退化包围盒的撑开幅度（度），避免 AMap 缩放到最大级别 */
 const DEGENERATE_PAD = 0.002
@@ -120,6 +135,7 @@ const Fields = () => {
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1'
   )
+  const [panelWidth, setPanelWidth] = useState(readStoredWidth)
   const [layer, setLayer] = useState('cluster')
   // 会话还原时若仍从 4 起步，首帧会拿 zoom=4 去算聚合粒度（R19），出现一次多余闪跳，
   // 出现一次多余的闪跳，等地图 'complete' 回调把真实 zoom 灌回来才修正。
@@ -357,15 +373,32 @@ const Fields = () => {
   }, [collapsed])
 
   useEffect(() => {
+    localStorage.setItem(WIDTH_STORAGE_KEY, String(panelWidth))
+  }, [panelWidth])
+
+  useEffect(() => {
     if (collapsed && (panelMode === 'create' || panelMode === 'edit' || panelMode === 'confirmDelete')) {
       setCollapsed(false)
     }
   }, [panelMode, collapsed])
 
-  // R23：AMap 不会在容器尺寸变化时自动重算画布，侧栏折叠/展开与模式切换后显式 resize
+  // R23：AMap 不会在容器尺寸变化时自动重算画布，侧栏折叠/展开、模式切换、
+  // 以及拖拽改宽度之后都要显式 resize。拖拽时宽度每帧都在变，用 rAF 合并成
+  // 每帧一次，避免把放大百次的 resize 直接砸给地图。
+  const resizeFrameRef = useRef(null)
   useEffect(() => {
-    canvasRef.current?.resize()
-  }, [panelMode, collapsed])
+    if (resizeFrameRef.current) cancelAnimationFrame(resizeFrameRef.current)
+    resizeFrameRef.current = requestAnimationFrame(() => {
+      resizeFrameRef.current = null
+      canvasRef.current?.resize()
+    })
+  }, [panelWidth, panelMode, collapsed])
+  useEffect(
+    () => () => {
+      if (resizeFrameRef.current) cancelAnimationFrame(resizeFrameRef.current)
+    },
+    []
+  )
 
   useEffect(
     () => () => {
@@ -581,7 +614,7 @@ const Fields = () => {
         onToggleCollapse={() => setCollapsed((c) => !c)}
       />
 
-      <div className="fields-body">
+      <div className="fields-body" style={{ '--fields-panel-w': `${panelWidth}px` }}>
         <div className="fields-map">
           <FieldMapErrorBoundary>
             <FieldMapCanvas
@@ -596,25 +629,35 @@ const Fields = () => {
         </div>
 
         {!collapsed && (
-          <FieldSidePanel
-            mode={panelMode}
-            field={selectedPlotId ? catalog.byId.get(selectedPlotId) ?? null : null}
-            geometryLoading={geometryLoading}
-            draftAreaM2={draftAreaM2}
-            draftVertexCount={draftVertexCount}
-            form={form}
-            errors={errors}
-            submitting={submitting}
-            drawing={draw.drawing}
-            onFormChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
-            onStartEdit={handleStartEdit}
-            onStartDelete={() => enterMode('confirmDelete')}
-            onConfirmDelete={handleConfirmDelete}
-            onCancel={handleCancel}
-            onSubmit={handleSubmit}
-            onStartRedraw={handleStartRedraw}
-            onCollapse={() => setCollapsed(true)}
-          />
+          <>
+            <PanelResizer
+              label="调整地块信息面板宽度"
+              width={panelWidth}
+              min={PANEL_WIDTH_MIN}
+              max={PANEL_WIDTH_MAX}
+              minLeadingWidth={MAP_WIDTH_MIN}
+              onResize={setPanelWidth}
+              onReset={() => setPanelWidth(DEFAULT_PANEL_WIDTH)}
+            />
+            <FieldSidePanel
+              mode={panelMode}
+              field={selectedPlotId ? catalog.byId.get(selectedPlotId) ?? null : null}
+              geometryLoading={geometryLoading}
+              draftAreaM2={draftAreaM2}
+              draftVertexCount={draftVertexCount}
+              form={form}
+              errors={errors}
+              submitting={submitting}
+              drawing={draw.drawing}
+              onFormChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              onStartEdit={handleStartEdit}
+              onStartDelete={() => enterMode('confirmDelete')}
+              onConfirmDelete={handleConfirmDelete}
+              onCancel={handleCancel}
+              onSubmit={handleSubmit}
+              onStartRedraw={handleStartRedraw}
+            />
+          </>
         )}
       </div>
     </div>

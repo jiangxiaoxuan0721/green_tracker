@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Button } from '@/components/ui'
+import { Button, PanelResizer } from '@/components/ui'
 import useToast from '@/hooks/useToast'
 import { mqttService } from '@/services/mqttService'
 import { useRemoteControlStore, MAX_ENTRIES, DEFAULT_PRESET_WIDTH } from '@/store/useRemoteControlStore'
@@ -70,7 +70,10 @@ const formatShellOutput = (data) => {
   if (!data) return '(空)'
   if (typeof data === 'string') return data
   if (typeof data !== 'object') return String(data)
-  const { stdout, stderr, output, exit_code: exitCode } = data
+  // 设备把执行结果包在 result 里（后端解析 list_commands 时也是读 response["result"]），
+  // 先下探一层；没有 result 时按原样处理，不影响旧格式
+  const shell = data.result && typeof data.result === 'object' ? data.result : data
+  const { stdout, stderr, output, exit_code: exitCode } = shell
   if (stdout === undefined && stderr === undefined && output === undefined) {
     return formatResponse(data)
   }
@@ -115,7 +118,6 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
   const [resizing, setResizing] = useState(false)
   const pollTimersRef = useRef({})
   const journalBodyRef = useRef(null)
-  const containerRef = useRef(null)
   const cliInputRef = useRef(null)
   // 命令行输入历史游标：-1 表示正在编辑新行
   const historyCursorRef = useRef(-1)
@@ -396,43 +398,8 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
     return ICON_MAP[iconName] || Terminal
   }
 
-  // ── 拖拽调整「预设命令」面板宽度 ──
-  const clampWidth = useCallback((raw) => {
-    const containerWidth = containerRef.current?.clientWidth || PRESET_WIDTH_MAX + JOURNAL_WIDTH_MIN
-    const max = Math.max(PRESET_WIDTH_MIN, Math.min(PRESET_WIDTH_MAX, containerWidth - JOURNAL_WIDTH_MIN))
-    return Math.round(Math.min(Math.max(raw, PRESET_WIDTH_MIN), max))
-  }, [])
-
-  const startResize = useCallback((e) => {
-    if (e.button !== undefined && e.button !== 0) return
-    e.preventDefault()
-
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (!rect) return
-    setResizing(true)
-
-    const onMove = (ev) => setPresetWidth(clampWidth(rect.right - ev.clientX))
-    const onUp = () => {
-      setResizing(false)
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
-  }, [clampWidth, setPresetWidth])
-
-  // 键盘可达：聚焦分隔条后用 ←/→ 微调
-  const handleResizerKeyDown = useCallback((e) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-    e.preventDefault()
-    setPresetWidth(clampWidth(presetWidth + (e.key === 'ArrowLeft' ? 16 : -16)))
-  }, [presetWidth, setPresetWidth, clampWidth])
-
   return (
     <div
-      ref={containerRef}
       className={`command-console${fill ? ' command-console--fill' : ''}${resizing ? ' command-console--resizing' : ''}`}
       style={{ '--cmd-preset-w': `${presetWidth}px` }}
     >
@@ -545,16 +512,16 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
       </section>
 
       {/* ── 左右面板之间的可拖拽分隔条 ── */}
-      <div
-        className={`cmd-resizer${resizing ? ' cmd-resizer--active' : ''}`}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="调整预设命令面板宽度"
-        tabIndex={0}
-        title="拖拽调整宽度，双击复位"
-        onPointerDown={startResize}
-        onDoubleClick={() => setPresetWidth(DEFAULT_PRESET_WIDTH)}
-        onKeyDown={handleResizerKeyDown}
+      <PanelResizer
+        label="调整预设命令面板宽度"
+        width={presetWidth}
+        min={PRESET_WIDTH_MIN}
+        max={PRESET_WIDTH_MAX}
+        minLeadingWidth={JOURNAL_WIDTH_MIN}
+        onResize={setPresetWidth}
+        onReset={() => setPresetWidth(DEFAULT_PRESET_WIDTH)}
+        onDragStart={() => setResizing(true)}
+        onDragEnd={() => setResizing(false)}
       />
 
       {/* ── 右侧：预设命令面板 ── */}

@@ -38,11 +38,10 @@
   flex: 1;
 }
 
-/* 说明：.icon-btn / .primary-btn / .secondary-btn / .danger-btn 在
-   pages/Dashboard/AdditionalStyles.css 中已有全局定义且被其它页面使用，
-   这里一律限定在工具栏与侧栏作用域内，避免全局覆盖到别的页面。 */
-.field-toolbar .icon-btn,
-.field-side-panel .icon-btn {
+/* 说明：.icon-btn 在 pages/Dashboard/AdditionalStyles.css 中已有全局定义且被其它
+   页面使用，这里限定在工具栏作用域内，避免全局覆盖。
+   侧栏里原有的收起按钮已移除，收起入口统一收在工具栏这一个 */
+.field-toolbar .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -58,20 +57,16 @@
   transition: var(--transition-fast, 0.2s ease);
 }
 
-.field-toolbar .icon-btn:hover,
-.field-side-panel .icon-btn:hover {
+.field-toolbar .icon-btn:hover {
   border-color: var(--primary-color, #22c55e);
   color: var(--primary-color, #16a34a);
 }
 
-.field-toolbar .primary-btn,
-.field-toolbar .secondary-btn,
-.field-toolbar .danger-btn,
-.field-side-panel .primary-btn,
-.field-side-panel .secondary-btn,
-.field-side-panel .danger-btn {
+/* 按钮本体的颜色 / 圆角 / 禁用态一律交给共用 Button（components/ui/Button.jsx），
+   这里只管尺寸：工具栏与侧栏的按钮比 Button 默认档小一号。 */
+.field-toolbar .btn,
+.field-side-panel .btn {
   padding: 7px 14px;
-  border: 1px solid transparent;
   border-radius: var(--radius-sm, 6px);
   font-size: 13px;
   font-weight: 500;
@@ -79,41 +74,9 @@
   transition: var(--transition-fast, 0.2s ease);
 }
 
-.field-toolbar .primary-btn,
-.field-side-panel .primary-btn {
-  background: var(--primary-color, #22c55e);
-  color: var(--btn-text, #ffffff);
-}
-
-.field-toolbar .primary-btn:hover:not(:disabled),
-.field-side-panel .primary-btn:hover:not(:disabled) {
-  background: var(--primary-light, #16a34a);
-}
-
-.field-toolbar .secondary-btn,
-.field-side-panel .secondary-btn {
+/* 「取消」保留本页原先的浅边框灰字：Button 的 outline 变体边框更深、字更深 */
+.field-side-panel .btn-outline {
   background: var(--bg-component, #ffffff);
-  border-color: var(--border-light, rgba(148, 163, 184, 0.6));
+  border: 1px solid var(--border-light, rgba(148, 163, 184, 0.6));
   color: var(--text-secondary, #475569);
-}
-
-.field-toolbar .danger-btn,
-.field-side-panel .danger-btn {
-  background: var(--error-color, #ef4444);
-  color: var(--btn-text, #ffffff);
-}
-
-.field-toolbar .danger-btn:hover:not(:disabled),
-.field-side-panel .danger-btn:hover:not(:disabled) {
-  background: var(--error-light, #dc2626);
-}
-
-.field-toolbar .primary-btn:disabled,
-.field-toolbar .secondary-btn:disabled,
-.field-toolbar .danger-btn:disabled,
-.field-side-panel .primary-btn:disabled,
-.field-side-panel .secondary-btn:disabled,
-.field-side-panel .danger-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
