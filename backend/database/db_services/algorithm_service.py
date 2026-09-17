@@ -23,11 +23,12 @@ def create_algorithm(
     input_type: str = None,
     output_type: str = None,
     minio_path: str = None,
-    file_size: int = None
+    file_size: int = None,
+    algorithm_uuid: Optional[str] = None,
 ) -> Algorithm:
     """
     创建新算法
-    
+
     Args:
         db: 数据库会话
         name: 算法名称
@@ -42,14 +43,15 @@ def create_algorithm(
         output_type: 输出类型
         minio_path: MinIO存储路径
         file_size: 文件大小
-    
+        algorithm_uuid: 可选，由调用方指定（上传路由希望 Algorithm.uuid == minio_path 前缀）
+
     Returns:
         Algorithm: 创建的算法对象
     """
-    algorithm_uuid = str(uuid.uuid4())
+    final_uuid = algorithm_uuid or str(uuid.uuid4())
     new_algorithm = Algorithm(
         id=str(uuid.uuid4()),
-        uuid=algorithm_uuid,
+        uuid=final_uuid,
         name=name,
         description=description,
         category=category,

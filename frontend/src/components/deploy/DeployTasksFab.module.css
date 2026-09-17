@@ -1,13 +1,18 @@
+/* 嵌入式任务栏：随 Dashboard 内容流排布（不再是 fixed 悬浮层），
+   由父级 .dashboard-content（flex column）决定宽度，任务展开时向下挤压内容而非遮挡 */
 .fab {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 9999;
+  flex-shrink: 0;
+  margin: 0 var(--spacing-md);
+  padding-top: var(--spacing-md);
   background: rgba(15, 23, 42, 0.92);
   color: #e2e8f0;
-  backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
   font-size: 13px;
+}
+.fab[data-collapsed='true'] {
+  border-color: rgba(148, 163, 184, 0.25);
 }
 .header {
   display: flex;
@@ -54,6 +59,14 @@
 .rowName {
   flex: 1;
 }
+.headerHint {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.2);
+  font-size: 11px;
+  opacity: 0.85;
+}
 .rowStatus {
   padding: 1px 6px;
   border-radius: 4px;
@@ -90,4 +103,19 @@
 }
 .row--gray .rowStatus {
   background: #64748b;
+}
+
+/* 上传阶段行内进度条（视觉沿用 AlgorithmSquare.css 的 upload-progress） */
+.rowProgress {
+  width: calc(100% - 16px);
+  height: 4px;
+  margin: 6px 0 0 16px;
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rowProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  transition: width 120ms ease-out;
 }

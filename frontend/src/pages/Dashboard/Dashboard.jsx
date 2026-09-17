@@ -7,6 +7,7 @@ import {
   Cpu, Settings, FileText, LogOut, KeyRound 
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { DeployTasksFab } from '@/components/deploy/DeployTasksFab'
 import './Dashboard.css'
 import './AdditionalStyles.css'
 
@@ -126,6 +127,8 @@ const Dashboard = () => {
         </ul>
       </div>
       <div className="dashboard-content">
+        {/* 构建任务栏：嵌入内容流（侧边栏与页面内容之间），不再悬浮遮挡 */}
+        <DeployTasksFab />
         <div className="content-section">
           <Outlet />
         </div>

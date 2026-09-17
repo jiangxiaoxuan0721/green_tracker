@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Upload, Download, Play, Star, User, PlayCircle, PauseCircle, RotateCw, Trash2, MoreVertical, Cpu } from 'lucide-react'
 import axios from 'axios'
 import { useAuth } from '@/hooks/auth/useAuth'
+import useToast from '@/hooks/useToast'
 import { env } from '@/config/env'
+import { formatFileSize } from '@/utils/format'
 import { PageHeader } from '@/components/ui'
 import { useDeployTasksStore } from '@/store/useDeployTasksStore'
 import './AlgorithmSquare.css'
@@ -15,6 +17,7 @@ const API_BASE_URL = env.API_BASE_URL
 const AlgorithmSquare = () => {
   const navigate = useNavigate()
   const { getAuthHeaders, user } = useAuth()
+  const { addToast } = useToast()
   const [algorithms, setAlgorithms] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -65,6 +68,24 @@ const AlgorithmSquare = () => {
     fetchCategories()
   }, [search, category])
 
+  // 构建任务一出终态就重拉列表：否则「构建成功」只能靠重进页面才看得到新状态。
+  // 后端在推终态帧之前就已落库，此时拉到的一定是最新状态。
+  const finishedSig = useDeployTasksStore((s) =>
+    Object.values(s.tasks)
+      .filter((t) => t.finishedAt)
+      .map((t) => `${t.taskId}:${t.status}`)
+      .join('|'),
+  )
+  // fetchAlgorithms 每次渲染都是新闭包；用 ref 拿最新的（带当前 search/category），
+  // 这样 effect 只依赖 finishedSig，不会每次重渲染都重拉。
+  const fetchRef = useRef(fetchAlgorithms)
+  fetchRef.current = fetchAlgorithms
+
+  useEffect(() => {
+    if (!finishedSig) return
+    fetchRef.current()
+  }, [finishedSig])
+
   // 监听全局点击，用于关闭操作菜单
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -108,21 +129,21 @@ const AlgorithmSquare = () => {
       
       // 显示提示告诉用户查看哪里
       setTimeout(() => {
-        alert('下载已开始！请查看：\n1. 浏览器底部下载栏\n2. 浏览器下载管理器\n3. 如果没反应，请检查浏览器是否阻止了下载')
+        addToast('下载已开始，请查看浏览器底部下载栏', 'info')
       }, 500)
-      
+
     } catch (error) {
       console.error('下载失败:', error)
-      
-      // 提供备用方案
-      alert(`下载失败：${error.message || '未知错误'}\n\n您可以手动下载：\n右键复制链接 -> 在新标签页打开\n${API_BASE_URL}/api/algorithms/${algorithmId}/download`)
+
+      const fallbackUrl = `${API_BASE_URL}/api/algorithms/${algorithmId}/download`
+      addToast(`下载失败：${error.message || '未知错误'}。可手动复制链接 ${fallbackUrl} 在新标签页打开`, 'error')
     }
   }
 
   // 在线使用 - 跳转到使用页面
   const handleUseOnline = (algorithm) => {
     if (algorithm.status !== 'running') {
-      alert('算法尚未部署，请等待部署完成后再使用')
+      addToast('算法尚未部署，请等待部署完成后再使用', 'warning')
       return
     }
     navigate(`/dashboard/algorithm-use/${algorithm.id}`)
@@ -132,6 +153,10 @@ const AlgorithmSquare = () => {
   const handleBuild = async (algorithmId, algorithmName) => {
     try {
       await submitDeployTask(algorithmId, algorithmName, getAuthHeaders())
+      // 乐观更新：后端此刻已把 DB 置为 building，卡片立刻跟着走，不用等流推回来
+      setAlgorithms((prev) =>
+        prev.map((a) => (String(a.id) === String(algorithmId) ? { ...a, status: 'building' } : a)),
+      )
     } catch (e) {
       const msg = e?.message || '提交失败'
       if (msg.includes('正在构建')) {
@@ -155,11 +180,11 @@ const AlgorithmSquare = () => {
         {},
         { headers: getAuthHeaders() }
       )
-      alert('算法已停止')
+      addToast('算法已停止', 'success')
       fetchAlgorithms()
     } catch (error) {
       console.error('停止失败:', error)
-      alert('停止失败: ' + (error.response?.data?.detail || error.message))
+      addToast('停止失败: ' + (error.response?.data?.detail || error.message), 'error')
     }
   }
 
@@ -171,18 +196,18 @@ const AlgorithmSquare = () => {
         {},
         { headers: getAuthHeaders() }
       )
-      alert('算法已重启')
+      addToast('算法已重启', 'success')
       fetchAlgorithms()
     } catch (error) {
       console.error('重启失败:', error)
-      alert('重启失败: ' + (error.response?.data?.detail || error.message))
+      addToast('重启失败: ' + (error.response?.data?.detail || error.message), 'error')
     }
   }
 
   // 删除算法
   const handleDelete = async (algorithmId, algorithmName) => {
-    // 确认删除
-    if (!window.confirm(`确定要删除算法「${algorithmName}」吗？此操作不可恢复。`)) {
+    // 破坏性操作保留原生 confirm：toast 容易被忽略；删除不可逆需强提示
+    if (!window.confirm(`确定要删除算法「${algorithmName}」吗？此操作不可恢复（容器、镜像、算法包都将被清理）。`)) {
       return
     }
     try {
@@ -190,11 +215,11 @@ const AlgorithmSquare = () => {
         `${API_BASE_URL}/api/algorithms/${algorithmId}`,
         { headers: getAuthHeaders() }
       )
-      alert('算法已删除')
+      addToast('算法已删除', 'success')
       fetchAlgorithms()
     } catch (error) {
       console.error('删除失败:', error)
-      alert('删除失败: ' + (error.response?.data?.detail || error.message))
+      addToast('删除失败: ' + (error.response?.data?.detail || error.message), 'error')
     }
   }
 
@@ -475,6 +500,8 @@ const AlgorithmSquare = () => {
 // 上传弹窗组件
 const AlgorithmUploadModal = ({ onClose, onSuccess }) => {
   const { getAuthHeaders } = useAuth()
+  const { addToast } = useToast()
+  const uploadTask = useDeployTasksStore((s) => s.upload)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -482,50 +509,55 @@ const AlgorithmUploadModal = ({ onClose, onSuccess }) => {
     tags: '',
     version: '1.0.0',
     framework: 'pytorch',
-    input_type: 'image',
-    output_type: 'json'
   })
   const [file, setFile] = useState(null)
-  const [uploading, setUploading] = useState(false)
 
-  const handleSubmit = async (e) => {
+  const handleFileChange = (e) => {
+    const f = e.target.files?.[0] || null
+    if (!f) {
+      setFile(null)
+      return
+    }
+    // 前端先做大小 + 后缀校验，避免无效上传打到后端
+    // 防御：某些宿主/扩展会注入非标准 File 对象，name 可能缺失
+    const filename = typeof f.name === 'string' ? f.name : ''
+    if (!filename.toLowerCase().endsWith('.zip')) {
+      addToast('仅支持 .zip 格式算法包', 'warning')
+      e.target.value = ''
+      setFile(null)
+      return
+    }
+    if (f.size > env.MAX_FILE_SIZE) {
+      addToast(`文件大小超过限制（${formatFileSize(env.MAX_FILE_SIZE)}），请压缩后重试`, 'error')
+      e.target.value = ''
+      setFile(null)
+      return
+    }
+    setFile(f)
+  }
+
+  const handleSubmit = (e) => {
     e.preventDefault()
     if (!file) {
-      alert('请选择算法文件')
+      addToast('请选择算法文件', 'warning')
       return
     }
 
-    try {
-      setUploading(true)
-      const data = new FormData()
-      data.append('file', file)
-      data.append('name', formData.name)
-      data.append('description', formData.description)
-      data.append('category', formData.category)
-      data.append('tags', JSON.stringify(formData.tags.split(',').map(t => t.trim()).filter(Boolean)))
-      data.append('version', formData.version)
-      data.append('framework', formData.framework)
-      data.append('input_type', formData.input_type)
-      data.append('output_type', formData.output_type)
+    const data = new FormData()
+    data.append('file', file)
+    data.append('name', formData.name)
+    data.append('description', formData.description)
+    data.append('category', formData.category)
+    data.append('tags', JSON.stringify(formData.tags.split(',').map(t => t.trim()).filter(Boolean)))
+    data.append('version', formData.version)
+    data.append('framework', formData.framework)
+    // input_type / output_type 由后端 algorithm.yaml 覆盖，前端表单不再冗余展示
 
-      await axios.post(
-        `${API_BASE_URL}/api/algorithms/upload`,
-        data,
-        {
-          headers: {
-            ...getAuthHeaders(),
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      )
-      alert('上传成功！算法正在构建中...')
-      onSuccess()
-    } catch (error) {
-      console.error('上传失败:', error)
-      alert('上传失败: ' + (error.response?.data?.detail || error.message))
-    } finally {
-      setUploading(false)
-    }
+    // ★ fire-and-forget：把上传动作移交给 store，弹窗立刻关闭；
+    // 顶部 FAB 实时显示进度；后端返回 task_id 后自动订阅 build/stream。
+    uploadTask(data, formData.name, getAuthHeaders())
+    addToast('已转入后台上传，可在顶部查看进度', 'success')
+    onSuccess()
   }
 
   return (
@@ -602,17 +634,24 @@ const AlgorithmUploadModal = ({ onClose, onSuccess }) => {
             <input
               type="file"
               accept=".zip"
-              onChange={e => setFile(e.target.files[0])}
+              onChange={handleFileChange}
               required
             />
-            <small>请上传包含 algorithm.yaml 的 ZIP 包</small>
+            <small>
+              请上传包含 algorithm.yaml 的 ZIP 包，单文件 ≤ {formatFileSize(env.MAX_FILE_SIZE)}
+            </small>
+            {file && (
+              <small className="algorithm-file-info">
+                已选择：{file.name}（{formatFileSize(file.size)}）
+              </small>
+            )}
           </div>
           <div className="modal-actions">
             <button type="button" className="btn-cancel" onClick={onClose}>
               取消
             </button>
-            <button type="submit" className="btn-submit" disabled={uploading}>
-              {uploading ? '上传中...' : '上传'}
+            <button type="submit" className="btn-submit">
+              上传
             </button>
           </div>
         </form>

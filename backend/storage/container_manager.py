@@ -89,32 +89,39 @@ class ContainerManager:
     ) -> tuple[int, str, str]:
         """流式执行：stdout 逐行写入 log_sink，返回 (rc, full_stdout, stderr)。
 
-        - 有 sink：异步迭代 stdout，逐行调 sink；完成后用 stderr.read() 取 stderr
-        - 无 sink：直接 process.communicate() 取全部 stdout/stderr
+        两个必须做对的点（都是曾经「第一次启动失败、第二次才成功」的来源）：
+        - stderr 必须并发读：stdout / stderr 同为 PIPE，串行读会让先写满的那个
+          阻塞子进程 —— 轻则卡住、重则 docker 命令一直不返回。
+        - 返回前必须 await process.wait()：stdout 读尽不等于进程已被回收，
+          此时 process.returncode 仍是 None，`rc != 0` 会把成功误判成失败。
         """
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        if log_sink is not None:
+        stderr_task = (
+            asyncio.create_task(process.stderr.read()) if process.stderr else None
+        )
+
+        if log_sink is not None and process.stdout is not None:
             full_stdout_parts: list[str] = []
             async for line in process.stdout:
                 decoded = line.decode(errors="replace").rstrip()
                 full_stdout_parts.append(decoded)
                 log_sink(decoded)
-            stderr_bytes = await process.stderr.read() if process.stderr else b""
-            return (
-                process.returncode,
-                "\n".join(full_stdout_parts),
-                stderr_bytes.decode(errors="replace"),
-            )
-        stdout_bytes, stderr_bytes = await process.communicate()
-        return (
-            process.returncode,
-            stdout_bytes.decode(errors="replace"),
-            stderr_bytes.decode(errors="replace"),
-        )
+            stdout_text = "\n".join(full_stdout_parts)
+        elif process.stdout is not None:
+            stdout_text = (await process.stdout.read()).decode(errors="replace")
+        else:
+            stdout_text = ""
+
+        await process.wait()
+        stderr_text = ""
+        if stderr_task is not None:
+            stderr_text = (await stderr_task).decode(errors="replace")
+        rc = process.returncode if process.returncode is not None else -1
+        return rc, stdout_text, stderr_text
 
     async def wait_healthy(self, port: int, timeout: int = 30) -> bool:
         """等待容器内服务就绪（GET /health 返回 200）。"""
@@ -131,6 +138,48 @@ class ContainerManager:
             await asyncio.sleep(1)
         return False
 
+    # docker run 失败后可自动重试的错误特征（端口抢占 / 容器名尚未释放）
+    _RETRYABLE_ERRORS = (
+        "port is already allocated",
+        "address already in use",
+        "already in use by container",
+        "already in use",
+        "conflict",
+    )
+    _MAX_START_ATTEMPTS = 3
+
+    @staticmethod
+    def _is_retryable(err: str) -> bool:
+        low = (err or "").lower()
+        return any(k in low for k in ContainerManager._RETRYABLE_ERRORS)
+
+    async def _container_status(self, container_name: str) -> Optional[str]:
+        """查询容器当前 status（running/exited/...）；不存在或查询失败返回 None。"""
+        try:
+            rc, stdout, _ = await self._exec(
+                ['docker', 'inspect', '--format', '{{.State.Status}}', container_name],
+                check=False,
+            )
+        except Exception:
+            # 测试桩 / docker 不在 PATH 等场景：当作未知，不影响主流程
+            return None
+        if rc != 0:
+            return None
+        return (stdout or "").strip() or None
+
+    async def _wait_name_free(self, container_name: str, timeout: float = 2.0) -> None:
+        """等容器名真正释放。
+
+        `docker rm -f` 返回后 dockerd 未必已完成注销，紧接着 `docker run --name`
+        有概率拿到 "The container name ... is already in use"。这里轮询确认。
+        """
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        while loop.time() < deadline:
+            if not await self._container_status(container_name):
+                return
+            await asyncio.sleep(0.2)
+
     async def start_container(
         self,
         algorithm_uuid: str,
@@ -143,38 +192,72 @@ class ContainerManager:
         返回 (ok, container_id, port, error)。port 由 allocate_port 自管，
         调用方不再传入——确保不会和现存的同 uuid 容器撞端口。
         log_sink 接受单行字符串回调，用于把 docker stdout 实时推给前端。
+
+        健壮性：端口被抢 / 容器名未释放 / 容器其实已起来但 docker 退出码异常，
+        都在这里自愈（重试或按成功处理），不再让用户手动"再提交一次"。
         """
         container_name = self.container_name(algorithm_uuid)
         port: Optional[int] = None
+        last_err = ""
         try:
-            # 1. 启动前清理同名旧容器（修复撞名 bug）
-            await self._exec(['docker', 'rm', '-f', container_name], check=False)
+            for attempt in range(1, self._MAX_START_ATTEMPTS + 1):
+                # 1. 清理同名旧容器
+                await self._exec(['docker', 'rm', '-f', container_name], check=False)
+                # 2. 等名字真正释放，避免 rm 与 run 相隔太近导致撞名
+                await self._wait_name_free(container_name)
 
-            # 2. 自管端口分配
-            port = await self.allocate_port()
-
-            # 3. 构建 docker run
-            env_list = [f"-e {k}={v}" for k, v in (env or {}).items()]
-            env_list.append(f"-e ALGORITHM_UUID={algorithm_uuid}")
-            cmd = [
-                'docker', 'run', '-d',
-                '--name', container_name,
-                '--restart', 'unless-stopped',
-                '-p', f'{port}:8000',
-            ] + env_list + [
-                '--memory', '4g',
-                '--memory-swap', '4g',
-                image_name,
-            ]
-            rc, stdout, stderr = await self._exec_stream(cmd, log_sink)
-            if rc != 0:
+                # 3. 每次尝试都换一个新端口（上一次失败很可能就是端口冲突）
                 if port is not None:
                     await self.release_port(port)
-                return False, "", 0, stderr or "docker run 失败"
+                port = await self.allocate_port()
 
-            container_id = stdout.strip()
-            logger.info(f"容器启动成功: {container_id}, name={container_name}, port={port}")
-            return True, container_id, port, ""
+                env_list = [f"-e {k}={v}" for k, v in (env or {}).items()]
+                env_list.append(f"-e ALGORITHM_UUID={algorithm_uuid}")
+                cmd = [
+                    'docker', 'run', '-d',
+                    '--name', container_name,
+                    '--restart', 'unless-stopped',
+                    '-p', f'{port}:8000',
+                ] + env_list + [
+                    '--memory', '4g',
+                    '--memory-swap', '4g',
+                    image_name,
+                ]
+
+                rc, stdout, stderr = await self._exec_stream(cmd, log_sink)
+                container_id = stdout.strip()
+
+                if rc == 0 and container_id:
+                    logger.info(f"容器启动成功: {container_id}, name={container_name}, port={port}")
+                    return True, container_id, port, ""
+
+                last_err = (stderr or "").strip() or f"docker run 失败 (rc={rc})"
+
+                # docker run 偶发在进程退出信号未同步时报非零，此时容器可能已经起来了。
+                # 命中这种情况按成功处理，避免制造"孤儿容器"污染下一次部署。
+                if container_id or await self._container_status(container_name):
+                    real_id = container_id or container_name
+                    logger.warning(f"docker run 返回 rc={rc} 但容器已存在，按成功处理: {real_id}")
+                    if log_sink:
+                        log_sink(f"[start] docker 返回异常码但容器已启动 ({real_id[:12]})，按成功处理")
+                    return True, real_id, port, ""
+
+                logger.warning(f"第 {attempt}/{self._MAX_START_ATTEMPTS} 次启动容器失败: {last_err}")
+                if attempt < self._MAX_START_ATTEMPTS and self._is_retryable(last_err):
+                    if log_sink:
+                        log_sink(f"[start] 启动失败（{last_err}），{1.5 * attempt:.1f}s 后自动重试")
+                    await asyncio.sleep(1.5 * attempt)
+                    continue
+
+                if log_sink:
+                    log_sink(f"[start] 启动失败: {last_err}")
+                if port is not None:
+                    await self.release_port(port)
+                return False, "", 0, last_err
+
+            if port is not None:
+                await self.release_port(port)
+            return False, "", 0, last_err or "容器启动失败"
 
         except PortExhaustedError as e:
             return False, "", 0, str(e)
@@ -200,7 +283,7 @@ class ContainerManager:
             是否成功
         """
         try:
-            container_name = f"{CONTAINER_PREFIX}{algorithm_uuid[:8]}"
+            container_name = self.container_name(algorithm_uuid)
 
             cmd = ['docker', 'stop', container_name]
             process = await asyncio.create_subprocess_exec(
@@ -233,7 +316,8 @@ class ContainerManager:
             是否成功
         """
         try:
-            container_name = f"{CONTAINER_PREFIX}{algorithm_uuid[:8]}"
+            # ★ P0.3：与 stop/start/status 统一，使用完整 uuid 命名（避免 [:8] 碰撞）
+            container_name = self.container_name(algorithm_uuid)
 
             # 先停止再删除
             await self.stop_container(algorithm_uuid)
@@ -269,7 +353,7 @@ class ContainerManager:
             状态信息字典
         """
         try:
-            container_name = f"{CONTAINER_PREFIX}{algorithm_uuid[:8]}"
+            container_name = self.container_name(algorithm_uuid)
 
             cmd = ['docker', 'inspect', '--format',
                    '{{.State.Status}}|{{.State.Health.Status}}|{{.Config.Env}}',

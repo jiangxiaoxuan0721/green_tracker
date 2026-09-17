@@ -71,9 +71,15 @@ class AlgorithmListResponse(BaseModel):
 
 
 class AlgorithmUploadResponse(BaseModel):
-    """算法上传响应"""
+    """算法上传响应
+
+    上传成功后服务端会立即异步触发构建（提交 build task），
+    客户端用 `task_id` + `stream_url` 订阅 NDJSON 日志。
+    """
     algorithm: AlgorithmResponse
     message: str
+    task_id: Optional[str] = None
+    stream_url: Optional[str] = None
 
 
 class ReviewCreate(BaseModel):
