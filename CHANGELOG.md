@@ -13,15 +13,49 @@
 - **系统操作日志**: 全链路操作审计日志系统，覆盖认证、设备、地块、采集会话、数据、API密钥、算法等 23 个关键操作点
 - **日志查询与导出**: 支持按级别/来源/日期筛选、分页查询和 CSV 导出
 - **MQTT 模块**: IoT 设备实时通信支持
+- **开发/生产双模式部署**: Nginx 支持一键在「Vite 热加载（开发）」与「静态成品 dist/（生产）」之间切换
+  （`make serve-dev` / `make serve-prod` / `make deploy` / `make mode`）
+- **密钥管理路由**: 补齐 `/dashboard/api-keys` 页面路由与侧边栏菜单入口
+- **算法构建流式订阅**: 上传算法包后服务端自动触发镜像构建并返回 `task_id` + `stream_url`，
+  前端 `useDeployTasksStore.attachExisting` 直接复用后端 task 订阅 NDJSON 构建日志，零额外请求
+- **算法下载进度条 & Toast 化**: 上传弹窗新增 `onUploadProgress` 进度反馈；所有失败提示统一走 `useToast`
 
 ### 改进
 - 日志表格宽度优化，消息列占位更充分
+- **`MinioClient` API 收敛**: 新增 `iter_object` / `stat_object_size` 公开方法，下载路由不再直访 `_client` 私有属性
+- **`minio_client` 惰性代理**: `from storage.minio_client import minio_client` 改为 `_LazyMinioProxy`，
+  后端启动不再因 MinIO 不可达而失败；运行时访问才连接
 
 ### 修复
+- **首页路由**: 项目主页正确挂载于根路径 `/`
+- **API 基础路径**: `VITE_API_BASE_URL` 统一为空 origin 前缀（不含 `/api`）、`VITE_MINIO_PUBLIC_URL` 统一为相对路径（`/minio/<bucket>`），
+  开发经 Vite proxy、生产经 Nginx 反代，避免端口号暴露与 HTTPS 混合内容问题
+- **登录 404 修复**: 因 `VITE_API_BASE_URL` 误设为 `/api`，与调用点自带的 `/api` 前缀重复，导致所有请求变成 `/api/api/...`，
+  现已在 `api.ts`、`environment.js`、`utils/env.ts`、`AlgorithmSquare/AlgorithmUse` 统一改为空 origin
+- **静态资源配置**: 生产片段对 `/api/` 使用 `^~` 前缀修饰符，避免被静态资源正则误捕获
+- **算法压缩包大小上限**: 由 10 MB 放宽到 **1 GB**（覆盖大型 ML 模型 + 依赖 + 数据集打包场景）。
+  生效路径为**仓库根目录 `.env` 的 `VITE_MAX_FILE_SIZE`**——因 `vite.config.js` 配置 `envDir: projectRoot`，
+  前端只读根目录 `.env`，而环境变量会覆盖 `config/env.ts` 的默认值，故仅改默认值无效（首轮踩坑）。
+  同时后端补齐 1 GB 流式上传：`upload_file` 支持 file-like + length，路由不再 `await file.read()`
+  全量驻留内存（原先 1 GB 包峰值约 2 GB），并在应用层做 413 硬上限兜底；
+  nginx `client_max_body_size 0` + `proxy_request_buffering off` + 600s 超时已就绪
+- **算法上传闭环 (P0.1)**: 上传成功后接口"假装"成功却不触发构建；现上传流程与「提交构建」共用 `_submit_build_for`，
+  200 返回即 build task 已起
+- **UUID 双重来源 (P0.2)**: `Algorithm.uuid` 与 MinIO 路径前缀不一致；现统一由路由预生成 `algorithm_uuid`，
+  `minio_path = {uuid}/{filename}` 闭环一致
+- **容器命名碰撞 (P0.3)**: `ContainerManager.remove_container` 内部仍用 `uuid[:8]` 截断命名，存在重建同前缀算法时停错容器隐患；
+  现统一走 `self.container_name(uuid)`（含本批次的 `dockerfile_generator.generate_docker_compose` 内 dead-code 整体删除）
+- **删除算法泄漏 (P1.1)**: 删除时仅删 DB，遗留 MinIO 对象 / 容器 / 镜像；
+  现级联清理容器（`remove_container`）+ 镜像（`docker rmi -f`）+ MinIO 对象，失败仅 warning 不阻塞 DB 删除
+- **响应字段重复构造 (P1.2)**: 4 处 17 字段 `AlgorithmResponse` 重复构造；现统一走 `_algorithm_to_response(algorithm)` helper
+- **前端 alert() 滥用 (P1.3)**: `AlgorithmSquare.jsx` 全部 `alert()` → `addToast()`（已 `search_content \balert\(` 命中 0 验证）
+- **路由 try/except 模板 (P1.4)**: 8 处重复 `try/except/raise` 模板；现抽象为 `_standard_errors(action_name)` 装饰器
 
 ### 技术升级
+- `scripts/render_nginx.sh`: 统一 Nginx 配置渲染与前端模式切换（dev/prod），主站配置与前端片段解耦
 
 ### 文档
+- README 新增「开发环境 vs 生产部署」章节，更新 Makefile 命令与项目结构说明
 
 ---
 
