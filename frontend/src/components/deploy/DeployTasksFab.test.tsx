@@ -1,6 +1,4 @@
-// DeployTasksFab 测试 —— 需要 vitest + @testing-library/react 跑（前端无此依赖）
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck -- vitest 未安装；待 npm i -D vitest @testing-library/react 后移除
+import { render, screen, fireEvent } from '@testing-library/react'
 import { useDeployTasksStore } from '@/store/useDeployTasksStore'
 import { DeployTasksFab } from './DeployTasksFab'
 
@@ -29,7 +27,7 @@ describe('<DeployTasksFab />', () => {
       collapsed: false,
     })
     render(<DeployTasksFab />)
-    expect(screen.getByText(/我的算法/)).toBeInTheDocument()
+    expect(screen.getByText('我的算法')).toBeInTheDocument()
   })
 
   it('toggles collapsed on header click', () => {
@@ -46,6 +44,15 @@ describe('<DeployTasksFab />', () => {
       },
     })
     render(<DeployTasksFab />)
-    expect(screen.getByText(/A/)).toBeVisible()
+    expect(screen.getByText('A')).toBeInTheDocument()
+
+    // 展开态 → header 是「收起」，点击后列表收起
+    fireEvent.click(screen.getByRole('button', { name: '收起构建任务' }))
+    expect(useDeployTasksStore.getState().collapsed).toBe(true)
+    expect(screen.queryByText('A')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '展开构建任务' }))
+    expect(useDeployTasksStore.getState().collapsed).toBe(false)
+    expect(screen.getByText('A')).toBeInTheDocument()
   })
 })

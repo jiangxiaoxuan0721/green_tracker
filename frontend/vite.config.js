@@ -32,6 +32,8 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       include: ['src/**/*.test.{ts,tsx}'],
       globals: true,
+      // 注册 jest-dom 匹配器 + 每个用例后 cleanup（见 src/test-setup.ts）
+      setupFiles: ['./src/test-setup.ts'],
     },
     envDir: projectRoot,
     plugins: [react()],
