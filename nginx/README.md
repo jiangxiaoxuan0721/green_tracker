@@ -54,4 +54,4 @@ bash scripts/render_nginx.sh prod --render-only
 # 产物位于 nginx/build/ 下，便于检查或做语法校验
 ```
 
-详细说明见 `docs/setup/HTTPS_SETUP.md` 与项目根目录 `README.md` 的「开发环境 vs 生产部署」章节。
+详细说明见 `docs/setup/https-setup.md` 与项目根目录 `README.md` 的「开发环境 vs 生产部署」章节。

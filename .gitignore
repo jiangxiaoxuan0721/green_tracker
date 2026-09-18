@@ -138,6 +138,9 @@ mqtt-broker/mosquitto/config/passwd
 /nginx/.current-mode
 /nginx/build/
 
+# HTTPS 证书私钥目录（由 scripts/setup_https.sh 生成 *.crt/*.key，绝不入库）
+/nginx/ssl/
+
 # 屏幕日志
 /screen_dev.log
 # Subagent-Driven Development plan workspaces（每个 plan 独立目录）

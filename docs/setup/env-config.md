@@ -18,7 +18,7 @@
 - `DOMAIN` - 站点主域名，访问地址为 `https://${DOMAIN}`，默认 `green-tracker.cn`
 - `SSL_EMAIL` - Let's Encrypt 注册邮箱，接收证书续期提醒
 
-详细 HTTPS 部署文档见 [HTTPS_SETUP.md](HTTPS_SETUP.md)（同目录）。
+详细 HTTPS 部署文档见 [https-setup.md](https-setup.md)（同目录）。
 
 ### 前端配置
 
@@ -189,7 +189,7 @@
 
 ## 生产环境部署
 
-> 更新（2026-09-15）：项目现支持 **dev/prod 双模式**（`scripts/render_nginx.sh` 渲染不同站点，`make serve-dev` / `make serve-prod` 切换）。以下流程以生产模式为准；开发模式详见 [HTTPS_SETUP.md](HTTPS_SETUP.md)。
+> 更新（2026-09-15）：项目现支持 **dev/prod 双模式**（`scripts/render_nginx.sh` 渲染不同站点，`make serve-dev` / `make serve-prod` 切换）。以下流程以生产模式为准；开发模式详见 [https-setup.md](https-setup.md)。
 
 1. **配置 HTTPS 证书**（推荐 Let's Encrypt 自动申请）：
    ```bash
