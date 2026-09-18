@@ -7,7 +7,8 @@ import FieldMapErrorBoundary from '@/components/fields/FieldMapErrorBoundary'
 import { useFieldCatalog } from '@/hooks/fields/useFieldCatalog'
 import { useFieldGeometry } from '@/hooks/fields/useFieldGeometry'
 import { useFieldDraw } from '@/hooks/fields/useFieldDraw'
-import { resetSessionGeometry } from '@/hooks/fields/useFieldGeometry'
+import { useFieldViewStore } from '@/store/useFieldViewStore'
+import { useFieldGeometryStore } from '@/store/useFieldGeometryStore'
 import { fieldService } from '@/services/fieldService'
 import {
   areaOf,
@@ -45,38 +46,14 @@ const TILE_SIZE = 256
 const DEGENERATE_PAD = 0.002
 
 /**
- * 会话级视图记忆：切到别的页面再回来时，还原上次的视角与选中地块。
+ * 视图记忆（视角 / 选中 / 已取 bbox）已搬到 @/store/useFieldViewStore，
+ * 几何缓存已搬到 @/store/useFieldGeometryStore。
  *
- * 刻意只用内存、不落 localStorage —— 要记住的是「这台机器上刚才在看哪」，
- * 刷新浏览器就该从头来。落盘反而要在下一次会话去偿还一堆过期债
- * （地块可能已被删、权限可能已变、继而 json 还要做失效修护）。
- *
- * 和 R20「已取过即短路」共用同一前提：地块数据的写操作只发生在本页
- * （已核过全仓，唯三处 fieldService 增删改调用都在 Fields.jsx），且每次写都调 invalidate，
- * 故会话期缓存不会读到过期几何。
+ * 搬过去的理由：原先这里三个模块级变量（sessionView / sessionFetched / sessionOwner）
+ * 是「永不失效、无上限」的记忆 —— 严格说不是缓存。store 化之后同样只活在内存里
+ * （不落 localStorage，刷新浏览器就该从头来），但补上了容量上限，
+ * 几何侧另加了 TTL，并且可被订阅、可被单测。
  */
-let sessionView = null
-/** 「已取过的 bbox」记录同寿命保留：配合会话级几何缓存，回来时零请求还原图斑 */
-const sessionFetched = []
-/** 记住这批会话数据属于哪个账号，用于换账号时丢弃 */
-let sessionOwner = null
-
-/**
- * 换账号保护：单页应用里登出再登入不会重载 bundle，会话缓存会原样留到下一个账号，
- * 于是新账号在本页会看到上一个账号的图斑（几何是逐 vertex 缓存的，比列表泄露更实）。
- * 本页每次 render 核一次 user_id（读一次 localStorage，可忽略；幂等），
- * 变了就把全套会话记忆连同几何缓存一起丢掉。首次进入时 sessionOwner 为 null，什么都不做。
- */
-const dropStaleSession = () => {
-  const uid = localStorage.getItem('user_id')
-  if (sessionOwner !== null && sessionOwner !== uid) {
-    sessionView = null
-    sessionFetched.length = 0
-    resetSessionGeometry()
-  }
-  sessionOwner = uid
-}
-
 const EMPTY_FORM = {
   name: '',
   description: '',
@@ -117,20 +94,22 @@ const makeProjector = (zoom) => ([lng, lat]) => {
  * 也不对 canvas 输出做二次转换（否则偏移翻倍，图上会整体偏 300~500m）。
  */
 const Fields = () => {
-  // 先裁决会话记忆是否还可用（幂等，双调用无害），再让下面的 useState 去读 sessionView
-  dropStaleSession()
+  // 先裁决记忆是否还属于当前账号（纯读、幂等），再让下面的 useState 去读 view。
+  // 登记 owner 放在 effect 里 —— render 期间写 store 会触发 React 的渲染期更新警告。
+  useFieldViewStore.getState().syncOwner(localStorage.getItem('user_id'))
+  const restoredView = useFieldViewStore.getState().view
   const canvasRef = useRef(null)
   const catalog = useFieldCatalog()
   const geometry = useFieldGeometry()
   const draw = useFieldDraw(canvasRef)
 
   const [selectedPlotId, setSelectedPlotId] = useState(
-    () => sessionView?.selectedPlotId ?? null
+    () => restoredView?.selectedPlotId ?? null
   )
   // 还原时只恢复到 view 态：绝不能恢复 confirmDelete —— 那等于跨页面重新给用户
   // 弹出一个待确认的删除框；create/edit 的未提交草稿同理，不跨会话追逐。
   const [panelMode, setPanelMode] = useState(() =>
-    sessionView?.selectedPlotId ? 'view' : 'empty'
+    restoredView?.selectedPlotId ? 'view' : 'empty'
   )
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1'
@@ -139,7 +118,7 @@ const Fields = () => {
   const [layer, setLayer] = useState('cluster')
   // 会话还原时若仍从 4 起步，首帧会拿 zoom=4 去算聚合粒度（R19），出现一次多余闪跳，
   // 出现一次多余的闪跳，等地图 'complete' 回调把真实 zoom 灌回来才修正。
-  const [zoom, setZoom] = useState(() => sessionView?.zoom ?? 4)
+  const [zoom, setZoom] = useState(() => restoredView?.zoom ?? 4)
   const [visibleIds, setVisibleIds] = useState([])
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
@@ -149,27 +128,26 @@ const Fields = () => {
   const viewportRef = useRef({ zoom: 4, bounds: null })
   const throttleRef = useRef(null)
   /**
-   * 会话记账发生在事件回调里（见 handleViewportChange），回调需要读到最新 UI 状态，
-   * 但把 selectedPlotId 放进它的依赖会重建回调、导致地图反复解绑事件。
-   * 用 ref 承载最新值，语义上等价于「闭包穿透」。
-   */
-  const uiStateRef = useRef(null)
-  uiStateRef.current = { selectedPlotId, panelMode }
-  /**
    * 只有用户主动选中时才 fitBounds 缩放过去。
    * 会话还原的选中是从记忆里恢复的，再 fit 一次会顶掉用户上次的视角 ——
    * 那恰恰是本次需求要保住的东西。
    */
   const fitOnSelectRef = useRef(false)
-  /** 首次渲染快照，供 FieldMapCanvas 建图用；此后不再变化，避免重复传值导致重建地图 */
-  const initialViewRef = useRef(sessionView)
   /**
-   * 已成功取过的 bbox 记录：{ bbox, ids }。
-   * 缓存是永久的（Task 9 约定），所以「已取过的 bbox 覆盖了当前 bbox」⇒ 数据必在缓存中，
-   * 可零请求短路（R20）。ids 只作为「该 bbox 命中过哪些地块」的索引，
-   * 不作为「当前视野有哪些地块」的判定依据 —— 后者每次都重新算（见 syncVisible）。
+   * 首次渲染快照，供 FieldMapCanvas 建图用；此后不再变化，避免重复传值导致重建地图。
+   * 只有带 center 的快照才拿来建图：只含 selectedPlotId 的快照（用户进来先点了地块、
+   * 地图还没回调过视野）不该把相机拖到别处。
    */
-  const fetchedRef = useRef(sessionFetched)
+  const initialViewRef = useRef(restoredView?.center ? restoredView : null)
+  /**
+   * 「已成功取过的 bbox」记录在 useFieldViewStore.fetched（带容量上限）。
+   *
+   * 一律用 getState() 读、不订阅：本页只在请求决策时查它，订阅会让每次登记都触发
+   * 重渲染，还会让 loadViewport 重建回调 —— 后者会导致地图反复解绑事件。
+   *
+   * ids 只作为「该 bbox 命中过哪些地块」的索引，不作为「当前视野有哪些地块」的判定
+   * 依据 —— 后者每次都重新算（见 syncVisible）。
+   */
   // 供依赖 [selectedPlotId] 的 effect 读取最新值，避免把整个 hook 放进依赖数组
   const geometryRef = useRef(geometry)
   geometryRef.current = geometry
@@ -222,7 +200,7 @@ const Fields = () => {
     const bbox = readViewportBbox()
     if (!bbox) return
     const seen = new Set()
-    fetchedRef.current.forEach((rec) => {
+    useFieldViewStore.getState().fetched.forEach((rec) => {
       if (!intersectsBbox(rec.bbox, bbox)) return
       rec.ids.forEach((id) => {
         if (seen.has(id)) return
@@ -234,11 +212,24 @@ const Fields = () => {
     setVisibleIds(Array.from(seen))
   }, [readViewportBbox])
 
-  /** 视野取数：bbox 包含判定短路（R20），实现「同一区域不重复请求」 */
+  /**
+   * 视野取数：bbox 包含判定短路（R20），实现「同一区域不重复请求」。
+   *
+   * 短路比原先多一重校验（hasAll）：几何缓存现在有 TTL 和容量上限，
+   * 「bbox 登记在案」不再等价于「这批 id 还在缓存里」。只按 containsBbox 短路的话，
+   * 一旦条目被 TTL / 淘汰清掉，就会既不发请求、ringsOf 又全部落空 ——
+   * 地图一片空白，请求数却是 0，从监控上完全看不出坏在哪。
+   */
   const loadViewport = useCallback(async () => {
     const bbox = readViewportBbox()
     if (!bbox) return
-    if (fetchedRef.current.some((rec) => containsBbox(rec.bbox, bbox))) {
+    const covered = useFieldViewStore
+      .getState()
+      .fetched.some(
+        (rec) =>
+          containsBbox(rec.bbox, bbox) && useFieldGeometryStore.getState().hasAll(rec.ids)
+      )
+    if (covered) {
       // 缓存已覆盖：省掉请求，但仍要用这份缓存把当前视野的图斑算出来。
       // 会话还原后走的正是这条路 —— 漏掉 syncVisible，visibleIds 会一直是空数组，
       // 于是「图斑一个都不显示」，而请求数却是 0，看不出哪里出错。
@@ -251,19 +242,18 @@ const Fields = () => {
     // 否则一次网络抖动就会让这片区域被判为「已取过」而永久留白，直到刷新页面。
     // 注意：tsc 抓不到这里 —— 本页是 .jsx，不在 tsconfig 编译程序内，只能靠这个判断守住。
     if (ids === null) return
-    fetchedRef.current.push({ bbox, ids })
+    useFieldViewStore.getState().addFetched({ bbox, ids })
     syncVisible()
   }, [readViewportBbox, syncVisible])
 
   /**
    * 缓存失效：必须一并清空已取 bbox 记录，否则覆盖过的区域永远不再重新取数（R20）。
    *
-   * 就地清空而非赋新数组：fetchedRef 指向的是模块级 sessionFetched，
-   * 赋新数组会让它与会话记录脱钩 —— 之后取过的 bbox 只留在本次挂载里，
-   * 切走再回来又要重新拉一遍整屏几何。
+   * 记录现在在 store 里、走不可变更新，clearFetched 换上的新数组天然对所有人可见，
+   * 不再有「就地清空才不会与会话记录脱钩」的讲究。
    */
   const invalidateGeometry = useCallback((id) => {
-    fetchedRef.current.length = 0
+    useFieldViewStore.getState().clearFetched()
     geometryRef.current.invalidate(id)
   }, [])
 
@@ -272,14 +262,14 @@ const Fields = () => {
    *
    * 记账必须发生在这里，不能等到卸载 cleanup：React 卸载时先跑子组件的
    * useImperativeHandle destroy（把 canvasRef.current 置为 null），之后才轮到父组件的
-   * useEffect cleanup —— 那时已无从读取视角（实测恒为 null，sessionView 一次都没被写过）。
+   * useEffect cleanup —— 那时已无从读取视角（实测恒为 null，一次都没被写过）。
    * 在回调里记账时地图必然已就绪，也就不存在「拿到默认视角反而抹掉记忆」的问题。
    */
   const handleViewportChange = useCallback(
     (z, bounds, center) => {
       viewportRef.current = { zoom: z, bounds }
       setZoom(z)
-      sessionView = { center, zoom: z, ...uiStateRef.current }
+      useFieldViewStore.getState().patchView({ center, zoom: z })
       if (throttleRef.current) clearTimeout(throttleRef.current)
       throttleRef.current = setTimeout(() => {
         throttleRef.current = null
@@ -291,14 +281,20 @@ const Fields = () => {
     [loadViewport]
   )
 
+  // 登记这批记忆属于哪个账号（写 store 必须放在 effect 里，render 期写会触发 React 警告）
+  useEffect(() => {
+    useFieldViewStore.getState().commitOwner(localStorage.getItem('user_id'))
+  }, [])
+
   /**
    * 选中态单独记一笔账。
    * 取消选中这类纯 UI 变化不产生视野回调，只靠 handleViewportChange 记账的话，
    * 会出现「取消选中后切走，回来又被选中」。
-   * 首次进入时 sessionView 还是 null，先只记选中态，等地图 'complete' 补上 center / zoom。
+   * 首次进入时 view 还是 null，patchView 会以 selectedPlotId 起底，
+   * 等地图 'complete' 回调补上 center / zoom。
    */
   useEffect(() => {
-    sessionView = sessionView ? { ...sessionView, selectedPlotId } : { selectedPlotId }
+    useFieldViewStore.getState().patchView({ selectedPlotId })
   }, [selectedPlotId])
 
   // 滞后带：13.0 进多边形，12.8 退回聚合点，避免阈值边界抖动
