@@ -81,4 +81,22 @@ describe('useFieldViewStore', () => {
     useFieldViewStore.getState().syncOwner('user-a')
     expect(useFieldViewStore.getState().view?.selectedPlotId).toBe('p1')
   })
+
+  it('syncOwner 只裁决清空、不改 owner —— 登记归 commitOwner', () => {
+    // syncOwner 是纯读路径（可在 render 期间调用），顺手改 owner 会让「已登记」的
+    // 判断失去意义：换账号后 owner 立刻被改写成新账号，下次再换就查不出差异了。
+    useFieldViewStore.getState().commitOwner('user-a')
+    useFieldViewStore.getState().patchView({ selectedPlotId: 'p1' })
+
+    useFieldViewStore.getState().syncOwner('user-b')
+
+    expect(useFieldViewStore.getState().view).toBeNull()
+    expect(useFieldViewStore.getState().owner).toBe('user-a')
+
+    // 由 effect 里的 commitOwner 完成登记；登记后 user-b 自己重复调用不再清空
+    useFieldViewStore.getState().commitOwner('user-b')
+    useFieldViewStore.getState().patchView({ selectedPlotId: 'p2' })
+    useFieldViewStore.getState().syncOwner('user-b')
+    expect(useFieldViewStore.getState().view?.selectedPlotId).toBe('p2')
+  })
 })
