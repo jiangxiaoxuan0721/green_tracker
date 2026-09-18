@@ -149,8 +149,9 @@ const Fields = () => {
   const viewportRef = useRef({ zoom: 4, bounds: null })
   const throttleRef = useRef(null)
   /**
-   * 卸载时的 cleanup 要写盘，但那个 effect 的依赖必须为空 —— 否则每次相关 state
-   * 变化都会重建清理逻辑。用它读最新值，语义上等价于「闭包穿透」。
+   * 会话记账发生在事件回调里（见 handleViewportChange），回调需要读到最新 UI 状态，
+   * 但把 selectedPlotId 放进它的依赖会重建回调、导致地图反复解绑事件。
+   * 用 ref 承载最新值，语义上等价于「闭包穿透」。
    */
   const uiStateRef = useRef(null)
   uiStateRef.current = { selectedPlotId, panelMode }
@@ -254,16 +255,31 @@ const Fields = () => {
     syncVisible()
   }, [readViewportBbox, syncVisible])
 
-  /** 缓存失效：必须一并清空已取 bbox 记录，否则覆盖过的区域永远不再重新取数（R20） */
+  /**
+   * 缓存失效：必须一并清空已取 bbox 记录，否则覆盖过的区域永远不再重新取数（R20）。
+   *
+   * 就地清空而非赋新数组：fetchedRef 指向的是模块级 sessionFetched，
+   * 赋新数组会让它与会话记录脱钩 —— 之后取过的 bbox 只留在本次挂载里，
+   * 切走再回来又要重新拉一遍整屏几何。
+   */
   const invalidateGeometry = useCallback((id) => {
-    fetchedRef.current = []
+    fetchedRef.current.length = 0
     geometryRef.current.invalidate(id)
   }, [])
 
+  /**
+   * 视野变化时即时记账（center 由 canvas 一并上报，WGS84）。
+   *
+   * 记账必须发生在这里，不能等到卸载 cleanup：React 卸载时先跑子组件的
+   * useImperativeHandle destroy（把 canvasRef.current 置为 null），之后才轮到父组件的
+   * useEffect cleanup —— 那时已无从读取视角（实测恒为 null，sessionView 一次都没被写过）。
+   * 在回调里记账时地图必然已就绪，也就不存在「拿到默认视角反而抹掉记忆」的问题。
+   */
   const handleViewportChange = useCallback(
-    (z, bounds) => {
+    (z, bounds, center) => {
       viewportRef.current = { zoom: z, bounds }
       setZoom(z)
+      sessionView = { center, zoom: z, ...uiStateRef.current }
       if (throttleRef.current) clearTimeout(throttleRef.current)
       throttleRef.current = setTimeout(() => {
         throttleRef.current = null
@@ -274,6 +290,16 @@ const Fields = () => {
     },
     [loadViewport]
   )
+
+  /**
+   * 选中态单独记一笔账。
+   * 取消选中这类纯 UI 变化不产生视野回调，只靠 handleViewportChange 记账的话，
+   * 会出现「取消选中后切走，回来又被选中」。
+   * 首次进入时 sessionView 还是 null，先只记选中态，等地图 'complete' 补上 center / zoom。
+   */
+  useEffect(() => {
+    sessionView = sessionView ? { ...sessionView, selectedPlotId } : { selectedPlotId }
+  }, [selectedPlotId])
 
   // 滞后带：13.0 进多边形，12.8 退回聚合点，避免阈值边界抖动
   useEffect(() => {
@@ -400,15 +426,11 @@ const Fields = () => {
     []
   )
 
+  // 视角与选中态由 handleViewportChange 即时记账，这里只收尾节流定时器。
+  // （不要再尝试在此读 canvasRef.current：卸载时它已被 React 置为 null。）
   useEffect(
     () => () => {
       if (throttleRef.current) clearTimeout(throttleRef.current)
-      // 离开本页前记下视角与选中态，下次回来据此还原（会话级）。
-      // 地图还没就绪时 getViewport 返回 null，此时绝不覆盖旧值：
-      // 拿到的会是 DEFAULT 全国视角，写进去等于把上次记住的位置抹掉。
-      const vp = canvasRef.current?.getViewport()
-      if (!vp) return
-      sessionView = { center: vp.center, zoom: vp.zoom, ...uiStateRef.current }
     },
     []
   )

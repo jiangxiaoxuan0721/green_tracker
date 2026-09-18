@@ -145,3 +145,6 @@ mqtt-broker/mosquitto/config/passwd
 /screen_dev.log
 # Subagent-Driven Development plan workspaces（每个 plan 独立目录）
 /.superpowers/
+
+# Git worktrees
+.worktrees/
