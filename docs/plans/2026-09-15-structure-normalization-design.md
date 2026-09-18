@@ -1,5 +1,11 @@
 # 结构规范化设计（Scope B）
 
+> ⚠️ **Deprecated（2026-09-18）**：本轮结构规范化已实施完成，本文仅作**历史决策记录**保留，不再作为规范来源。
+>
+> - **仍被代码引用**：`frontend/src/components/ui/ToastContainer.jsx` 头部注释（Toast 契约）。该引用在「只改 `.md`」约束下无法同步移除，故本文保留而非删除。
+> - **配套实施计划** `2026-09-15-structure-normalization-plan.md` 已删除。
+> - **现行规范**请见 [ARCHITECTURE.md](../../ARCHITECTURE.md)、[DEVELOPMENT.md](../../DEVELOPMENT.md) 与 [文档索引](../README.md)。
+
 - 日期：2026-09-15
 - 状态：已批准
 - 范围：Scope B —— 结构规范化（中风险）

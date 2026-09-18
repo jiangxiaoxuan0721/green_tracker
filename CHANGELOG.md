@@ -56,6 +56,20 @@
 
 ### 文档
 - README 新增「开发环境 vs 生产部署」章节，更新 Makefile 命令与项目结构说明
+- **文档体系重构**：根目录收敛为 `README.md` / `ARCHITECTURE.md` / `DEVELOPMENT.md` / `CONTRIBUTING.md` / `CHANGELOG.md` 五篇入口文档，专题文档归入 `docs/` 的 `architecture/` `features/` `ops/` `setup/` 分层目录
+- 新增 `ARCHITECTURE.md`（运行时拓扑、分层、数据模型与全量 API 路由清单）、
+  `DEVELOPMENT.md`（本地开发、覆盖 `.env.example` 全部参数的环境变量表、质量门禁与排错）、`CONTRIBUTING.md`
+- 重写 `README.md`：徽章版本号改为读取 `frontend/package.json` 与 `backend/pyproject.toml` 真值；
+  快速开始步骤与 `Makefile` target 严格对齐；补充架构图、11 个功能模块表、make 命令表与文档导航
+- `docs/README.md` 改写为文档索引，为每篇文档提供入口链接（含 `frontend/`、`nginx/` 子模块文档）
+- 统一文档命名风格：`docs/setup/ENV_CONFIG.md` → `env-config.md`、`HTTPS_SETUP.md` → `https-setup.md`
+- 清理已完成的重构计划：`docs/plans/2026-09-15-structure-normalization-plan.md`、
+  `docs/superpowers/plans/` 与 `docs/superpowers/specs/` 下的 2026-09-16 plan / spec
+- `docs/plans/2026-09-15-structure-normalization-design.md` 标记 **Deprecated**：
+  结构规范化已实施完成，因 `frontend/src/components/ui/ToastContainer.jsx` 注释仍引用其 Toast 契约而保留
+
+### 待办
+- 仓库根目录补 `LICENSE` 文件（MIT）；`backend/pyproject.toml` 已声明 MIT，但实际文件缺失
 
 ---
 
