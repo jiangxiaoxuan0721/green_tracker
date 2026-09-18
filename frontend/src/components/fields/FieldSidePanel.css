@@ -3,12 +3,13 @@
  * 括号内的兜底值即亮色主题下的取色。
  */
 
+/* 宽度由 Fields 页写在 .fields-body 上的 --fields-panel-w 驱动（拖拽调整，
+   跨会话记住）；兜底值与改造前的固定宽度一致 */
 .field-side-panel {
   display: flex;
   flex-direction: column;
-  width: 340px;
-  min-width: 320px;
-  max-width: 360px;
+  flex: 0 0 auto;
+  width: var(--fields-panel-w, 340px);
   height: 100%;
   border-left: 1px solid var(--border-primary, rgba(148, 163, 184, 0.2));
   background: var(--bg-component, #ffffff);

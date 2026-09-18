@@ -100,41 +100,52 @@ export const useRemoteControlStore = create<RemoteControlState>()(
       sessions: {},
       presetWidth: DEFAULT_PRESET_WIDTH,
 
+      // 注意：withSession/mapEntry 返回的是「新 sessions 映射表」，
+      // 必须包一层 { sessions } 再交给 set —— 否则 set 会把 deviceId
+      // 当作顶层 state 键合并进去，sessions 永远不变（控制台不回显）。
       appendEntry: (deviceId, entry) =>
-        set((state) =>
-          withSession(state.sessions, deviceId, {
+        set((state) => ({
+          sessions: withSession(state.sessions, deviceId, {
             entries: [entry, ...(state.sessions[deviceId]?.entries || [])].slice(0, MAX_ENTRIES),
           }),
-        ),
+        })),
 
       updateEntry: (deviceId, entryId, patch) =>
-        set((state) => mapEntry(state.sessions, deviceId, entryId, (e) => ({ ...e, ...patch }))),
+        set((state) => ({
+          sessions: mapEntry(state.sessions, deviceId, entryId, (e) => ({ ...e, ...patch })),
+        })),
 
       resolveEntry: (deviceId, entryId, patch) =>
         set((state) => {
           const current = state.sessions[deviceId]?.entries || []
           const expanded = new Set(state.sessions[deviceId]?.expandedIds || [])
           expanded.add(entryId)
-          return withSession(state.sessions, deviceId, {
-            entries: current.map((e) => (e.id === entryId ? { ...e, ...patch } : e)),
-            expandedIds: Array.from(expanded),
-          })
+          return {
+            sessions: withSession(state.sessions, deviceId, {
+              entries: current.map((e) => (e.id === entryId ? { ...e, ...patch } : e)),
+              expandedIds: Array.from(expanded),
+            }),
+          }
         }),
 
       clearEntries: (deviceId) =>
-        set((state) => withSession(state.sessions, deviceId, { entries: [], expandedIds: [] })),
+        set((state) => ({
+          sessions: withSession(state.sessions, deviceId, { entries: [], expandedIds: [] }),
+        })),
 
       toggleExpanded: (deviceId, entryId) =>
         set((state) => {
           const next = new Set(state.sessions[deviceId]?.expandedIds || [])
           if (next.has(entryId)) next.delete(entryId)
           else next.add(entryId)
-          return withSession(state.sessions, deviceId, { expandedIds: Array.from(next) })
+          return {
+            sessions: withSession(state.sessions, deviceId, { expandedIds: Array.from(next) }),
+          }
         }),
 
       setParamValue: (deviceId, commandId, field, value) =>
-        set((state) =>
-          withSession(state.sessions, deviceId, {
+        set((state) => ({
+          sessions: withSession(state.sessions, deviceId, {
             paramValues: {
               ...(state.sessions[deviceId]?.paramValues || {}),
               [commandId]: {
@@ -143,17 +154,17 @@ export const useRemoteControlStore = create<RemoteControlState>()(
               },
             },
           }),
-        ),
+        })),
 
       pushInput: (deviceId, line) =>
-        set((state) =>
-          withSession(state.sessions, deviceId, {
+        set((state) => ({
+          sessions: withSession(state.sessions, deviceId, {
             inputHistory: [
               line,
               ...(state.sessions[deviceId]?.inputHistory || []).filter((h) => h !== line),
             ].slice(0, MAX_INPUT_HISTORY),
           }),
-        ),
+        })),
 
       setPresetWidth: (width) => set({ presetWidth: width }),
     }),

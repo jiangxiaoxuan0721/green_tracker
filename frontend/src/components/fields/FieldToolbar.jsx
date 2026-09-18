@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui'
 import './FieldToolbar.css'
 
 /**
@@ -29,9 +30,9 @@ const FieldToolbar = ({
       ))}
     </select>
 
-    <button className="primary-btn" onClick={onCreate} disabled={disabled}>
+    <Button variant="primary" onClick={onCreate} disabled={disabled}>
       + 新建
-    </button>
+    </Button>
 
     <div className="toolbar-spacer" />
 

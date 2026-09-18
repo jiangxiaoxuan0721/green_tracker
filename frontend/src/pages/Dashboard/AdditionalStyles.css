@@ -816,6 +816,7 @@
 .primary-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   background-color: var(--primary-color);
   color: var(--btn-text);
@@ -856,6 +857,7 @@
 .danger-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   background-color: var(--error-color);
   color: var(--btn-text);

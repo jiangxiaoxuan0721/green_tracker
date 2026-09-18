@@ -1,0 +1,45 @@
+/* 拖拽分隔条
+ *
+ * 位置：三段式横向布局（左侧内容区 / 本条 / 右侧可调宽面板）的中间那一根。
+ * 视觉保持克制——静态只露一根浅灰短线，hover / 拖拽时才提亮加长，
+ * 避免在不调整布局时被一根粗边抢走注意力。
+ */
+
+.panel-resizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  cursor: col-resize;
+  touch-action: none;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+
+.panel-resizer::before {
+  content: '';
+  width: 2px;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--border-light);
+  transition: background 0.15s, height 0.15s;
+}
+
+.panel-resizer:hover::before,
+.panel-resizer--active::before {
+  height: 72px;
+  background: var(--primary-color);
+}
+
+.panel-resizer:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+/* 窄屏没有左右并排的余量，两处使用（命令控制台、地块信息）都会退化成上下堆叠，
+   此时左右分隔不存在，隐藏拖拽条 */
+@media (max-width: 768px) {
+  .panel-resizer {
+    display: none;
+  }
+}

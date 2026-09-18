@@ -38,10 +38,7 @@
     grid-template-columns: 1fr;
   }
 
-  /* 窄屏改为上下堆叠时没有左右分隔，隐藏拖拽条 */
-  .cmd-resizer {
-    display: none;
-  }
+  /* 窄屏改为上下堆叠时没有左右分隔，拖拽条由 PanelResizer.css 统一隐藏 */
 
   .cmd-journal-body {
     min-height: 200px;
@@ -49,37 +46,8 @@
   }
 }
 
-/* ── 拖拽分隔条 ── */
-.cmd-resizer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-  cursor: col-resize;
-  touch-action: none;
-  border-radius: var(--radius-sm);
-  transition: background 0.15s;
-}
-
-.cmd-resizer::before {
-  content: '';
-  width: 2px;
-  height: 40px;
-  border-radius: 2px;
-  background: var(--border-light);
-  transition: background 0.15s, height 0.15s;
-}
-
-.cmd-resizer:hover::before,
-.cmd-resizer--active::before {
-  height: 72px;
-  background: var(--primary-color);
-}
-
-.cmd-resizer:focus-visible {
-  outline: 2px solid var(--primary-color);
-  outline-offset: -2px;
-}
+/* 拖拽条样式与拖拽交互已抽到 components/ui/PanelResizer（同一份实现，
+   远程控制台与地块信息侧栏共用），这里保留的宽度变量由 JS 写入 */
 
 /* ── 面板通用 ── */
 .cmd-journal,
@@ -127,6 +95,7 @@
 .cmd-journal-clear {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   margin-left: auto;
   padding: 2px 8px;

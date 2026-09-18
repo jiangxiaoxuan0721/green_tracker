@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { Button } from '@/components/ui'
 
 /**
  * 地图区错误边界。
@@ -51,13 +52,9 @@ class FieldMapErrorBoundary extends Component {
           <span style={{ fontSize: 13, wordBreak: 'break-all' }}>
             {String(error?.message ?? error)}
           </span>
-          <button
-            type="button"
-            className="primary-btn"
-            onClick={this.handleRetry}
-          >
+          <Button type="button" variant="primary" onClick={this.handleRetry}>
             重试
-          </button>
+          </Button>
         </div>
       )
     }
