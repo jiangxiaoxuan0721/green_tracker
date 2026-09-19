@@ -44,7 +44,10 @@ from .collection_session_service import (
     delete_collection_session,
     get_latest_collection_session_by_field,
     get_collection_sessions_by_status,
-    get_collection_sessions_with_field_info
+    get_collection_sessions_with_field_info,
+    count_collection_sessions_with_field_info,
+    get_available_sessions_for_device,
+    auto_complete_expired_sessions
 )
 
 from .raw_data_service import (
@@ -110,6 +113,9 @@ __all__ = [
     "get_latest_collection_session_by_field",
     "get_collection_sessions_by_status",
     "get_collection_sessions_with_field_info",
+    "count_collection_sessions_with_field_info",
+    "get_available_sessions_for_device",
+    "auto_complete_expired_sessions",
     "create_raw_data",
     "get_raw_data_by_id",
     "get_raw_data_list_for_frontend",

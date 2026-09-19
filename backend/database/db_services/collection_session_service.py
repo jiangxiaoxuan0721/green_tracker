@@ -1,4 +1,4 @@
-from sqlalchemy import desc
+from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 from database.db_models.user_models import CollectionSession
 from database.db_models.user_models import Field
@@ -6,6 +6,19 @@ from database.db_models.user_models import Device
 import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+
+# 采集任务状态枚举
+SESSION_STATUS_PLANNED = "planned"
+SESSION_STATUS_RUNNING = "running"
+SESSION_STATUS_COMPLETED = "completed"
+SESSION_STATUS_FAILED = "failed"
+
+# 结束时间到期后会被自动置为 completed 的状态（failed 保持原样）
+AUTO_COMPLETABLE_STATUSES = (SESSION_STATUS_PLANNED, SESSION_STATUS_RUNNING)
+
+# 哨兵值：用于区分"调用方未传该参数"与"显式传入 None"
+# 典型场景：device_id 传 None 表示取消设备指定，不传表示保持不变
+_UNSET = object()
 
 def create_collection_session(
     db: Session,
@@ -16,7 +29,8 @@ def create_collection_session(
     mission_name: Optional[str] = None,
     description: Optional[str] = None,
     weather_snapshot: Optional[Dict[str, Any]] = None,
-    status: str = "planned"
+    status: str = "planned",
+    device_id: Optional[str] = None
 ) -> CollectionSession:
     """
     创建新的采集任务/观测会话
@@ -31,15 +45,25 @@ def create_collection_session(
         description: 任务说明（可选）
         weather_snapshot: 采集时的环境快照（可选）
         status: 任务状态（默认为planned）
+        device_id: 指定执行设备ID（可选）。为 None 表示不限制设备，所有设备均可执行
 
     Returns:
         CollectionSession: 创建的采集任务对象
+
+    Raises:
+        ValueError: 农田ID为空，或指定的设备不存在
     """
-    print(f"[后端CollectionSessionService] 创建采集任务: 农田ID={field_id}, 任务类型={mission_type}")
+    print(f"[后端CollectionSessionService] 创建采集任务: 农田ID={field_id}, 任务类型={mission_type}, 指定设备={device_id}")
 
     # 验证field_id是否为空或无效
     if not field_id:
         raise ValueError("农田ID不能为空")
+
+    # 指定了设备时必须校验设备存在，避免写入无效的外键
+    if device_id:
+        device = db.query(Device).filter(Device.id == device_id).first()
+        if not device:
+            raise ValueError(f"指定的设备不存在: {device_id}")
 
     # 生成新的UUID作为ID
     new_id = str(uuid.uuid4())
@@ -49,6 +73,7 @@ def create_collection_session(
     new_session = CollectionSession(
         id=new_id,  # 显式设置新生成的ID
         field_id=field_id,
+        device_id=device_id,
         start_time=start_time,
         end_time=end_time,
         mission_type=mission_type,
@@ -112,7 +137,8 @@ def get_collection_session_with_details(db: Session, session_id: str) -> Optiona
         "field_id": str(session.field_id),
         "field_name": field.name if field else "未知农田",
         "device_id": str(session.device_id) if session.device_id else None,
-        "device_name": device.name if device else "未知设备",
+        # 未指定设备时为 None（而非"未知设备"），以便区分"所有设备可执行"与"设备已被删除"
+        "device_name": device.name if device else None,
         "device_type": device.device_type if device else None,
         # 为了前端使用，同时提供嵌套对象
         "field": {
@@ -121,7 +147,7 @@ def get_collection_session_with_details(db: Session, session_id: str) -> Optiona
         },
         "device": {
             "id": str(device.id) if device else None,
-            "name": device.name if device else "未知设备",
+            "name": device.name if device else None,
             "device_type": device.device_type if device else None
         },
         "start_time": session.start_time.isoformat() if session.start_time else None,
@@ -193,7 +219,8 @@ def update_collection_session(
     mission_name: Optional[str] = None,
     description: Optional[str] = None,
     weather_snapshot: Optional[Dict[str, Any]] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    device_id: Any = _UNSET
 ) -> Optional[CollectionSession]:
     """
     更新采集任务信息
@@ -206,9 +233,14 @@ def update_collection_session(
         description: 任务说明（可选）
         weather_snapshot: 采集时的环境快照（可选）
         status: 任务状态（可选）
+        device_id: 指定执行设备ID。默认 _UNSET 表示不改；
+                   传 None 表示取消指定（所有设备可执行）；传设备ID 表示改派给该设备
     
     Returns:
         Optional[CollectionSession]: 更新后的采集任务对象，如果不存在则返回None
+
+    Raises:
+        ValueError: 指定的设备不存在
     """
     session = get_collection_session_by_id(db, session_id)
     if not session:
@@ -225,6 +257,14 @@ def update_collection_session(
         session.weather_snapshot = weather_snapshot # type: ignore
     if status is not None:
         session.status = status # type: ignore
+
+    # device_id 用 sentinel 区分"未传"与"显式传 None 取消指定"
+    if device_id is not _UNSET:
+        if device_id:
+            device = db.query(Device).filter(Device.id == device_id).first()
+            if not device:
+                raise ValueError(f"指定的设备不存在: {device_id}")
+        session.device_id = device_id # type: ignore
     
     db.commit()
     db.refresh(session)
@@ -294,6 +334,100 @@ def get_collection_sessions_by_status(
         CollectionSession.status == status
     ).order_by(desc(CollectionSession.start_time)).offset(offset).limit(limit).all()
 
+def _build_collection_session_filters(
+    field_id: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    mission_types: Optional[List[str]] = None,
+    status: Optional[str] = None,
+    device_id: Optional[str] = None
+) -> List[Any]:
+    """
+    构建采集任务的过滤条件（列表查询与总数统计共用，避免两处条件漂移）
+
+    Args:
+        field_id: 农田ID过滤（可选）
+        start_date: 开始日期过滤（可选，按 start_time >= start_date）
+        end_date: 结束日期过滤（可选，按 start_time <= end_date）
+        mission_types: 任务类型过滤列表（可选）
+        status: 状态过滤（可选）
+        device_id: 指定设备过滤（可选，严格等值匹配）
+
+    Returns:
+        List[Any]: SQLAlchemy 过滤条件列表
+    """
+    filters = []
+
+    if field_id:
+        filters.append(CollectionSession.field_id == field_id)
+
+    if device_id:
+        filters.append(CollectionSession.device_id == device_id)
+
+    if start_date:
+        filters.append(CollectionSession.start_time >= start_date)
+
+    if end_date:
+        filters.append(CollectionSession.start_time <= end_date)
+
+    if mission_types:
+        filters.append(CollectionSession.mission_type.in_(mission_types))
+
+    if status:
+        filters.append(CollectionSession.status == status)
+
+    return filters
+
+def count_collection_sessions_with_field_info(
+    db: Session,
+    field_id: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    mission_types: Optional[List[str]] = None,
+    status: Optional[str] = None,
+    device_id: Optional[str] = None
+) -> int:
+    """
+    统计符合过滤条件的采集任务总数（用于分页）
+
+    过滤条件与 get_collection_sessions_with_field_info 保持一致。
+
+    Returns:
+        int: 符合条件的任务总数
+    """
+    filters = _build_collection_session_filters(
+        field_id=field_id,
+        start_date=start_date,
+        end_date=end_date,
+        mission_types=mission_types,
+        status=status,
+        device_id=device_id
+    )
+
+    return db.query(func.count(CollectionSession.id)).filter(*filters).scalar() or 0
+
+def _session_with_field_to_dict(session: CollectionSession, field: Optional[Field],
+                                device: Optional[Device] = None) -> Dict[str, Any]:
+    """
+    将 (任务, 农田, 设备) 三元组转换为响应字典（列表查询与设备可用任务查询共用）
+    """
+    return {
+        "id": str(session.id),
+        "field_id": str(session.field_id),
+        "field_name": field.name if field else "未知农田",
+        "device_id": str(session.device_id) if session.device_id else None,
+        "device_name": device.name if device else None,
+        "start_time": session.start_time.isoformat() if session.start_time else None,
+        "end_time": session.end_time.isoformat() if session.end_time else None,
+        "mission_type": session.mission_type,
+        "mission_name": session.mission_name,
+        "description": session.description,
+        "weather_snapshot": session.weather_snapshot,
+        "status": session.status,
+        "created_at": session.created_at.isoformat() if session.created_at else None,
+        "updated_at": session.updated_at.isoformat() if session.updated_at else None
+    }
+
 def get_collection_sessions_with_field_info(
     db: Session,
     limit: int = 100,
@@ -302,10 +436,11 @@ def get_collection_sessions_with_field_info(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     mission_types: Optional[List[str]] = None,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    device_id: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
-    获取采集任务列表，包含关联的农田信息
+    获取采集任务列表，包含关联的农田和设备信息
 
     Args:
         db: 数据库会话
@@ -316,32 +451,27 @@ def get_collection_sessions_with_field_info(
         end_date: 结束日期过滤（可选）
         mission_types: 任务类型过滤列表（可选）
         status: 状态过滤（可选）
+        device_id: 指定设备过滤（可选）
 
     Returns:
-        List[Dict[str, Any]]: 包含采集任务和农田信息的字典列表
+        List[Dict[str, Any]]: 包含采集任务、农田和设备信息的字典列表
     """
-    # 构建查询（只连接 Field 表，User 表在元数据库中）
-    query = db.query(CollectionSession, Field).outerjoin(
+    # 构建查询（连接 Field / Device 表，User 表在元数据库中）
+    query = db.query(CollectionSession, Field, Device).outerjoin(
         Field, CollectionSession.field_id == Field.id
+    ).outerjoin(
+        Device, CollectionSession.device_id == Device.id
     )
 
-    # 添加过滤条件
-    if field_id:
-        query = query.filter(
-            CollectionSession.field_id == field_id  # 直接使用字符串比较
-        )
-
-    if start_date:
-        query = query.filter(CollectionSession.start_time >= start_date)
-
-    if end_date:
-        query = query.filter(CollectionSession.start_time <= end_date)
-
-    if mission_types:
-        query = query.filter(CollectionSession.mission_type.in_(mission_types))
-
-    if status:
-        query = query.filter(CollectionSession.status == status)
+    # 添加过滤条件（与 count_collection_sessions_with_field_info 共用同一套条件）
+    query = query.filter(*_build_collection_session_filters(
+        field_id=field_id,
+        start_date=start_date,
+        end_date=end_date,
+        mission_types=mission_types,
+        status=status,
+        device_id=device_id
+    ))
 
     # 按时间倒序排列
     query = query.order_by(desc(CollectionSession.start_time))
@@ -349,23 +479,107 @@ def get_collection_sessions_with_field_info(
     # 执行查询
     results = query.offset(offset).limit(limit).all()
 
-    # 转换为字典列表
-    sessions_with_fields = []
-    for session, field in results:
-        session_dict = {
-            "id": str(session.id),
-            "field_id": str(session.field_id),
-            "field_name": field.name if field else "未知农田",
-            "start_time": session.start_time.isoformat() if session.start_time else None,
-            "end_time": session.end_time.isoformat() if session.end_time else None,
-            "mission_type": session.mission_type,
-            "mission_name": session.mission_name,
-            "description": session.description,
-            "weather_snapshot": session.weather_snapshot,
-            "status": session.status,
-            "created_at": session.created_at.isoformat() if session.created_at else None,
-            "updated_at": session.updated_at.isoformat() if session.updated_at else None
-        }
-        sessions_with_fields.append(session_dict)
+    return [_session_with_field_to_dict(session, field, device)
+            for session, field, device in results]
 
-    return sessions_with_fields
+def get_available_sessions_for_device(
+    db: Session,
+    device_id: Optional[str] = None,
+    status: str = SESSION_STATUS_RUNNING,
+    limit: int = 100,
+    offset: int = 0
+) -> List[Dict[str, Any]]:
+    """
+    获取指定设备可执行的采集任务（远程设备拉取任务用）
+
+    下发规则：
+    - 任务指定了 device_id：只有该设备可以执行此任务
+    - 任务未指定 device_id：所有设备均可执行此任务
+
+    Args:
+        db: 数据库会话
+        device_id: 请求任务的设备ID。为 None 时不做设备过滤（兼容未上报设备标识的旧设备）
+        status: 任务状态过滤，默认只返回 running
+        limit: 返回记录数限制
+        offset: 偏移量
+
+    Returns:
+        List[Dict[str, Any]]: 该设备可执行的任务列表（含农田与设备信息）
+    """
+    filters = _build_collection_session_filters(status=status)
+
+    if device_id:
+        # 指派给本设备的任务 + 未指派（所有设备可执行）的任务
+        filters.append(or_(
+            CollectionSession.device_id == device_id,
+            CollectionSession.device_id.is_(None)
+        ))
+
+    query = db.query(CollectionSession, Field, Device).outerjoin(
+        Field, CollectionSession.field_id == Field.id
+    ).outerjoin(
+        Device, CollectionSession.device_id == Device.id
+    ).filter(*filters).order_by(desc(CollectionSession.start_time))
+
+    results = query.offset(offset).limit(limit).all()
+
+    return [_session_with_field_to_dict(session, field, device)
+            for session, field, device in results]
+
+def get_expired_collection_sessions(
+    db: Session,
+    now: Optional[datetime] = None,
+    limit: Optional[int] = None
+) -> List[CollectionSession]:
+    """
+    查询已超过结束时间但仍未完成（planned/running）的采集任务
+
+    Args:
+        db: 数据库会话
+        now: 参照时间，默认当前 UTC 时间
+        limit: 返回条数限制（可选）
+
+    Returns:
+        List[CollectionSession]: 超期未完成的任务列表
+    """
+    now = now or datetime.utcnow()
+
+    query = db.query(CollectionSession).filter(
+        CollectionSession.end_time.isnot(None),
+        CollectionSession.end_time < now,
+        CollectionSession.status.in_(AUTO_COMPLETABLE_STATUSES)
+    ).order_by(CollectionSession.end_time)
+
+    if limit:
+        query = query.limit(limit)
+
+    return query.all()
+
+def auto_complete_expired_sessions(db: Session, now: Optional[datetime] = None) -> int:
+    """
+    将已超过结束时间的采集任务自动标记为已完成
+
+    判定条件：end_time 不为空 且 end_time < 当前时间 且 状态为 planned / running。
+    已失败（failed）与已完成（completed）的任务不受影响。
+
+    Args:
+        db: 数据库会话
+        now: 参照时间，默认当前 UTC 时间
+
+    Returns:
+        int: 本次被自动标记为已完成的任务数量
+    """
+    now = now or datetime.utcnow()
+
+    expired_sessions = get_expired_collection_sessions(db, now=now)
+    if not expired_sessions:
+        return 0
+
+    for session in expired_sessions:
+        session.status = SESSION_STATUS_COMPLETED # type: ignore
+        session.updated_at = now # type: ignore
+
+    db.commit()
+
+    print(f"[后端CollectionSessionService] 自动完成超期采集任务: {len(expired_sessions)} 个")
+    return len(expired_sessions)

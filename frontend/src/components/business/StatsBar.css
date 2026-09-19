@@ -1,0 +1,96 @@
+/* StatsBar 组件样式 - 紧凑横向四合一统计栏 */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  flex-wrap: wrap;
+}
+
+.stats-bar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.stats-bar-group-extra {
+  margin-left: auto;
+}
+
+.stats-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  min-width: 0;
+}
+
+.stats-bar-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.stats-bar-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.stats-bar-value {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-bar-suffix {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.stats-bar-extra {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.stats-bar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-light);
+  flex-shrink: 0;
+}
+
+/* 语义色 */
+.stats-bar-icon.is-primary,
+.stats-bar-value.is-primary { color: var(--primary-color); }
+.stats-bar-icon.is-success,
+.stats-bar-value.is-success { color: var(--success-color); }
+.stats-bar-icon.is-info,
+.stats-bar-value.is-info { color: var(--info-color); }
+.stats-bar-icon.is-warning,
+.stats-bar-value.is-warning { color: var(--warning-color); }
+.stats-bar-icon.is-danger,
+.stats-bar-value.is-danger { color: var(--error-color); }
+
+/* 刷新中：数值置灰，避免把上一次结果误读为最新结果 */
+.stats-bar.is-loading .stats-bar-value {
+  opacity: 0.45;
+}
+
+@media (max-width: 768px) {
+  .stats-bar {
+    justify-content: flex-start;
+    gap: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .stats-bar-group-extra {
+    margin-left: 0;
+  }
+}

@@ -32,6 +32,7 @@ from api.routes.auth import get_current_user
 from database.db_models.meta_model import User
 from database.db_models.user_models import Device
 from database.user_db_manager import UserDatabaseManager
+from database.db_services.device_service import count_devices_online_status
 
 logger = logging.getLogger("MQTT.Routes")
 
@@ -55,23 +56,67 @@ async def mqtt_health():
     }
 
 
+def _count_user_device_status(user: User) -> Optional[tuple]:
+    """
+    统计当前用户的设备总数与在线数
+
+    口径与设备列表页一致：以用户数据库中的活跃设备为分母，
+    从未通过 MQTT 上线过的设备同样计入离线，因此满足
+    `在线 + 离线 == 设备总数`。
+
+    在线判定复用 get_device_online_status（MQTT 实时状态优先，其次 DB 心跳），
+    与设备卡片上显示的在线状态保持同源，避免出现两处数字打架。
+
+    Returns:
+        (设备总数, 在线数, 设备ID列表)；
+        数据库不可用时返回 None，由调用方降级
+    """
+    db = None
+    try:
+        db_manager = UserDatabaseManager()
+        db = db_manager.get_db(str(user.userid))
+        return count_devices_online_status(db)
+    except Exception as e:
+        logger.warning(f"统计用户设备状态失败，降级为 MQTT 侧统计: {e}")
+        return None
+    finally:
+        if db:
+            try:
+                db.close()
+            except Exception:
+                pass
+
+
 @router.get("/stats", response_model=MqttStatsResponse)
 async def mqtt_stats(current_user: User = Depends(get_current_user)):
-    """MQTT 系统统计信息"""
+    """
+    MQTT 系统统计信息（按当前用户的设备统计）
+
+    分母为用户数据库中的活跃设备，在线数只统计属于该用户的设备，
+    因此 `online_devices + offline_devices == total_devices`，
+    与设备列表页展示的设备数量一致。
+    """
     dm = get_device_manager()
     mqtt_client = get_mqtt_client()
 
-    all_devices = dm.get_all_devices()
-    online_count = dm.get_online_count()
+    counted = _count_user_device_status(current_user)
+    if counted is not None:
+        total_devices, online_devices, device_ids = counted
+    else:
+        # 用户库不可用时降级：退回 MQTT 侧（全局）统计
+        all_devices = dm.get_all_devices()
+        total_devices = len(all_devices)
+        online_devices = dm.get_online_count()
+        device_ids = [d["device_id"] for d in all_devices]
 
     return MqttStatsResponse(
-        total_devices=len(all_devices),
-        online_devices=online_count,
-        offline_devices=len(all_devices) - online_count,
+        total_devices=total_devices,
+        online_devices=online_devices,
+        offline_devices=total_devices - online_devices,
         pending_commands=dm.get_pending_count(),
         mqtt_broker=f"{BROKER_HOST}:{BROKER_PORT}",
         mqtt_connected=mqtt_client.connected if mqtt_client else False,
-        registered_device_ids=[d["device_id"] for d in all_devices],
+        registered_device_ids=device_ids,
     )
 
 

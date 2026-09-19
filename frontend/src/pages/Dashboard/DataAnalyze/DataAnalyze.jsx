@@ -1,47 +1,119 @@
-import { useState, useEffect, useCallback } from 'react'
-import { BarChart3 } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  BarChart3, RefreshCw, Database, ListChecks, Layers, Cpu, Maximize2
+} from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { rawDataService } from '@/services/rawDataService'
 import { deviceService } from '@/services/deviceService'
 import { collectionSessionService } from '@/services/collectionSessionService'
-import { Select, PageHeader, Card } from '@/components/ui'
+import { Button, Card, PageHeader } from '@/components/ui'
+import {
+  FilterPanel, FilterSelect, FilterMultiSelect, StatsBar, DataTable
+} from '@/components/business'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend
+  Tooltip, ResponsiveContainer
 } from 'recharts'
+import ChartDetailModal from './ChartDetailModal'
 import '../Dashboard.css'
 import '../AdditionalStyles.css'
 import './DataAnalyze.css'
 
-// ── 数据类型配置 ──────────────────────────────────
-const DATA_TYPE_CONFIG = {
-  temperature:       { label: '温度', unit: '°C', color: '#e74c3c', icon: '🌡️' },
-  humidity:          { label: '湿度', unit: '%', color: '#3498db', icon: '💧' },
-  co2:               { label: 'CO₂', unit: 'ppm', color: '#2ecc71', icon: '🌿' },
-  light:             { label: '光照', unit: 'lux', color: '#f1c40f', icon: '☀️' },
-  pressure:          { label: '气压', unit: 'hPa', color: '#6366f1', icon: '🌀' },
-  temperature_soil:  { label: '土壤温度', unit: '°C', color: '#c0392b', icon: '🌱' },
-  moisture:          { label: '土壤湿度', unit: '%', color: '#8b5cf6', icon: '💦' },
-  ph:                { label: '土壤pH', unit: '', color: '#14b8a6', icon: '🧪' },
-  ec:                { label: '电导率', unit: 'μS/cm', color: '#f97316', icon: '⚡' },
-  wind_speed:        { label: '风速', unit: 'm/s', color: '#64748b', icon: '💨' },
+// ── 监测指标配置 ──────────────────────────────────
+const METRIC_CONFIG = {
+  temperature:       { label: '温度', unit: '°C', color: '#e74c3c' },
+  humidity:          { label: '湿度', unit: '%', color: '#3498db' },
+  co2:               { label: 'CO₂', unit: 'ppm', color: '#2ecc71' },
+  light:             { label: '光照', unit: 'lux', color: '#f1c40f' },
+  pressure:          { label: '气压', unit: 'hPa', color: '#6366f1' },
+  wind_speed:        { label: '风速', unit: 'm/s', color: '#64748b' },
+  temperature_soil:  { label: '土壤温度', unit: '°C', color: '#c0392b' },
+  moisture:          { label: '土壤湿度', unit: '%', color: '#8b5cf6' },
+  ph:                { label: '土壤pH', unit: '', color: '#14b8a6' },
+  ec:                { label: '电导率', unit: 'μS/cm', color: '#f97316' },
+}
+
+// ── 数据大类（决定可选的监测指标）───────────────────
+const CATEGORY_CONFIG = {
+  all:           { label: '全部类型', subtypes: Object.keys(METRIC_CONFIG) },
+  environmental: { label: '环境数据', subtypes: ['temperature', 'humidity', 'co2', 'light', 'pressure', 'wind_speed'] },
+  soil:          { label: '土壤数据', subtypes: ['temperature_soil', 'moisture', 'ph', 'ec'] },
+  file:          { label: '文件数据', subtypes: [] }
+}
+
+const CATEGORY_OPTIONS = [
+  { value: 'all', label: '全部类型' },
+  { value: 'environmental', label: '环境数据' },
+  { value: 'soil', label: '土壤数据' },
+  { value: 'file', label: '文件数据' }
+]
+
+// ── 时间范围 ──────────────────────────────────────
+const TIME_RANGE_CONFIG = {
+  day:     { label: '最近 24 小时', hours: 24 },
+  week:    { label: '最近一周', days: 7 },
+  month:   { label: '最近一月', months: 1 },
+  quarter: { label: '最近一季', months: 3 },
+  year:    { label: '最近一年', years: 1 },
+  all:     { label: '全部时间' }
+}
+
+const TIME_RANGE_OPTIONS = Object.entries(TIME_RANGE_CONFIG).map(([value, cfg]) => ({
+  value,
+  label: cfg.label
+}))
+
+const EMPTY_STATISTICS = {
+  total_records: 0,
+  data_types: {},
+  average_values: {},
+  min_values: {},
+  max_values: {},
+  session_count: 0
+}
+
+const resolveRange = (range) => {
+  const end = new Date()
+  if (range === 'all') return { start: null, end }
+
+  const cfg = TIME_RANGE_CONFIG[range] || TIME_RANGE_CONFIG.month
+  const start = new Date()
+  if (cfg.hours) start.setHours(start.getHours() - cfg.hours)
+  if (cfg.days) start.setDate(start.getDate() - cfg.days)
+  if (cfg.months) start.setMonth(start.getMonth() - cfg.months)
+  if (cfg.years) start.setFullYear(start.getFullYear() - cfg.years)
+  return { start, end }
+}
+
+const formatDay = (date) => date
+  ? date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+  : '—'
+
+// ── 可点击放大的图表外壳 ───────────────────────────
+const ChartShell = ({ span = 1, label, onExpand, children }) => {
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onExpand()
+    }
+  }
+
+  return (
+    <div
+      className={`chart-card-shell chart-card-span-${span}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`放大查看${label}`}
+      onClick={onExpand}
+      onKeyDown={handleKeyDown}
+    >
+      {children}
+    </div>
+  )
 }
 
 // ── 折线图卡片组件 ─────────────────────────────────
-const LineChartCard = ({ title, data, dataKey, color, unit, span = 1 }) => {
-  if (!data || data.length === 0) {
-    return (
-      <Card className={`chart-card chart-card-span-${span} chart-card-empty`}>
-        <div className="chart-card-header">
-          <h3>{title}</h3>
-        </div>
-        <div className="chart-empty-state">
-          <p>暂无数据</p>
-        </div>
-      </Card>
-    )
-  }
-
+const LineChartCard = ({ title, data, dataKey, color, unit, span = 1, onExpand }) => {
   // 格式化时间轴标签
   const formatTime = (timeStr) => {
     if (!timeStr) return ''
@@ -69,392 +141,484 @@ const LineChartCard = ({ title, data, dataKey, color, unit, span = 1 }) => {
   }
 
   return (
-    <Card className={`chart-card chart-card-span-${span}`}>
-      <div className="chart-card-header">
-        <h3>{title}</h3>
-        <span className="chart-card-unit">{unit}</span>
-      </div>
-      <div className="chart-container">
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light, #e5e7eb)" />
-            <XAxis
-              dataKey="time"
-              tickFormatter={formatTime}
-              tick={{ fontSize: 11, fill: 'var(--text-muted, #9ca3af)' }}
-              axisLine={{ stroke: 'var(--border-light, #e5e7eb)' }}
-              tickLine={false}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: 'var(--text-muted, #9ca3af)' }}
-              axisLine={false}
-              tickLine={false}
-              width={45}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Line
-              type="monotone"
-              dataKey={dataKey}
-              stroke={color}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, strokeWidth: 0 }}
-              name={title}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </Card>
+    <ChartShell span={span} label={title} onExpand={onExpand}>
+      <Card className="chart-card">
+        <div className="chart-card-header">
+          <h3>{title}</h3>
+          <span className="chart-card-unit">{unit || '-'}</span>
+          <Maximize2 size={12} className="chart-card-expand-icon" aria-hidden="true" />
+        </div>
+        <div className="chart-container">
+          <ResponsiveContainer width="100%" height={150}>
+            <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light, #e5e7eb)" />
+              <XAxis
+                dataKey="time"
+                tickFormatter={formatTime}
+                tick={{ fontSize: 10, fill: 'var(--text-muted, #9ca3af)' }}
+                axisLine={{ stroke: 'var(--border-light, #e5e7eb)' }}
+                tickLine={false}
+                minTickGap={24}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: 'var(--text-muted, #9ca3af)' }}
+                axisLine={false}
+                tickLine={false}
+                width={38}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone"
+                dataKey={dataKey}
+                stroke={color}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 3, strokeWidth: 0 }}
+                name={title}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </ChartShell>
   )
 }
 
 // ── 主组件 ────────────────────────────────────────
 const DataAnalyze = () => {
   const { user } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [chartLoading, setChartLoading] = useState(false)
+
+  const [metaLoading, setMetaLoading] = useState(true)
+  const [querying, setQuerying] = useState(false)
   const [error, setError] = useState(null)
+
   const [devices, setDevices] = useState([])
   const [sessions, setSessions] = useState([])
 
+  // 筛选条件：时间范围 / 数据大类 / 监测指标 / 设备 / 采集会话
   const [timeRange, setTimeRange] = useState('month')
-  const [selectedDevices, setSelectedDevices] = useState([])
-  const [selectedSessions, setSelectedSessions] = useState([])
-  const [dataType, setDataType] = useState('all')
+  const [category, setCategory] = useState('all')
+  const [metric, setMetric] = useState('all')
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([])
+  const [selectedSessionIds, setSelectedSessionIds] = useState([])
 
-  const [statistics, setStatistics] = useState({
-    total_records: 0,
-    data_types: {},
-    average_values: {},
-    min_values: {},
-    max_values: {},
-    session_count: 0
-  })
-
-  // timeseries 数据 { temperature: [{time, value}, ...], humidity: [...] }
+  const [statistics, setStatistics] = useState(EMPTY_STATISTICS)
   const [timeseries, setTimeseries] = useState({})
+  const [rangeLabel, setRangeLabel] = useState('')
 
-  // ── 获取设备列表 ──
-  useEffect(() => {
-    const fetchDevices = async () => {
-      try {
-        const devicesData = await deviceService.getDevices()
-        setDevices(devicesData.data || [])
-        if (devicesData.data?.length) {
-          setSelectedDevices(devicesData.data.map(d => d.id))
-        }
-      } catch (err) { console.error('获取设备列表失败:', err) }
+  // 放大查看的图表（null 表示未打开）
+  const [expandedChart, setExpandedChart] = useState(null)
+
+  // ── 加载筛选项（设备 / 采集会话）──
+  const loadMeta = useCallback(async () => {
+    if (!user?.id) return
+    setMetaLoading(true)
+    try {
+      const [devicesRes, sessionsData] = await Promise.all([
+        deviceService.getDevices(),
+        collectionSessionService.getSessions({ limit: 100 })
+      ])
+      setDevices(Array.isArray(devicesRes) ? devicesRes : (devicesRes?.data || []))
+      setSessions(sessionsData || [])
+    } catch (err) {
+      console.error('获取分析筛选项失败:', err)
+      setError('获取设备/任务列表失败，请稍后再试')
+    } finally {
+      setMetaLoading(false)
     }
-    if (user?.id) fetchDevices()
   }, [user?.id])
 
-  // ── 获取会话列表 ──
-  useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        const data = await collectionSessionService.getSessions({ limit: 100 })
-        setSessions(data || [])
-        if (data?.length) setSelectedSessions(data.map(s => s.id))
-      } catch (err) { console.error('获取会话列表失败:', err) }
-    }
-    if (user?.id) fetchSessions()
-  }, [user?.id])
+  useEffect(() => { loadMeta() }, [loadMeta])
 
-  // ── 构建有效的 session IDs ──
-  const getEffectiveSessionIds = useCallback(() => {
-    if (selectedSessions.length > 0 && selectedSessions.length !== sessions.length) {
-      return selectedSessions
-    }
-    return sessions.map(s => s.id)
-  }, [selectedSessions, sessions])
+  // ── 选择逻辑 ──
+  // 空选 = 不限；设备与会话是「与」关系，最终落到 session_ids 上
+  // （后端按 session 聚合，设备通过 session.device_id 间接过滤）
+  const effectiveSessionIds = useMemo(() => {
+    const deviceFilterActive =
+      selectedDeviceIds.length > 0 && selectedDeviceIds.length < devices.length
+    const sessionFilterActive =
+      selectedSessionIds.length > 0 && selectedSessionIds.length < sessions.length
 
-  // ── 获取数据统计 ──
-  useEffect(() => {
-    const fetch = async () => {
-      if (!user?.id || sessions.length === 0) return
-      setLoading(true)
+    if (!deviceFilterActive && !sessionFilterActive) return null // null = 不限制
+
+    return sessions
+      .filter(s => !deviceFilterActive || selectedDeviceIds.includes(s.device_id))
+      .filter(s => !sessionFilterActive || selectedSessionIds.includes(s.id))
+      .map(s => s.id)
+  }, [sessions, devices, selectedDeviceIds, selectedSessionIds])
+
+  // 用字符串做依赖，避免数组引用变化导致重复请求
+  const sessionIdsKey = effectiveSessionIds ? effectiveSessionIds.join(',') : ''
+
+  // 当前筛选命中的会话（用于「涉及设备」统计）
+  const scopedSessions = useMemo(() => {
+    if (!effectiveSessionIds) return sessions
+    const idSet = new Set(effectiveSessionIds)
+    return sessions.filter(s => idSet.has(s.id))
+  }, [sessions, effectiveSessionIds])
+
+  const deviceOptions = useMemo(() => devices.map(d => ({
+    value: d.id,
+    label: d.name || d.model || d.device_type || `设备 ${String(d.id).slice(0, 8)}`
+  })), [devices])
+
+  const sessionOptions = useMemo(() => sessions.map(s => ({
+    value: s.id,
+    label: [s.mission_name || s.mission_type, s.field_name].filter(Boolean).join(' · ')
+      || `任务 ${String(s.id).slice(0, 8)}`
+  })), [sessions])
+
+  const metricOptions = useMemo(() => {
+    const subtypes = (CATEGORY_CONFIG[category] || CATEGORY_CONFIG.all).subtypes
+    return [
+      { value: 'all', label: '全部指标' },
+      ...subtypes.map(k => ({ value: k, label: METRIC_CONFIG[k]?.label || k }))
+    ]
+  }, [category])
+
+  // ── 加载统计数据 + 时序数据 ──
+  const loadAnalysis = useCallback(async () => {
+    if (!user?.id || sessions.length === 0) return
+
+    // 筛选后没有任何命中的任务，直接给出空结果（否则空 session_ids 会被后端当成「不限制」）
+    if (effectiveSessionIds && effectiveSessionIds.length === 0) {
+      setStatistics(EMPTY_STATISTICS)
+      setTimeseries({})
       setError(null)
-
-      try {
-        const endDate = new Date()
-        const startDate = new Date()
-        switch (timeRange) {
-          case 'week': startDate.setDate(endDate.getDate() - 7); break
-          case 'month': startDate.setMonth(endDate.getMonth() - 1); break
-          case 'quarter': startDate.setMonth(endDate.getMonth() - 3); break
-          case 'year': startDate.setFullYear(endDate.getFullYear() - 1); break
-        }
-
-        const sessionIds = getEffectiveSessionIds()
-        const params = {
-          user_id: user.id,
-          start_time: startDate.toISOString(),
-          end_time: endDate.toISOString()
-        }
-        if (sessionIds.length > 0) params.session_ids = sessionIds.join(',')
-        if (dataType !== 'all') params.data_subtype = dataType
-
-        const res = await rawDataService.getRawDataStatistics(params)
-        if (res.code === 200) setStatistics(res.data)
-        else setError(res.message || '获取分析数据失败')
-      } catch (err) {
-        setError('获取分析数据失败，请稍后再试')
-      } finally { setLoading(false) }
+      return
     }
-    fetch()
-  }, [user?.id, timeRange, selectedSessions, dataType, sessions, getEffectiveSessionIds])
 
-  // ── 获取时序数据（折线图） ──
-  useEffect(() => {
-    const fetch = async () => {
-      if (!user?.id || sessions.length === 0) return
-      setChartLoading(true)
+    setQuerying(true)
+    setError(null)
 
-      try {
-        const endDate = new Date()
-        const startDate = new Date()
-        switch (timeRange) {
-          case 'week': startDate.setDate(endDate.getDate() - 7); break
-          case 'month': startDate.setMonth(endDate.getMonth() - 1); break
-          case 'quarter': startDate.setMonth(endDate.getMonth() - 3); break
-          case 'year': startDate.setFullYear(endDate.getFullYear() - 1); break
-        }
+    try {
+      const { start, end } = resolveRange(timeRange)
+      const base = { user_id: user.id }
+      if (start) base.start_time = start.toISOString()
+      base.end_time = end.toISOString()
+      if (effectiveSessionIds) base.session_ids = effectiveSessionIds.join(',')
 
-        const sessionIds = getEffectiveSessionIds()
-        const params = {
-          start_time: startDate.toISOString(),
-          end_time: endDate.toISOString(),
-          limit: 200
-        }
-        if (sessionIds.length > 0) params.session_ids = sessionIds.join(',')
+      const statsParams = { ...base }
+      if (category !== 'all') statsParams.data_type = category
+      if (metric !== 'all') statsParams.data_subtype = metric
 
-        // 根据筛选决定查询哪些子类型
-        if (dataType !== 'all') {
-          params.data_subtypes = dataType
-        } else {
-          // 默认查询所有数值类型
-          params.data_subtypes = 'temperature,humidity,co2,light,pressure,temperature_soil,moisture,ph,ec'
-        }
+      const wantedSubtypes = metric !== 'all'
+        ? [metric]
+        : ((CATEGORY_CONFIG[category] || CATEGORY_CONFIG.all).subtypes)
 
-        const res = await rawDataService.getTimeseriesData(params)
-        if (res.code === 200 && res.data?.series) {
-          setTimeseries(res.data.series)
-        }
-      } catch (err) {
-        console.error('获取时序数据失败:', err)
-      } finally { setChartLoading(false) }
+      const seriesParams = { ...base, limit: 200 }
+      if (wantedSubtypes.length > 0) seriesParams.data_subtypes = wantedSubtypes.join(',')
+
+      const [statsRes, seriesRes] = await Promise.all([
+        rawDataService.getRawDataStatistics(statsParams),
+        rawDataService.getTimeseriesData(seriesParams)
+      ])
+
+      setStatistics(statsRes?.code === 200 ? (statsRes.data || EMPTY_STATISTICS) : EMPTY_STATISTICS)
+      if (statsRes?.code !== 200) setError(statsRes?.message || '获取分析数据失败')
+
+      setTimeseries(seriesRes?.code === 200 && seriesRes.data?.series ? seriesRes.data.series : {})
+      setRangeLabel(`${formatDay(start)} ~ ${formatDay(end)}`)
+    } catch (err) {
+      console.error('获取分析数据失败:', err)
+      setError('获取分析数据失败，请稍后再试')
+    } finally {
+      setQuerying(false)
     }
-    fetch()
-  }, [user?.id, timeRange, selectedSessions, dataType, sessions, getEffectiveSessionIds])
+  }, [user?.id, sessions.length, timeRange, category, metric, effectiveSessionIds, sessionIdsKey])
+
+  useEffect(() => { loadAnalysis() }, [loadAnalysis])
 
   // ── 筛选事件处理 ──
-  const handleDeviceChange = (id) => {
-    setSelectedDevices(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
-  const handleSessionChange = (id) => {
-    setSelectedSessions(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  const handleCategoryChange = (e) => {
+    setCategory(e.target.value)
+    setMetric('all') // 大类变化后原指标可能已不在候选内
   }
 
-  // ── 渲染条形图 ──
-  const renderBarChart = (data) => {
-    if (!data || Object.keys(data).length === 0) {
+  const handleReset = () => {
+    setTimeRange('month')
+    setCategory('all')
+    setMetric('all')
+    setSelectedDeviceIds([])
+    setSelectedSessionIds([])
+  }
+
+  // ── 顶部统计栏数据 ──
+  const barItems = useMemo(() => {
+    const involvedDevices = new Set(scopedSessions.map(s => s.device_id).filter(Boolean)).size
+    return [
+      {
+        key: 'records',
+        icon: Database,
+        label: '数据记录',
+        value: statistics.total_records,
+        tone: 'primary'
+      },
+      {
+        key: 'sessions',
+        icon: ListChecks,
+        label: '涉及任务',
+        value: statistics.session_count,
+        tone: 'success'
+      },
+      {
+        key: 'metrics',
+        icon: Layers,
+        label: '覆盖指标',
+        value: Object.keys(statistics.data_types || {}).length,
+        tone: 'info'
+      },
+      {
+        key: 'devices',
+        icon: Cpu,
+        label: '涉及设备',
+        value: involvedDevices,
+        tone: 'warning'
+      }
+    ]
+  }, [statistics, scopedSessions])
+
+  // ── 时序图：只渲染真正有数据的指标 ──
+  const visibleSeries = useMemo(() => {
+    const order = Object.keys(METRIC_CONFIG)
+    return Object.keys(timeseries)
+      .filter(k => Array.isArray(timeseries[k]) && timeseries[k].length > 0)
+      .sort((a, b) => {
+        const ia = order.indexOf(a)
+        const ib = order.indexOf(b)
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+      })
+  }, [timeseries])
+
+  // ── 数据分布（同时供小图与放大视图使用）──
+  const distributionRows = useMemo(() => (
+    Object.entries(statistics.data_types || {})
+      .map(([key, value]) => {
+        const cfg = METRIC_CONFIG[key] || { label: key, color: '#95a5a6' }
+        return { key, label: cfg.label, color: cfg.color, value }
+      })
+      .sort((a, b) => b.value - a.value)
+  ), [statistics])
+
+  const renderBarChart = (rows) => {
+    if (!rows || rows.length === 0) {
       return <p className="no-data">暂无数据</p>
     }
-    const maxValue = Math.max(...Object.values(data))
+    const maxValue = Math.max(...rows.map(r => r.value))
     return (
       <div className="simple-chart">
-        {Object.entries(data).map(([key, value]) => {
-          const cfg = DATA_TYPE_CONFIG[key] || { label: key, color: '#95a5a6' }
-          return (
-            <div key={key} className="chart-bar-wrapper">
-              <div className="chart-bar-label">{cfg.label}</div>
-              <div className="chart-bar-container">
-                <div className="chart-bar" style={{ width: `${(value / maxValue) * 100}%`, backgroundColor: cfg.color }} />
-                <span className="chart-bar-value">{value}</span>
-              </div>
+        {rows.map(({ key, label, value, color }) => (
+          <div key={key} className="chart-bar-wrapper">
+            <div className="chart-bar-label">{label}</div>
+            <div className="chart-bar-container">
+              <div className="chart-bar" style={{ width: `${(value / maxValue) * 100}%`, backgroundColor: color }} />
+              <span className="chart-bar-value">{value}</span>
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
     )
   }
+
+  // ── 统计明细表 ──
+  const formatMetricValue = (value, unit) => {
+    if (value === undefined || value === null || value === '') return '-'
+    const raw = String(value).trim()
+    if (raw.includes(' ')) return raw // 后端已带单位
+    const num = parseFloat(raw)
+    if (isNaN(num)) return raw
+    return unit ? `${num.toFixed(2)} ${unit}` : num.toFixed(2)
+  }
+
+  const statsColumns = [
+    {
+      title: '监测指标',
+      dataIndex: 'label',
+      render: (label, row) => (
+        <>
+          <span className="type-indicator" style={{ backgroundColor: row.color }}></span>
+          {label}
+        </>
+      )
+    },
+    { title: '记录数', dataIndex: 'count' },
+    { title: '平均值', dataIndex: 'avg', render: (v, row) => formatMetricValue(v, row.unit) },
+    { title: '最小值', dataIndex: 'min', render: (v, row) => formatMetricValue(v, row.unit) },
+    { title: '最大值', dataIndex: 'max', render: (v, row) => formatMetricValue(v, row.unit) }
+  ]
+
+  const statsRows = useMemo(() => (
+    Object.entries(statistics.data_types || {})
+      .map(([key, count]) => {
+        const cfg = METRIC_CONFIG[key] || { label: key, unit: '', color: '#95a5a6' }
+        return {
+          key,
+          label: cfg.label,
+          color: cfg.color,
+          unit: cfg.unit,
+          count,
+          avg: statistics.average_values?.[key],
+          min: statistics.min_values?.[key],
+          max: statistics.max_values?.[key]
+        }
+      })
+      .sort((a, b) => b.count - a.count)
+  ), [statistics])
+
+  const hasScope = !(effectiveSessionIds && effectiveSessionIds.length === 0)
 
   return (
     <div className="dashboard-data-analyze">
       <PageHeader
         icon={BarChart3}
         title="数据分析"
-        description="多维度分析农业数据，生成可视化报表"
+        description="按时间、设备、任务与指标多维度分析采集数据"
+        actions={
+          <Button
+            variant="outline"
+            size="small"
+            icon={RefreshCw}
+            onClick={() => { loadMeta(); loadAnalysis() }}
+            disabled={metaLoading || querying}
+          >
+            刷新
+          </Button>
+        }
       />
 
-      {/* ── 控制面板 ── */}
-      <div className="analysis-controls">
-        <div className="controls-header">
-          <div className="filter-group">
-            <div className="filter-item">
-              <label>时间范围</label>
-              <Select value={timeRange} onChange={e => setTimeRange(e.target.value)}
-                options={[
-                  { value: 'week', label: '最近一周' },
-                  { value: 'month', label: '最近一月' },
-                  { value: 'quarter', label: '最近一季' },
-                  { value: 'year', label: '最近一年' }
-                ]} />
-            </div>
-            <div className="filter-item">
-              <label>数据类型</label>
-              <Select value={dataType} onChange={e => setDataType(e.target.value)}
-                options={[
-                  { value: 'all', label: '全部类型' },
-                  ...Object.entries(DATA_TYPE_CONFIG).map(([k, c]) => ({ value: k, label: c.label }))
-                ]} />
-            </div>
-          </div>
-          <div className="selection-summary">
-            <span className="summary-item"><strong>会话:</strong> {selectedSessions.length}/{sessions.length}</span>
-            <span className="summary-item"><strong>设备:</strong> {selectedDevices.length}/{devices.length}</span>
-          </div>
-        </div>
-        <div className="controls-body">
-          <div className="checkbox-group">
-            <div className="checkbox-group-header">
-              <label>采集会话</label>
-              <button className="text-button" onClick={() => setSelectedSessions(sessions.map(s => s.id))}>全选</button>
-              <button className="text-button" onClick={() => setSelectedSessions([])}>清空</button>
-            </div>
-            <div className="checkbox-list">
-              {sessions.map(s => (
-                <label key={s.id} className="checkbox-item">
-                  <input type="checkbox" checked={selectedSessions.includes(s.id)} onChange={() => handleSessionChange(s.id)} />
-                  <span className="checkbox-label-text">{s.mission_name || s.mission_type || `会话 ${s.id.slice(0, 8)}`}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          <div className="checkbox-group">
-            <div className="checkbox-group-header">
-              <label>设备</label>
-              <button className="text-button" onClick={() => setSelectedDevices(devices.map(d => d.id))}>全选</button>
-              <button className="text-button" onClick={() => setSelectedDevices([])}>清空</button>
-            </div>
-            <div className="checkbox-list">
-              {devices.map(d => (
-                <label key={d.id} className="checkbox-item">
-                  <input type="checkbox" checked={selectedDevices.includes(d.id)} onChange={() => handleDeviceChange(d.id)} />
-                  <span className="checkbox-label-text">{d.model || d.device_type || `设备 ${d.id.slice(0, 8)}`}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <FilterPanel onReset={handleReset}>
+        <FilterSelect
+          label="时间范围"
+          name="timeRange"
+          value={timeRange}
+          onChange={(e) => setTimeRange(e.target.value)}
+          options={TIME_RANGE_OPTIONS}
+        />
+        <FilterSelect
+          label="数据大类"
+          name="category"
+          value={category}
+          onChange={handleCategoryChange}
+          options={CATEGORY_OPTIONS}
+        />
+        <FilterSelect
+          label="监测指标"
+          name="metric"
+          value={metric}
+          onChange={(e) => setMetric(e.target.value)}
+          options={metricOptions}
+          disabled={metricOptions.length <= 1}
+        />
+        <FilterMultiSelect
+          label="采集设备"
+          value={selectedDeviceIds}
+          options={deviceOptions}
+          onChange={setSelectedDeviceIds}
+          disabled={metaLoading}
+        />
+        <FilterMultiSelect
+          label="采集任务"
+          value={selectedSessionIds}
+          options={sessionOptions}
+          onChange={setSelectedSessionIds}
+          disabled={metaLoading}
+        />
+      </FilterPanel>
+
+      <StatsBar
+        items={barItems}
+        loading={querying || metaLoading}
+        extra={rangeLabel ? `统计区间 ${rangeLabel}` : null}
+      />
 
       {error && <div className="error-message">{error}</div>}
 
-      {loading ? (
-        <div className="loading-state"><div className="spinner"></div><p>加载数据中...</p></div>
+      {metaLoading ? (
+        <div className="loading-state"><div className="spinner"></div><p>加载筛选项中...</p></div>
       ) : (
         <>
-          {/* ── 统计卡片 ── */}
-          <div className="statistics-grid">
-            <div className="stat-card stat-card-primary">
-              <div className="stat-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" />
-                </svg>
-              </div>
-              <div className="stat-content"><div className="stat-value">{statistics.total_records}</div><div className="stat-label">总数据记录</div></div>
+          {!hasScope && (
+            <div className="analyze-hint">
+              当前设备 / 任务筛选没有匹配到任何采集任务，请调整筛选条件。
             </div>
-            <div className="stat-card stat-card-success">
-              <div className="stat-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-                </svg>
-              </div>
-              <div className="stat-content"><div className="stat-value">{statistics.session_count}</div><div className="stat-label">涉及会话</div></div>
-            </div>
-            <div className="stat-card stat-card-info">
-              <div className="stat-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
-                </svg>
-              </div>
-              <div className="stat-content"><div className="stat-value">{Object.keys(statistics.data_types).length}</div><div className="stat-label">数据类型</div></div>
-            </div>
-            <div className="stat-card stat-card-warning">
-              <div className="stat-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
-                </svg>
-              </div>
-              <div className="stat-content"><div className="stat-value">{selectedDevices.length}</div><div className="stat-label">选中设备</div></div>
-            </div>
-          </div>
+          )}
 
-          {/* ── 时序折线图（网格布局） ── */}
+          {/* ── 时序折线图 ── */}
           <div className="chart-section">
-            <h2>时序趋势</h2>
-            {chartLoading ? (
-              <div className="loading-state"><div className="spinner"></div><p>加载图表数据...</p></div>
+            <h2>时序趋势<span className="chart-section-hint">点击图表可放大查看</span></h2>
+            {querying ? (
+              <div className="loading-state"><div className="spinner"></div><p>正在查询...</p></div>
+            ) : visibleSeries.length === 0 ? (
+              <p className="no-data">当前筛选条件下暂无时序数据</p>
             ) : (
               <div className="charts-grid">
-                <LineChartCard title="温度" data={timeseries.temperature} dataKey="value" color={DATA_TYPE_CONFIG.temperature.color} unit="°C" span={2} />
-                <LineChartCard title="湿度" data={timeseries.humidity} dataKey="value" color={DATA_TYPE_CONFIG.humidity.color} unit="%" span={1} />
-                <LineChartCard title="CO₂" data={timeseries.co2} dataKey="value" color={DATA_TYPE_CONFIG.co2.color} unit="ppm" span={1} />
-                <LineChartCard title="光照" data={timeseries.light} dataKey="value" color={DATA_TYPE_CONFIG.light.color} unit="lux" span={1} />
-                <LineChartCard title="气压" data={timeseries.pressure} dataKey="value" color={DATA_TYPE_CONFIG.pressure.color} unit="hPa" span={1} />
-                <LineChartCard title="土壤温度" data={timeseries.temperature_soil} dataKey="value" color={DATA_TYPE_CONFIG.temperature_soil.color} unit="°C" span={1} />
-                <LineChartCard title="土壤湿度" data={timeseries.moisture} dataKey="value" color={DATA_TYPE_CONFIG.moisture.color} unit="%" span={1} />
-                <LineChartCard title="土壤pH" data={timeseries.ph} dataKey="value" color={DATA_TYPE_CONFIG.ph.color} unit="" span={1} />
+                {visibleSeries.map((key, index) => {
+                  const cfg = METRIC_CONFIG[key] || { label: key, unit: '', color: '#95a5a6' }
+                  const span = visibleSeries.length === 1 ? 4 : (index === 0 ? 2 : 1)
+                  return (
+                    <LineChartCard
+                      key={key}
+                      title={cfg.label}
+                      data={timeseries[key]}
+                      dataKey="value"
+                      color={cfg.color}
+                      unit={cfg.unit}
+                      span={span}
+                      onExpand={() => setExpandedChart({
+                        type: 'line',
+                        title: cfg.label,
+                        unit: cfg.unit,
+                        color: cfg.color,
+                        data: timeseries[key]
+                      })}
+                    />
+                  )
+                })}
               </div>
             )}
           </div>
 
-          {/* ── 数据分布 ── */}
-          <div className="chart-section">
-            <h2>数据分布</h2>
-            <Card className="chart-card">
-              {renderBarChart(statistics.data_types)}
-            </Card>
-          </div>
+          {/* ── 数据分布 + 统计明细（同一行）── */}
+          <div className="analyze-duo">
+            <div className="chart-section">
+              <h2>数据分布</h2>
+              <ChartShell
+                label="数据分布"
+                onExpand={() => setExpandedChart({
+                  type: 'bar',
+                  title: '数据分布',
+                  unit: '条',
+                  color: '#22c55e',
+                  data: distributionRows
+                })}
+              >
+                <Card className={`chart-card ${querying ? 'is-querying' : ''}`}>
+                  {renderBarChart(distributionRows)}
+                </Card>
+              </ChartShell>
+            </div>
 
-          {/* ── 数据统计表 ── */}
-          <div className="chart-section">
-            <h2>数据统计</h2>
-            <div className="stats-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>数据类型</th><th>记录数</th><th>平均值</th><th>最小值</th><th>最大值</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(statistics.data_types).map(([key, count]) => {
-                    const cfg = DATA_TYPE_CONFIG[key] || { label: key, unit: '' }
-                    const fmt = (v) => {
-                      if (v === undefined || v === null) return '-'
-                      const s = String(v).trim()
-                      if (s.includes(' ')) return s
-                      const n = parseFloat(s)
-                      return isNaN(n) ? s : cfg.unit ? `${n.toFixed(2)} ${cfg.unit}` : n.toFixed(2)
-                    }
-                    return (
-                      <tr key={key}>
-                        <td><span className="type-indicator" style={{ backgroundColor: cfg.color }}></span>{cfg.label}</td>
-                        <td>{count}</td>
-                        <td>{fmt(statistics.average_values[key])}</td>
-                        <td>{fmt(statistics.min_values[key])}</td>
-                        <td>{fmt(statistics.max_values[key])}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+            <div className="chart-section">
+              <h2>统计明细</h2>
+              <div className="stats-table-wrap">
+                <DataTable
+                  columns={statsColumns}
+                  data={statsRows}
+                  loading={false}
+                  querying={querying}
+                  rowKey="key"
+                  emptyMessage="暂无统计数据"
+                />
+              </div>
             </div>
           </div>
         </>
       )}
+
+      <ChartDetailModal
+        chart={expandedChart}
+        onClose={() => setExpandedChart(null)}
+      />
     </div>
   )
 }

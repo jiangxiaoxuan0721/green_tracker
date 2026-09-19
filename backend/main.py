@@ -29,6 +29,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=cors_methods,
     allow_headers=cors_headers,
+    # 分页总条数通过 X-Total-Count 响应头返回，需显式暴露给前端 JS 读取
+    expose_headers=["X-Total-Count"],
 )
 
 # 启动时初始化数据库和MQTT
@@ -68,9 +70,24 @@ async def startup_event():
         logger.error(f"MQTT initialization failed: {e}")
         logger.warning("MQTT service unavailable, continuing without MQTT...")
 
+    # 启动采集任务自动完成调度（超期任务自动置为已完成）
+    try:
+        from scheduler.session_auto_complete import start as start_session_auto_complete
+        start_session_auto_complete()
+    except Exception as e:
+        logger.error(f"Session auto-complete scheduler failed to start: {e}")
+        logger.warning("Continuing without session auto-complete scheduler...")
+
 @app.on_event("shutdown")
 async def shutdown_event():
-    """关闭时清理MQTT连接"""
+    """关闭时清理MQTT连接与后台调度"""
+    try:
+        from scheduler.session_auto_complete import stop as stop_session_auto_complete
+        stop_session_auto_complete()
+        logger.info("Session auto-complete scheduler stopped")
+    except Exception as e:
+        logger.error(f"Session auto-complete scheduler shutdown error: {e}")
+
     try:
         from mqtt.mqtt_client import shutdown_mqtt_client
         shutdown_mqtt_client()

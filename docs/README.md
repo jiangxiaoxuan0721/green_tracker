@@ -39,7 +39,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| [`algorithm_development_guide.md`](features/algorithm_development_guide.md) | 算法接入开发指南（包结构、`algorithm.yaml`） |
+| [`algorithm_development_guide.md`](features/algorithm_development_guide.md) | 算法包开发指南（部署流程、包结构、`algorithm.yaml`、性能边界与排错） |
 | [`thumbnail_feature_guide.md`](features/thumbnail_feature_guide.md) | 图像缩略图链路 |
 
 ---

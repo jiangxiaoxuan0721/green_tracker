@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collectionSessionService } from '@/services/collectionSessionService'
 import { fieldService } from '@/services/fieldService'
+import { deviceService } from '@/services/deviceService'
 import useToast from '@/hooks/useToast'
 import { FormContainer } from '@/components/business'
 import { Input, Select, Textarea, ToastContainer } from '@/components/ui'
@@ -11,6 +12,7 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
   const [formData, setFormData] = useState({
     mission_name: '',
     field_id: '',
+    device_id: '',
     mission_type: '',
     start_time: '',
     end_time: '',
@@ -18,6 +20,7 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
   })
   const [loading, setLoading] = useState(false)
   const [fields, setFields] = useState([])
+  const [devices, setDevices] = useState([])
 
   useEffect(() => {
     const fetchFields = async () => {
@@ -30,6 +33,16 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
     }
     fetchFields()
 
+    const fetchDevices = async () => {
+      try {
+        const data = await deviceService.getDevices()
+        setDevices(data)
+      } catch (err) {
+        console.error('获取设备列表失败:', err)
+      }
+    }
+    fetchDevices()
+
     if (mode === 'edit' && session) {
       const formatDateTimeForInput = (dateTimeStr) => {
         if (!dateTimeStr) return ''
@@ -41,6 +54,7 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
       setFormData({
         mission_name: session.mission_name || '',
         field_id: session.field_id || '',
+        device_id: session.device_id || '',
         mission_type: session.mission_type || '',
         start_time: formatDateTimeForInput(session.start_time),
         end_time: formatDateTimeForInput(session.end_time),
@@ -81,6 +95,11 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
           description: formData.description || undefined
         }
 
+        // 未选择设备时不传该字段（表示所有设备均可执行）
+        if (formData.device_id) {
+          submitData.device_id = formData.device_id
+        }
+
         if (formData.start_time) {
           submitData.start_time = new Date(formData.start_time).toISOString()
         }
@@ -94,7 +113,9 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
       } else {
         const submitData = {
           mission_name: formData.mission_name,
-          description: formData.description || undefined
+          description: formData.description || undefined,
+          // 编辑时必须显式传：null 表示取消指定，恢复到所有设备均可执行
+          device_id: formData.device_id || null
         }
 
         if (formData.end_time) {
@@ -117,6 +138,9 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
     { value: '', label: '请选择农田' },
     ...fields.map(f => ({ value: f.id, label: f.name }))
   ]
+
+  // placeholder 选项即"不指定"，表示所有设备均可执行
+  const deviceOptions = devices.map(d => ({ value: d.id, label: d.name }))
 
   const missionTypeOptions = [
     { value: '', label: '请选择类型' },
@@ -157,6 +181,16 @@ const SessionForm = ({ mode, session, onClose, onSuccess, isOpen }) => {
         options={fieldOptions}
         required
         disabled={mode === 'edit'}
+      />
+
+      <Select
+        label="下发设备"
+        id="device_id"
+        name="device_id"
+        value={formData.device_id}
+        onChange={handleChange}
+        options={deviceOptions}
+        placeholder="不指定（所有设备均可执行）"
       />
 
       <Select

@@ -5,6 +5,12 @@
   gap: var(--spacing-xs);
 }
 
+/* 查询中：分页信息属于上一次结果，弱化展示避免误导 */
+.data-table.is-querying .data-table-footer {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .data-table-header {
   display: flex;
   align-items: center;

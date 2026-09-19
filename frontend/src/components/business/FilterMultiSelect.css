@@ -1,0 +1,149 @@
+/* FilterMultiSelect 组件样式 - 与 FilterSelect 保持同一套 select_group 观感 */
+.filter-multiselect {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 170px;
+}
+
+/* 在 FilterPanel 中与其它筛选项对齐 */
+.filter-panel .filter-multiselect {
+  flex: 1;
+  min-width: 170px;
+  margin-bottom: 0;
+}
+
+.filter-multiselect-label {
+  font-weight: 400;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.filter-multiselect-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  width: 100%;
+  padding: var(--spacing-md);
+  padding-right: 2rem;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: var(--transition-normal);
+}
+
+.filter-multiselect-trigger:hover:not(:disabled) {
+  border-color: var(--border-light);
+}
+
+.filter-multiselect-trigger.is-open,
+.filter-multiselect-trigger:focus-visible {
+  border-color: var(--border-focus);
+  background-color: var(--bg-input-focus);
+  box-shadow: var(--shadow-glow);
+  outline: none;
+}
+
+.filter-multiselect-trigger:disabled {
+  background-color: var(--bg-subtle);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.filter-multiselect-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-multiselect-caret {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.filter-multiselect-trigger.is-open .filter-multiselect-caret {
+  transform: rotate(180deg);
+}
+
+.filter-multiselect-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  background-color: var(--bg-component);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md, 0 6px 18px rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+}
+
+.filter-multiselect-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.filter-multiselect-action {
+  background: none;
+  border: none;
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  color: var(--primary-color);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.filter-multiselect-action:hover {
+  background-color: var(--bg-subtle);
+}
+
+.filter-multiselect-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: var(--spacing-xs);
+}
+
+.filter-multiselect-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.filter-multiselect-option:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.filter-multiselect-option input[type="checkbox"] {
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.filter-multiselect-option-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

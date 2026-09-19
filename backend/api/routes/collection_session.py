@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request, Response, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 from database.user_db_manager import get_user_db
 from api.routes.auth import get_current_user
 from database.db_models.meta_model import User
+from database.db_models.user_models import Device
 from database.main_db import get_meta_db
 from sqlalchemy.orm import Session
 from database.db_services.log_service import create_log
@@ -13,7 +14,12 @@ from database.db_services.collection_session_service import (
     get_collection_session_with_details,
     update_collection_session,
     delete_collection_session,
-    get_collection_sessions_with_field_info
+    get_collection_sessions_with_field_info,
+    count_collection_sessions_with_field_info,
+    get_available_sessions_for_device,
+    get_latest_collection_session_by_field,
+    auto_complete_expired_sessions,
+    _UNSET
 )
 from api.schemas.collection_session import (
     CollectionSessionCreate,
@@ -44,6 +50,21 @@ def convert_session_to_dict(session, include_user_info=False):
 
     return result
 
+def auto_complete_expired_sessions_safely(db):
+    """
+    读取采集任务前，先将已超过结束时间的任务置为已完成
+
+    后端调度线程会周期性执行同一逻辑，这里在读取时再兜底一次，
+    保证即使调度被禁用，用户看到的状态也是最新的。
+    失败不影响正常查询。
+    """
+    try:
+        completed = auto_complete_expired_sessions(db)
+        if completed:
+            print(f"[API] 自动完成超期采集任务: {completed} 个")
+    except Exception as e:
+        print(f"[API] 自动完成超期采集任务失败: {str(e)}")
+
 # API 路由定义
 @router.post("/", response_model=CollectionSessionWithFieldResponse, summary="创建采集任务")
 async def create_session(
@@ -53,7 +74,7 @@ async def create_session(
     """
     创建新的采集任务/观测会话
     """
-    print(f"[API] 收到创建采集任务请求: 农田ID={session_data.field_id}, 任务类型={session_data.mission_type}")
+    print(f"[API] 收到创建采集任务请求: 农田ID={session_data.field_id}, 任务类型={session_data.mission_type}, 指定设备={session_data.device_id}")
     print(f"[API] 接收到的完整数据: {session_data}")
     print(f"[API] 当前用户: {current_user.username}, ID: {current_user.userid}")
 
@@ -61,7 +82,7 @@ async def create_session(
     db = get_user_db(str(current_user.userid))
 
     try:
-        # 创建采集任务
+        # 创建采集任务（device_id 为空表示不限制设备，所有设备均可执行）
         new_session = create_collection_session(
             db=db,
             field_id=session_data.field_id,
@@ -71,7 +92,8 @@ async def create_session(
             mission_name=session_data.mission_name,
             description=session_data.description,
             weather_snapshot=session_data.weather_snapshot,
-            status=session_data.status
+            status=session_data.status,
+            device_id=session_data.device_id
         )
 
         # 获取创建后的带有详细信息的采集任务
@@ -115,6 +137,8 @@ async def get_session(
     db = get_user_db(str(current_user.userid))
 
     try:
+        auto_complete_expired_sessions_safely(db)
+
         session = get_collection_session_with_details(db, session_id)
         if not session:
             raise HTTPException(status_code=404, detail="采集任务不存在")
@@ -163,6 +187,8 @@ async def get_sessions_by_field(
         if mission_types:
             mission_type_list = [t.strip() for t in mission_types.split(",")]
 
+        auto_complete_expired_sessions_safely(db)
+
         # 使用带有农田信息的查询
         sessions_with_info = get_collection_sessions_with_field_info(
             db=db,
@@ -179,11 +205,45 @@ async def get_sessions_by_field(
     finally:
         db.close()
 
+@router.get("/field/{field_id}/latest", response_model=CollectionSessionResponse, summary="获取指定农田的最新采集任务")
+async def get_latest_session_by_field(
+    field_id: str,
+    mission_type: Optional[str] = Query(None, description="任务类型过滤"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    获取指定农田的最新采集任务（按开始时间倒序取第一条）
+
+    不存在符合条件的任务时返回 404。
+    """
+    print(f"[API] 收到获取农田最新采集任务请求: 农田ID={field_id}")
+
+    # 获取用户的数据库会话
+    db = get_user_db(str(current_user.userid))
+
+    try:
+        auto_complete_expired_sessions_safely(db)
+
+        session = get_latest_collection_session_by_field(
+            db=db,
+            field_id=field_id,
+            mission_type=mission_type
+        )
+
+        if not session:
+            raise HTTPException(status_code=404, detail="该农田暂无符合条件的采集任务")
+
+        return CollectionSessionResponse(**convert_session_to_dict(session))
+    finally:
+        db.close()
+
 @router.get("/", response_model=List[CollectionSessionWithFieldResponse], summary="获取采集任务列表（含农田信息）")
 async def get_sessions_with_field(
+    response: Response,
     limit: int = Query(100, description="返回记录数限制"),
     offset: int = Query(0, description="偏移量"),
     field_id: Optional[str] = Query(None, description="农田ID过滤"),
+    device_id: Optional[str] = Query(None, description="指定设备过滤"),
     start_date: Optional[str] = Query(None, description="开始日期过滤 (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="结束日期过滤 (YYYY-MM-DD)"),
     mission_types: Optional[str] = Query(None, description="任务类型过滤，逗号分隔"),
@@ -191,7 +251,9 @@ async def get_sessions_with_field(
     current_user: User = Depends(get_current_user)
 ):
     """
-    获取采集任务列表，包含关联的农田信息
+    获取采集任务列表，包含关联的农田和设备信息
+
+    响应体为任务数组（兼容既有调用方），符合条件的总条数通过响应头 `X-Total-Count` 返回，供分页使用。
     """
     print("[API] 收到获取采集任务列表请求（含农田信息）")
 
@@ -219,6 +281,20 @@ async def get_sessions_with_field(
         if mission_types:
             mission_type_list = [t.strip() for t in mission_types.split(",")]
 
+        auto_complete_expired_sessions_safely(db)
+
+        # 总条数通过响应头返回，保证响应体仍是数组，兼容既有调用方
+        total = count_collection_sessions_with_field_info(
+            db=db,
+            field_id=field_id,
+            start_date=start_datetime,
+            end_date=end_datetime,
+            mission_types=mission_type_list,
+            status=status,
+            device_id=device_id
+        )
+        response.headers["X-Total-Count"] = str(total)
+
         sessions_with_fields = get_collection_sessions_with_field_info(
             db=db,
             limit=limit,
@@ -227,7 +303,8 @@ async def get_sessions_with_field(
             start_date=start_datetime,
             end_date=end_datetime,
             mission_types=mission_type_list,
-            status=status
+            status=status,
+            device_id=device_id
         )
 
         return [CollectionSessionWithFieldResponse(**session_dict) for session_dict in sessions_with_fields]
@@ -254,6 +331,14 @@ async def update_session(
         if not session_with_details:
             raise HTTPException(status_code=404, detail="采集任务不存在")
 
+        # device_id 需区分"未传"（保持原样）与"显式传 null"（取消指定），
+        # 因此只在请求体显式包含该字段时才传给 service
+        device_id = (
+            session_update.device_id
+            if "device_id" in session_update.model_fields_set
+            else _UNSET
+        )
+
         updated_session = update_collection_session(
             db=db,
             session_id=session_id,
@@ -261,7 +346,8 @@ async def update_session(
             mission_name=session_update.mission_name,
             description=session_update.description,
             weather_snapshot=session_update.weather_snapshot,
-            status=session_update.status
+            status=session_update.status,
+            device_id=device_id
         )
 
         if not updated_session:
@@ -279,6 +365,8 @@ async def update_session(
             pass
 
         return CollectionSessionWithFieldResponse(**session_with_details)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     finally:
         db.close()
 
@@ -334,6 +422,8 @@ async def get_sessions_by_status(
     db = get_user_db(str(current_user.userid))
 
     try:
+        auto_complete_expired_sessions_safely(db)
+
         # 使用带有农田信息的查询
         sessions_with_info = get_collection_sessions_with_field_info(
             db=db,
@@ -347,15 +437,27 @@ async def get_sessions_by_status(
         db.close()
 
 # API密钥认证的接口
-@router.post("/active_sessions", summary="根据API密钥获取活跃采集任务")
+@router.post("/active_sessions", summary="根据API密钥获取设备可执行的采集任务")
 async def get_active_sessions_via_api_key(
     x_api_key: str = Header(..., description="API密钥"),
+    device_id: Optional[str] = Query(None, description="请求任务的设备ID。不传表示不限制设备"),
+    x_device_id: Optional[str] = Header(None, alias="X-Device-Id",
+                                        description="请求任务的设备ID，与 device_id 查询参数等价"),
     meta_db: Session = Depends(get_meta_db)
 ):
     """
-    根据API密钥获取用户的活跃采集任务，只返回ID、名称和描述
+    根据API密钥获取该设备可执行的采集任务，只返回ID、名称、描述和设备ID
+
+    下发规则：
+    - 任务指定了 device_id：只有该设备能拉到此任务
+    - 任务未指定 device_id：所有设备都能拉到此任务
+
+    设备可用 `?device_id=xxx` 或 `X-Device-Id` 请求头标识自己（二者等价）。
     """
-    print(f"[API] 收到通过API密钥获取活跃采集任务请求: API密钥={x_api_key[:10]}...")
+    # 设备标识：查询参数与请求头任选其一
+    requester_device_id = device_id or x_device_id
+
+    print(f"[API] 收到通过API密钥获取可用采集任务请求: API密钥={x_api_key[:10]}..., 设备={requester_device_id}")
     
     # 验证API密钥
     from database.db_services.api_key_service import validate_api_key
@@ -381,24 +483,32 @@ async def get_active_sessions_via_api_key(
     db = get_user_db(str(user.userid))
     
     try:
-        # 使用带有农田信息的查询，过滤正在运行的任务
-        sessions_with_info = get_collection_sessions_with_field_info(
+        # 校验设备标识，避免设备ID填错时被静默降级为"所有设备可执行"
+        if requester_device_id:
+            device = db.query(Device).filter(Device.id == requester_device_id).first()
+            if not device:
+                raise HTTPException(status_code=404, detail=f"设备不存在: {requester_device_id}")
+
+        # 只返回该设备可执行的运行中任务
+        sessions_with_info = get_available_sessions_for_device(
             db=db,
+            device_id=requester_device_id,
+            status="running",
             limit=100,
-            offset=0,
-            status="running"
+            offset=0
         )
-        
-        # 只返回ID、名称和描述
+
+        # 只返回ID、名称和描述（附带 device_id 便于设备确认任务归属）
         result = []
         for session in sessions_with_info:
             result.append({
                 "id": session["id"],
                 "mission_name": session["mission_name"],
-                "description": session["description"]
+                "description": session["description"],
+                "device_id": session["device_id"]
             })
         
-        print(f"[API] 找到 {len(result)} 个活跃采集任务")
+        print(f"[API] 找到 {len(result)} 个可执行的采集任务")
         return result
     finally:
         db.close()

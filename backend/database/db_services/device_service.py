@@ -259,6 +259,34 @@ def restore_device(db: Session, device_id: str) -> Optional[Device]:
 HEARTBEAT_TIMEOUT_SECONDS = 120  # 120秒未收到心跳判定离线
 
 
+def count_devices_online_status(db: Session, active_only: bool = True) -> tuple:
+    """
+    统计设备总数与在线设备数
+
+    在线判定复用 get_device_online_status，与设备列表/详情返回的 online 字段同源，
+    保证"在线 + 离线 == 总数"始终成立：从未上报过心跳的设备计入离线而非被忽略。
+
+    Args:
+        db: 数据库会话
+        active_only: 是否只统计活跃设备，默认为True
+
+    Returns:
+        (设备总数, 在线数, 设备ID列表)
+    """
+    query = db.query(Device)
+
+    if active_only:
+        query = query.filter(Device.is_active == True)
+
+    devices = query.all()
+    device_ids = [str(d.id) for d in devices]
+    online_count = sum(
+        1 for d in devices if get_device_online_status(d).get("online")
+    )
+
+    return len(devices), online_count, device_ids
+
+
 def update_device_last_seen(db: Session, device_id: str) -> bool:
     """
     更新设备最后在线时间

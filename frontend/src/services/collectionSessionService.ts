@@ -46,6 +46,8 @@ export interface CollectionSessionWithField {
 
 export interface CollectionSessionCreate {
   field_id: string;
+  // 指定执行设备；不传表示所有设备均可执行
+  device_id?: string;
   creator_id?: string;
   start_time: string;
   mission_type: string;
@@ -62,16 +64,25 @@ export interface CollectionSessionUpdate {
   description?: string;
   weather_snapshot?: Record<string, any>;
   status?: string;
+  // 指定执行设备；null 表示取消指定，所有设备均可执行
+  device_id?: string | null;
 }
 
 export interface SessionParams {
   limit?: number;
   offset?: number;
   field_id?: string;
+  device_id?: string;
   start_date?: string;
   end_date?: string;
   mission_types?: string;
   status?: string;
+}
+
+// 带分页信息的列表结果
+export interface PaginatedSessions {
+  items: CollectionSessionWithField[];
+  total: number;
 }
 
 // 采集任务/会话相关的API服务
@@ -82,6 +93,7 @@ export const collectionSessionService = {
       limit = 100,
       offset = 0,
       field_id,
+      device_id,
       start_date,
       end_date,
       mission_types,
@@ -93,6 +105,7 @@ export const collectionSessionService = {
     queryParams.append('offset', offset.toString());
     
     if (field_id) queryParams.append('field_id', field_id);
+    if (device_id) queryParams.append('device_id', device_id);
     if (start_date) queryParams.append('start_date', start_date);
     if (end_date) queryParams.append('end_date', end_date);
     if (mission_types) queryParams.append('mission_types', mission_types);
@@ -101,7 +114,40 @@ export const collectionSessionService = {
     const response = await api.get(`/api/collection-sessions?${queryParams.toString()}`);
     return response.data;
   },
-  
+
+  // 获取采集任务列表（含分页总数）
+  // 后端响应体仍是数组，总条数通过 X-Total-Count 响应头返回
+  getSessionsWithPagination: async (params: SessionParams = {}): Promise<PaginatedSessions> => {
+    const {
+      limit = 100,
+      offset = 0,
+      field_id,
+      device_id,
+      start_date,
+      end_date,
+      mission_types,
+      status
+    } = params;
+
+    const queryParams = new URLSearchParams();
+    queryParams.append('limit', limit.toString());
+    queryParams.append('offset', offset.toString());
+
+    if (field_id) queryParams.append('field_id', field_id);
+    if (device_id) queryParams.append('device_id', device_id);
+    if (start_date) queryParams.append('start_date', start_date);
+    if (end_date) queryParams.append('end_date', end_date);
+    if (mission_types) queryParams.append('mission_types', mission_types);
+    if (status) queryParams.append('status', status);
+
+    const response = await api.get(`/api/collection-sessions?${queryParams.toString()}`);
+    const totalHeader = response.headers?.['x-total-count'];
+    const items = response.data || [];
+    const total = totalHeader !== undefined ? Number(totalHeader) : items.length;
+
+    return { items, total };
+  },
+
   // 根据ID获取采集任务详情
   getSessionById: async (sessionId: string): Promise<CollectionSession> => {
     const response = await api.get(`/api/collection-sessions/${sessionId}`);
