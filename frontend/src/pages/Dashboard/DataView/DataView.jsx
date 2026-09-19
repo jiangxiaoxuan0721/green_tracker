@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Eye } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { rawDataService } from '@/services/rawDataService'
@@ -25,6 +25,8 @@ const DataView = () => {
   const [total, setTotal] = useState(0)
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
+  // 筛选条件变更后、结果返回前的查询态，用于与「查无数据」区分
+  const [querying, setQuerying] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
 
@@ -218,6 +220,7 @@ const DataView = () => {
       console.error('获取数据列表失败:', err)
     } finally {
       setLoading(false)
+      setQuerying(false)
     }
   }
 
@@ -225,11 +228,19 @@ const DataView = () => {
     fetchData(1)
   }, [user?.id])
 
-  // 监听filters变化，自动获取数据
+  // 监听filters变化，自动获取数据；首屏由上面的 effect 负责，这里只处理用户主动筛选
+  const filtersAppliedRef = useRef(false)
+
   useEffect(() => {
-    if (user?.id) {
-      fetchData(1)
+    if (!user?.id) return
+
+    if (!filtersAppliedRef.current) {
+      filtersAppliedRef.current = true
+      return
     }
+
+    setQuerying(true)
+    fetchData(1)
   }, [filters, user?.id])
 
   const handleFilterChange = (newFilters) => {
@@ -372,7 +383,7 @@ const DataView = () => {
             <Button
               variant="primary"
               onClick={() => setShowExportMenu(!showExportMenu)}
-              disabled={loading || exporting}
+              disabled={loading || querying || exporting}
             >
               {exporting ? '导出中...' : '导出数据 ▼'}
             </Button>
@@ -434,6 +445,7 @@ const DataView = () => {
         columns={columns}
         data={data}
         loading={loading}
+        querying={querying}
         emptyMessage="暂无数据"
         pagination={{
           total,

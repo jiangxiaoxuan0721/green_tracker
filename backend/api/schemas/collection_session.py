@@ -5,6 +5,7 @@ from datetime import datetime
 
 class CollectionSessionBase(BaseModel):
     field_id: str = Field(..., description="农田ID")
+    device_id: Optional[str] = Field(None, description="指定执行设备ID；为空表示不限制设备，所有设备均可执行")
     start_time: datetime = Field(..., description="任务开始时间")
     mission_type: str = Field(..., description="任务类型（巡检/定点/路径/应急）")
     end_time: Optional[datetime] = Field(None, description="任务结束时间")
@@ -17,6 +18,7 @@ class CollectionSessionBase(BaseModel):
         "json_schema_extra": {
             "example": {
                 "field_id": "550e8400-e29b-41d4-a716-446655440000",
+                "device_id": None,
                 "start_time": "2025-01-01T10:00:00",
                 "mission_type": "巡检",
                 "end_time": "2025-01-01T12:00:00",
@@ -39,6 +41,7 @@ class CollectionSessionUpdate(BaseModel):
     description: Optional[str] = Field(None, description="任务说明")
     weather_snapshot: Optional[Dict[str, Any]] = Field(None, description="采集时的环境快照")
     status: Optional[str] = Field(None, description="任务状态")
+    device_id: Optional[str] = Field(None, description="指定执行设备ID；传 null 表示取消指定，恢复为所有设备均可执行")
 
     model_config = {
         "json_schema_extra": {
@@ -54,6 +57,7 @@ class CollectionSessionResponse(BaseModel):
     """采集会话响应模型"""
     id: str
     field_id: str
+    device_id: Optional[str] = None
     start_time: datetime
     end_time: Optional[datetime]
     mission_type: str

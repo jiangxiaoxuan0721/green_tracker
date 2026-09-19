@@ -9,6 +9,7 @@ const StatusBadge = ({ status, className = '' }) => {
       unknown: { className: 'status-scheduled', text: '未知' },
 
       // 任务状态
+      planned: { className: 'status-scheduled', text: '计划中' },
       pending: { className: 'status-scheduled', text: '待处理' },
       processing: { className: 'status-running', text: '进行中' },
       completed: { className: 'status-completed', text: '已完成' },

@@ -4,21 +4,32 @@ const Table = ({
   columns,
   data,
   loading = false,
+  querying = false,
+  loadingText,
   emptyMessage = '暂无数据',
   className = '',
   onRowClick,
   rowKey = 'id'
 }) => {
-  if (loading) {
+  // 查询中（筛选条件变更后等待结果）同样需要展示占位，避免被误读为「无数据」
+  const showLoading = loading || querying
+  const resolvedLoadingText =
+    loadingText || (querying ? '正在查询...' : '正在加载...')
+
+  if (showLoading) {
     return (
-      <div className={`table-container ${className}`}>
+      <div
+        className={`table-container ${querying ? 'table-querying' : ''} ${className}`.trim()}
+        role="status"
+        aria-busy="true"
+      >
         <div className="table-loading">
           <div className="table-loading-dots">
             <div className="table-loading-dot"></div>
             <div className="table-loading-dot"></div>
             <div className="table-loading-dot"></div>
           </div>
-          <div className="table-loading-text">正在加载...</div>
+          <div className="table-loading-text">{resolvedLoadingText}</div>
         </div>
       </div>
     )

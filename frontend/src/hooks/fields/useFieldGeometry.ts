@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
 import { fieldService } from '@/services/fieldService'
-import { boundsOf, parseWKT, type LngLat } from '@/utils/geo'
+import { boundsOf, type LngLat } from '@/utils/geo'
 import type { Bbox } from '@/utils/geo/cluster'
+import { useFieldGeometryStore, type RingCache } from '@/store/useFieldGeometryStore'
 
-export type RingCache = Map<string, LngLat[]>
+export type { RingCache }
 
 /**
  * 求出尚未缓存的 id，供增量请求使用。
@@ -13,25 +14,8 @@ export type RingCache = Map<string, LngLat[]>
 export const diffMissingIds = (ids: string[], cache: RingCache): string[] =>
   ids.filter((id) => !cache.has(id))
 
-/**
- * 会话级几何缓存。
- *
- * 原先挂在 hook 实例的 useRef 上：切到其他页面时 Fields 卸载，缓存连同地图实例一起
- * 消失 —— 明明刚才刚看过的地块，回来还要重新拉一遍整屏 WKT。
- * 提到模块作用域后，只要不刷新浏览器就一直命中。
- *
- * 安全性：地块数据的写操作只发生在 Fields 页（全仓仅三处调用），且每次写完都调用 invalidate，
- * 会话期内因此不会读到过期几何。换账号由 resetSessionGeometry 兜底（见 Fields.jsx）。
- */
-const SESSION_CACHE: RingCache = new Map()
-
-/** 清空会话缓存：换账号时必须调用，否则新账号会看到上一个账号的图斑 */
-export const resetSessionGeometry = (): void => {
-  SESSION_CACHE.clear()
-}
-
 export interface FieldGeometryStore {
-  /** 同步读取缓存；未命中返回 undefined */
+  /** 同步读取缓存；未命中或已过期返回 undefined */
   ringsOf: (id: string) => LngLat[] | undefined
   has: (id: string) => boolean
   /**
@@ -49,66 +33,64 @@ export interface FieldGeometryStore {
   version: number
 }
 
+/**
+ * 地块几何的请求层。
+ *
+ * 缓存本身已搬到 @/store/useFieldGeometryStore（TTL + 容量上限 + 换账号 reset），
+ * 这里只负责「什么时候发请求、loading 怎么走」，并把缓存操作转发给 store。
+ *
+ * version 直接订阅 store 的 version（写入即自增）：原先只在「最新一次请求」时自增，
+ * 慢响应带来的多余渲染确实省了，但也埋着漏渲染的坑 —— 一次非最新的写入若不自增，
+ * 新几何就静静地躺在缓存里不上屏。渲染幂等，多渲一次远比漏渲一次好修。
+ */
 export const useFieldGeometry = (): FieldGeometryStore => {
-  const cacheRef = useRef<RingCache>(SESSION_CACHE)
+  const version = useFieldGeometryStore((s) => s.version)
   const seqRef = useRef(0)
   const [loading, setLoading] = useState(false)
-  const [version, setVersion] = useState(0)
 
-  const put = useCallback((id: string, wkt?: string | null) => {
-    if (!wkt) return
-    const ring = parseWKT(wkt)
-    if (!ring) return
-    cacheRef.current.set(id, ring)
+  const fetchVisible = useCallback(async (bbox: Bbox): Promise<string[] | null> => {
+    const seq = (seqRef.current += 1)
+    setLoading(true)
+    try {
+      const rows = await fieldService.getFieldsGeometry(bbox)
+      // 即使视野已变也写入缓存：数据可复用，不浪费
+      useFieldGeometryStore.getState().putMany(rows)
+      // 返回值仍给调用方，由其按 seq 决定是否采用
+      return rows.map((r) => r.id)
+    } catch (e) {
+      console.error('[useFieldGeometry] 获取视野内几何失败:', e)
+      // 不抛错：调用方不期望 rejection；返回 null 以便其区分「失败」与「确实没有地块」
+      return null
+    } finally {
+      if (seq === seqRef.current) setLoading(false)
+    }
   }, [])
 
-  const fetchVisible = useCallback(
-    async (bbox: Bbox): Promise<string[] | null> => {
-      const seq = (seqRef.current += 1)
-      setLoading(true)
-      try {
-        const rows = await fieldService.getFieldsGeometry(bbox)
-        // 即使视野已变也写入缓存：数据可复用，不浪费
-        rows.forEach((r) => put(r.id, r.location_wkt))
-        // 只有最新一次请求才触发重渲染；返回值仍给调用方，由其按 seq 决定是否采用
-        if (seq === seqRef.current) setVersion((v) => v + 1)
-        return rows.map((r) => r.id)
-      } catch (e) {
-        console.error('[useFieldGeometry] 获取视野内几何失败:', e)
-        // 不抛错：调用方不期望 rejection；返回 null 以便其区分「失败」与「确实没有地块」
-        return null
-      } finally {
-        if (seq === seqRef.current) setLoading(false)
-      }
-    },
-    [put]
-  )
-
-  const ensureGeometry = useCallback(
-    async (id: string): Promise<LngLat[] | null> => {
-      const cached = cacheRef.current.get(id)
-      if (cached) return cached
-      try {
-        const field = await fieldService.getFieldById(id)
-        put(id, field.location_wkt)
-        setVersion((v) => v + 1)
-        return cacheRef.current.get(id) ?? null
-      } catch (e) {
-        console.error('[useFieldGeometry] 获取地块几何失败:', e)
-        return null
-      }
-    },
-    [put]
-  )
+  const ensureGeometry = useCallback(async (id: string): Promise<LngLat[] | null> => {
+    const cached = useFieldGeometryStore.getState().ringOf(id)
+    if (cached) return cached
+    try {
+      const field = await fieldService.getFieldById(id)
+      useFieldGeometryStore.getState().put(id, field.location_wkt)
+      return useFieldGeometryStore.getState().ringOf(id) ?? null
+    } catch (e) {
+      console.error('[useFieldGeometry] 获取地块几何失败:', e)
+      return null
+    }
+  }, [])
 
   const invalidate = useCallback((id?: string) => {
-    if (id) cacheRef.current.delete(id)
-    else cacheRef.current.clear()
-    setVersion((v) => v + 1)
+    useFieldGeometryStore.getState().invalidate(id)
   }, [])
 
-  const ringsOf = useCallback((id: string) => cacheRef.current.get(id), [])
-  const has = useCallback((id: string) => cacheRef.current.has(id), [])
+  const ringsOf = useCallback(
+    (id: string) => useFieldGeometryStore.getState().ringOf(id),
+    []
+  )
+  const has = useCallback(
+    (id: string) => useFieldGeometryStore.getState().ringOf(id) !== undefined,
+    []
+  )
 
   return { ringsOf, has, fetchVisible, ensureGeometry, invalidate, loading, version }
 }

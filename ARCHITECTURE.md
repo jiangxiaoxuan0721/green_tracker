@@ -38,6 +38,7 @@ Nginx (:80/:443)              终止 TLS、反向代理
 | ORM 模型 | `backend/database/db_models` | SQLAlchemy 2.0 模型（`meta_model.py` 元库、`user_models.py` 用户库） |
 | 存储 | `backend/storage` | MinIO 客户端、Dockerfile 生成、容器与镜像构建 |
 | 设备通信 | `backend/mqtt` | MQTT 客户端、设备状态管理与路由 |
+| 后台调度 | `backend/scheduler` | 周期性数据维护任务，守护线程随应用生命周期启停 |
 
 依赖方向：**路由 → 服务 → 模型**，路由层不直接写 SQL。
 
@@ -109,8 +110,24 @@ Nginx (:80/:443)              终止 TLS、反向代理
 | PUT | `/{session_id}` | 更新会话 |
 | DELETE | `/{session_id}` | 删除会话 |
 | GET | `/field/{field_id}` | 按地块查询会话 |
+| GET | `/field/{field_id}/latest` | 该地块最新会话（可按 `mission_type` 过滤，无结果返回 404） |
 | GET | `/status/{status}` | 按状态查询会话 |
 | POST | `/active_sessions` | 批量查询活跃会话 |
+
+> **分页约定**：列表接口统一使用 `limit` / `offset`，响应体为数组。
+> `GET /` 会把符合过滤条件的总条数放在响应头 `X-Total-Count` 中（CORS 已暴露该头），前端据此渲染分页器。
+
+> **设备下发规则**：任务可通过 `device_id` 指定由哪台设备执行。
+> - 指定了设备：只有该设备能拉到此任务
+> - 未指定（`device_id` 为 NULL）：所有设备均可执行
+>
+> 远程设备通过 `POST /active_sessions` 拉取可执行任务时，用 `?device_id=xxx` 或 `X-Device-Id` 请求头标识自己；
+> 服务端返回"指派给该设备的任务"+"未指派的任务"。不传设备标识则不过滤（兼容旧设备）。
+> 设备被删除时外键 `ON DELETE SET NULL`，任务自动回退为"所有设备可执行"。
+
+> **超期自动完成**：任务的 `end_time` 早于当前时间且状态仍为 `planned` / `running` 时会自动置为 `completed`。
+> 由 `backend/scheduler/session_auto_complete.py` 周期性扫描所有用户库执行（间隔 `SESSION_AUTO_COMPLETE_INTERVAL`，默认 60s）；
+> 上述查询接口在返回前也会对当前用户库兜底执行一次，因此即使调度被禁用，读到的状态依然是最新的。
 
 ### 原始数据 `/api/raw-data`
 

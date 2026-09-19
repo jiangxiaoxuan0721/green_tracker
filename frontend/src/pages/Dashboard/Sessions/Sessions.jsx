@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { collectionSessionService } from '@/services/collectionSessionService'
 import { fieldService } from '@/services/fieldService'
 import { Button, Card, PageHeader } from '@/components/ui'
@@ -13,6 +13,8 @@ const Sessions = () => {
   const [sessions, setSessions] = useState([])
   const [fields, setFields] = useState([])
   const [initialLoading, setInitialLoading] = useState(true)
+  // 筛选条件变更后、结果返回前的查询态，用于与「查无数据」区分
+  const [querying, setQuerying] = useState(false)
   const [error, setError] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [total, setTotal] = useState(0)
@@ -43,17 +45,25 @@ const Sessions = () => {
 
   const fetchSessions = async (page = currentPage, filterParams = filters) => {
     try {
+      // 后端接口使用 limit/offset 分页，这里由页码换算
       const params = {
-        page,
-        page_size: pageSize
+        limit: pageSize,
+        offset: (page - 1) * pageSize
       }
       if (filterParams.status) params.status = filterParams.status
       if (filterParams.field) params.field_id = filterParams.field
       if (filterParams.missionType) params.mission_types = filterParams.missionType
 
-      const response = await collectionSessionService.getSessions(params)
-      setSessions(response.data || response.items || response)
-      setTotal(response.total || response.count || (Array.isArray(response) ? response.length : 0))
+      const { items, total } = await collectionSessionService.getSessionsWithPagination(params)
+
+      // 分页生效后可能出现页码越界（例如删掉了某页最后一条），回退到上一页
+      if (items.length === 0 && total > 0 && page > 1) {
+        fetchSessions(page - 1, filterParams)
+        return
+      }
+
+      setSessions(items)
+      setTotal(total)
       setCurrentPage(page)
       setError(null)
     } catch (err) {
@@ -61,6 +71,7 @@ const Sessions = () => {
       setError('获取采集任务失败: ' + (err.response?.data?.detail || err.message))
     } finally {
       setInitialLoading(false)
+      setQuerying(false)
     }
   }
 
@@ -84,11 +95,39 @@ const Sessions = () => {
     fetchFields()
   }, [])
 
+  // 记录上一次已提交的筛选条件，避免首屏加载完成后重复请求
+  const appliedFiltersRef = useRef(filters)
+
   useEffect(() => {
-    if (!initialLoading) {
-      debouncedFetchSessions(1, filters)
-    }
+    if (initialLoading) return
+
+    const prev = appliedFiltersRef.current
+    const changed =
+      prev.status !== filters.status ||
+      prev.field !== filters.field ||
+      prev.missionType !== filters.missionType
+
+    if (!changed) return
+
+    appliedFiltersRef.current = filters
+    // 防抖等待期间同样保持查询态，避免用户看到上一次的结果或「暂无数据」
+    setQuerying(true)
+    debouncedFetchSessions(1, filters)
   }, [filters.status, filters.field, filters.missionType, initialLoading])
+
+  // 保存最新的刷新上下文，供定时轮询使用（避免闭包拿到过期的页码/筛选条件）
+  const refreshContextRef = useRef({ fetchSessions, currentPage, filters })
+  refreshContextRef.current = { fetchSessions, currentPage, filters }
+
+  // 定时刷新：后端会把超过结束时间的任务自动置为已完成，这里让列表及时同步
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      const { fetchSessions: fetch, currentPage: page, filters: latestFilters } = refreshContextRef.current
+      fetch(page, latestFilters)
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [])
 
   const handleFilterChange = (name, value) => {
     setFilters(prev => ({ ...prev, [name]: value }))
@@ -214,6 +253,11 @@ const Sessions = () => {
       render: (val) => val || '-'
     },
     {
+      title: '执行设备',
+      dataIndex: 'device_name',
+      render: (val) => val || '所有设备'
+    },
+    {
       title: '状态',
       dataIndex: 'status',
       render: (status) => <StatusBadge status={status} />
@@ -301,6 +345,7 @@ const Sessions = () => {
         columns={columns}
         data={sessions}
         loading={initialLoading}
+        querying={querying}
         emptyMessage="暂无数据"
         pagination={{
           total,
@@ -324,6 +369,7 @@ const Sessions = () => {
           session={selectedSession}
           onClose={closeDetail}
           onEdit={handleEditSession}
+          onUpdateStatus={handleUpdateSessionStatus}
         />
       )}
 

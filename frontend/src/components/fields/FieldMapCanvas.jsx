@@ -57,7 +57,14 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
       [sw.getLng(), sw.getLat()],
       [ne.getLng(), ne.getLat()],
     ])
-    handlersRef.current.onViewportChange?.(map.getZoom(), [bounds[0], bounds[1]])
+    const c = map.getCenter()
+    // center 一并上报：调用方靠它做「切走再回来还原视角」的记账。
+    // 不能让调用方留到卸载时再回头问 —— 那时本组件的 imperative handle 已被 React 置 null。
+    handlersRef.current.onViewportChange?.(
+      map.getZoom(),
+      [bounds[0], bounds[1]],
+      toStorage([c.getLng(), c.getLat()])
+    )
   }
 
   // 初始化地图（只跑一次）
@@ -88,27 +95,10 @@ const FieldMapCanvas = forwardRef(function FieldMapCanvas(
     })
   }, [ready])
 
+  // 注意：本组件卸载时 React 会先把 ref 置为 null，再跑父组件的 useEffect cleanup。
+  // 因此「读当前视角」这类需求必须由本组件在事件回调里主动上报（见 emitViewport），
+  // 不能留给调用方在卸载时回头来问。
   useImperativeHandle(ref, () => ({
-    getViewport: () => {
-      const map = mapRef.current
-      if (!map) return null
-      const b = map.getBounds()
-      const sw = b.getSouthWest()
-      const ne = b.getNorthEast()
-      // 同 emitViewport：AMap 返回 GCJ-02，转回 WGS84 后交给调用方
-      const bounds = toStorageRing([
-        [sw.getLng(), sw.getLat()],
-        [ne.getLng(), ne.getLat()],
-      ])
-      const c = map.getCenter()
-      return {
-        zoom: map.getZoom(),
-        // center 供「切走再回来还原上次视角」使用，同样必须转回 WGS84
-        center: toStorage([c.getLng(), c.getLat()]),
-        bounds: [bounds[0], bounds[1]],
-      }
-    },
-
     fitBounds: (bounds, padding = 80) => {
       const map = mapRef.current
       if (!map || !bounds) return

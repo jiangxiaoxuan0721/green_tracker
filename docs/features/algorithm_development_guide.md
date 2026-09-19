@@ -1,411 +1,349 @@
-# 算法开发规范指南
+# 算法包开发指南
 
-本文档指导算法开发者如何打包符合 Green Tracker 算法广场要求的算法包，使其能够被自动构建为容器服务并对外提供 API。
+面向算法开发者：如何打包一个能被 Green Tracker 自动构建为容器、并在算法广场上提供在线推理的算法包。
 
 ---
 
 ## 目录
 
-1. [算法包结构](#1-算法包结构)
-2. [algorithm.yaml 配置详解](#2-algorithmyaml-配置详解)
-3. [predict.py 服务入口](#3-predictpy-服务入口)
-4. [requirements.txt 依赖管理](#4-requirementstxt-依赖管理)
-5. [完整示例](#5-完整示例)
-6. [常见问题](#6-常见问题)
+1. [部署流程总览](#1-部署流程总览)
+2. [算法包结构](#2-算法包结构)
+3. [algorithm.yaml 规范](#3-algorithmyaml-规范)
+4. [src/predict.py 服务入口](#4-srcpredictpy-服务入口)
+5. [requirements.txt 规范](#5-requirementstxt-规范)
+6. [性能边界](#6-性能边界)
+7. [部署状态机与构建日志](#7-部署状态机与构建日志)
+8. [完整示例](#8-完整示例)
+9. [排错清单](#9-排错清单)
+10. [发布检查清单](#10-发布检查清单)
 
 ---
 
-## 1. 算法包结构
+## 1. 部署流程总览
 
-算法必须打包为 ZIP 文件，包含以下目录结构：
+上传一个 ZIP，其余由平台完成：
 
-```
-algorithm.zip
-├── algorithm.yaml      # 【必需】算法配置文件
-├── requirements.txt    # 【可选】Python 依赖
-└── src/                # 【必需】源代码目录
-    ├── predict.py      # 【必需】FastAPI 服务入口
-    └── your_code.py    # 【可选】其他代码文件
-```
+| 阶段 | 平台行为 | 你的代码在此阶段做什么 |
+|------|----------|------------------------|
+| 1. 上传 | 校验 `.zip` 后缀与大小，流式写入 MinIO（`{算法UUID}/{文件名}`），建库记录 `status=pending` | — |
+| 2. 提交构建 | 立即异步创建 build task（同一算法并发提交返回 409） | — |
+| 3. 构建镜像 | 下载并解压算法包 → 递归查找 `algorithm.yaml` → 生成 Dockerfile → 清理同前缀旧镜像 → `docker build` → 打 `:latest` 别名 | `framework` 决定基础镜像；`requirements.txt` 决定装什么 |
+| 4. 启动容器 | 清理同名旧容器 → 从端口池分配空闲主机端口 → `docker run -p {主机端口}:8000 --memory 4g` | 容器内**固定监听 8000** |
+| 5. 健康检查 | 轮询 `http://localhost:{端口}/health`，等待就绪 | `/health` 必须返回 200 |
+| 6. 上线 | 写回 `container_port` 与 `docker_image`，`status=running` | 通过 `POST /api/algorithms/{id}/predict` 被调用 |
 
-### 目录结构说明
-
-| 文件/目录 | 必须 | 说明 |
-|-----------|------|------|
-| `algorithm.yaml` | ✅ | 算法元数据配置 |
-| `src/predict.py` | ✅ | FastAPI 服务入口，必须导出 `app` 对象 |
-| `requirements.txt` | ❌ | Python 依赖，不提供则使用默认基础镜像 |
-| `src/*.py` | ❌ | 其他算法代码文件 |
+关键点：**你不需要（也不能）自己指定端口**。容器内部固定 8000，宿主机端口由平台在 8001–9999 之间动态分配并映射进来。
 
 ---
 
-## 2. algorithm.yaml 配置详解
+## 2. 算法包结构
 
-`algorithm.yaml` 是算法的元数据配置文件，用于描述算法基本信息、输入输出规范等。
+### 2.1 标准结构
 
-### 完整配置示例
+```
+my-algorithm.zip
+├── algorithm.yaml        # 【必需】元数据（至少要有 framework）
+├── requirements.txt      # 【必需】依赖（见第 5 节：镜像不含 fastapi/uvicorn）
+└── src/
+    ├── predict.py        # 【必需】FastAPI 入口，必须导出 app
+    ├── __init__.py       # 【建议】空文件，规避包解析差异
+    ├── model.pth         # 【可选】随包分发的模型权重
+    └── utils.py          # 【可选】其他代码
+```
+
+### 2.2 结构与路径约束
+
+> **规则 1：ZIP 必须在根目录直接包含 `algorithm.yaml`、`requirements.txt`、`src/`，不能多包一层目录。**
+
+打包时请进入目录内部打包：
+
+```bash
+cd my-algorithm && zip -r ../my-algorithm.zip .
+```
+
+原因：Dockerfile 生成在解压根，`COPY . /app/`，启动命令固定为 `src.predict:app`。若多一层 `my-algorithm/`，`algorithm.yaml` 仍能被递归找到（构建阶段不会报错），但容器启动时 `/app/src/predict.py` 不存在 —— 表现为**构建成功、健康检查超时**。
+
+> **规则 2：`requirements.txt` 必须在解压根，不能放在 `src/` 下。**
+
+Dockerfile 中是 `if [ -f /app/requirements.txt ]`，放在别处会被静默跳过，运行时报 `ModuleNotFoundError`。
+
+> **规则 3：加载随包资源一律用 `__file__` 相对定位。**
+
+```python
+from pathlib import Path
+MODEL_PATH = Path(__file__).parent / "model.pth"
+```
+
+容器工作目录为 `/app`，进程不以 `src/` 为 cwd，硬编码相对路径会失败。
+
+---
+
+## 3. algorithm.yaml 规范
+
+### 3.1 最小可用配置
 
 ```yaml
-# 算法基本信息
-name: "水稻病害识别模型"        # 算法名称（必填）
-version: "1.0.0"              # 版本号（必填）
-description: "基于YOLOv8的水稻病害识别，可检测稻瘟病、白叶枯病等"  # 算法描述
-framework: "pytorch"          # 框架类型（必填）
-
-# 输入配置
-input:
-  type: "image"                # 输入类型：image | json | file
-  formats: ["jpg", "png"]      # 支持的格式（可选）
-  max_size: 10485760          # 最大文件大小（字节，默认10MB）
-  description: "上传待检测的图片"  # 输入描述
-
-# 输出配置
-output:
-  type: "json"                 # 输出类型：json | file | image
-  description: "返回检测结果，包含病害类型、位置、置信度"
-
-# 算法元数据
-metadata:
-  author: "张三"               # 作者
-  license: "MIT"               # 许可证
-  tags:                        # 标签
-    - "农业"
-    - "病害检测"
-    - "YOLOv8"
-  dataset: "水稻病害数据集v2"    # 训练数据集
-  accuracy: "95.6%"            # 准确率指标
+framework: "pytorch"
 ```
 
-### 字段说明
+构建阶段**只消费 `framework` 这一个字段**。它决定基础镜像，写错会直接导致依赖装不上或 CUDA 版本不匹配。
 
-#### 必需字段
+### 3.2 完整字段
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `name` | string | 算法名称 |
-| `version` | string | 版本号，格式：X.Y.Z |
-| `framework` | string | 框架类型，见下方列表 |
+```yaml
+name: "水稻病害识别"        # 记录用途；展示用的名称以上传表单为准
+version: "1.0.0"           # 记录用途；展示用的版本以上传表单为准
+description: "基于 YOLOv8 的水稻病害识别"
+framework: "pytorch"       # ★ 唯一被构建流程消费的字段
 
-#### framework 可选值
+input:
+  type: "image"            # 记录用途（image / json / file）
+  formats: ["jpg", "png"]
+  max_size: 10485760       # 记录用途：平台当前不校验推理输入大小
+  description: "上传水稻叶片图片"
 
-| 值 | 说明 | 基础镜像 |
-|---|------|----------|
-| `pytorch` | PyTorch 深度学习框架 | pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime |
-| `tensorflow` | TensorFlow 框架 | tensorflow/tensorflow:2.13.0-gpu |
-| `onnx` | ONNX 运行时 | onnx/onnxruntime:latest |
-| `opencv` | OpenCV 图像处理 | python:3.9-slim |
-| `python` | 纯 Python | python:3.9-slim |
+output:
+  type: "json"             # 记录用途（json / file / image）
+  description: "病害类型、坐标、置信度"
 
-#### input 字段
+metadata:
+  author: "张三"
+  license: "MIT"
+  tags: ["农业", "病害检测", "YOLOv8"]
+  accuracy: "96.5%"
+```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `type` | string | 输入类型：image / json / file |
-| `formats` | array | 支持的文件格式（type=image 时） |
-| `max_size` | int | 最大文件大小（字节） |
-| `description` | string | 输入描述 |
+### 3.3 framework 取值与基础镜像
 
-#### output 字段
+| framework | 基础镜像 | 适用 |
+|-----------|----------|------|
+| `pytorch` | `pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime` | PyTorch 模型 |
+| `tensorflow` | `tensorflow/tensorflow:2.13.0-gpu` | TensorFlow / Keras 模型 |
+| `onnx` | `onnx/onnxruntime:latest` | ONNX Runtime 推理（注意 `latest` 为浮动标签） |
+| `opencv` | `python:3.9-slim` | 传统图像处理 |
+| `python` | `python:3.9-slim` | 纯 Python（**缺省值**） |
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `type` | string | 输出类型：json / file / image |
-| `description` | string | 输出描述 |
+未填写或填写未知值时回退到 `python`（`python:3.9-slim`）。
+
+> **注意：`framework` 必须与上传表单中选的框架一致。** 表单值写库、yaml 值选镜像，二者不一致时构建按 yaml 走，算法广场上展示的却是表单值。
+
+> **注意：容器不挂载 GPU**（见 [6.2 计算资源](#62-计算资源)）。带 CUDA 的基础镜像只是让 CUDA 版预编译包可安装，推理仍跑在 CPU 上。
 
 ---
 
-## 3. predict.py 服务入口
+## 4. src/predict.py 服务入口
 
-`src/predict.py` 是 FastAPI 服务的入口文件，必须包含以下内容：
+容器启动命令固定为：
 
-### 重要：端口配置
-
-**容器内部固定使用 8001 端口！**
-
-```python
-# 固定使用 8001 端口
-PORT = 8001
-
-# ... 其他代码 ...
+```bash
+python -m uvicorn src.predict:app --host 0.0.0.0 --port 8000
 ```
 
-容器启动时，外部端口是动态分配的（避免冲突），但容器内部始终使用 8001 端口。
+因此 `src/predict.py` 必须存在，且模块级导出名为 `app` 的 FastAPI 实例。
 
-### 必须的接口
+### 4.1 必须实现的接口
 
-| 接口 | 方法 | 说明 |
-|------|------|------|
-| `/predict` | POST | 推理接口，接收输入返回结果 |
-| `/health` | GET | 健康检查接口 |
+| 接口 | 方法 | 说明 | 不实现的后果 |
+|------|------|------|--------------|
+| `/health` | GET | 返回 200 即视为就绪 | 平台判定启动失败/不健康，`/status` 显示 unreachable |
+| `/predict` | POST | `multipart/form-data`，字段名固定为 `file` | 在线推理不可用 |
 
-### 最小可用示例
+响应结构与字段由算法自定，平台只透传。`/predict` 非 200 时，平台把状态码与响应体原样返回给调用方。
+
+### 4.2 并发与阻塞（重要）
+
+uvicorn 以**单进程单 worker** 启动：
+
+- 用 `async def` 写 CPU 密集推理会**阻塞事件循环**，导致 `/health` 也无响应，容器被判为 unhealthy；
+- 推荐用**同步 `def`**，uvicorn 会自动放到线程池执行，事件循环不被占死。
 
 ```python
-from fastapi import FastAPI, UploadFile, File
-from PIL import Image
-import io
-
-app = FastAPI()
-
-# ==================== 必须实现 ====================
-
-@app.get("/health")
-async def health():
-    """健康检查接口 - 用于容器健康监控"""
-    return {"status": "ok"}
-
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    """
-    推理接口
-
-    Args:
-        file: 上传的图片文件
-
-    Returns:
-        dict: 推理结果
-    """
-    # 读取图片
-    contents = await file.read()
-    image = Image.open(io.BytesIO(contents))
-
-    # TODO: 在此处添加你的推理逻辑
-    result = {
-        "class": "rice_blast",  # 病害类别
-        "confidence": 0.95,      # 置信度
-        "bbox": [100, 100, 200, 200]  # 边界框
-    }
-
-    return {"success": True, "result": result}
-
-# ==================== 可选实现 ====================
-
-@app.get("/")
-async def root():
-    """根路径"""
-    return {
-        "name": "My Algorithm",
-        "version": "1.0.0",
-        "endpoints": ["/predict", "/health"]
-    }
+def predict(file: UploadFile = File(...)):   # 同步 def，不阻塞事件循环
+    ...
 ```
 
-### 进阶示例（带模型加载）
+- 单 worker 意味着**并发请求串行处理**，超出处理能力的请求排队（受 60 s 超时约束，见 [6.3 时间边界](#63-时间边界)）。
+
+### 4.3 最小模板
 
 ```python
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from pydantic import BaseModel
-import torch
-import torchvision.transforms as transforms
 from PIL import Image
 import io
-import os
 
 app = FastAPI()
 
-# 全局变量存储模型
-model = None
-transform = None
+ALLOWED = {"image/jpeg", "image/png"}
+MAX_BYTES = 10 * 1024 * 1024  # 平台不校验输入大小，需算法自行限制
 
-# ==================== 启动时加载模型 ====================
-
-@app.on_event("startup")
-async def load_model():
-    """启动时加载模型"""
-    global model, transform
-
-    # 加载模型权重（假设模型文件在 src 目录下）
-    model_path = os.path.join(os.path.dirname(__file__), "model.pth")
-
-    if os.path.exists(model_path):
-        # 加载 PyTorch 模型
-        model = torch.load(model_path, map_location='cpu')
-        model.eval()
-
-        # 定义图片预处理
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
-        print("模型加载成功")
-    else:
-        print("警告: 模型文件不存在，使用模拟结果")
-
-# ==================== 必须接口 ====================
 
 @app.get("/health")
-async def health():
-    """健康检查接口"""
-    return {
-        "status": "ok",
-        "model_loaded": model is not None
-    }
+def health():
+    """健康检查：必须返回 200"""
+    return {"status": "ok"}
+
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    """
-    图像分类推理接口
+def predict(file: UploadFile = File(...)):
+    if file.content_type not in ALLOWED:
+        raise HTTPException(status_code=400, detail="只支持 JPEG / PNG")
 
-    支持的图片格式: JPEG, PNG
-    """
-    # 验证文件类型
-    if file.content_type not in ["image/jpeg", "image/png"]:
-        raise HTTPException(status_code=400, detail="只支持 JPEG 或 PNG 格式")
+    data = file.file.read()
+    if len(data) > MAX_BYTES:
+        raise HTTPException(status_code=413, detail="图片超过 10 MB")
 
-    # 读取并处理图片
-    contents = await file.read()
-    image = Image.open(io.BytesIO(contents)).convert("RGB")
-
-    # 预处理
-    if transform:
-        image_tensor = transform(image).unsqueeze(0)
-    else:
-        # 模拟处理（模型不存在时）
-        return {
-            "success": True,
-            "result": {
-                "class": "rice_blast",
-                "confidence": 0.85,
-                "disease": "稻瘟病"
-            }
-        }
-
-    # 推理
-    with torch.no_grad():
-        output = model(image_tensor)
-        probs = torch.softmax(output, dim=1)
-        top_prob, top_class = torch.max(probs, dim=1)
-
-    # 类别映射（根据你的模型调整）
-    class_names = {
-        0: "健康",
-        1: "稻瘟病",
-        2: "白叶枯病",
-        3: "纹枯病"
-    }
+    image = Image.open(io.BytesIO(data)).convert("RGB")
 
     return {
         "success": True,
-        "result": {
-            "class_id": int(top_class.item()),
-            "class_name": class_names.get(int(top_class.item()), "未知"),
-            "confidence": float(top_prob.item())
-        }
+        "result": {"class": "rice_blast", "confidence": 0.95},
     }
-
-# ==================== 自定义接口示例 ====================
-
-class BatchPredictRequest(BaseModel):
-    """批量预测请求"""
-    image_urls: list[str]
-
-@app.post("/predict/batch")
-async def predict_batch(request: BatchPredictRequest):
-    """批量预测接口"""
-    results = []
-    for url in request.image_urls:
-        # TODO: 从 URL 下载图片并推理
-        results.append({
-            "url": url,
-            "result": {"class": "rice_blast", "confidence": 0.9}
-        })
-
-    return {"success": True, "results": results}
 ```
 
-### 接口规范
+### 4.4 模型加载约定
 
-#### POST /predict
-
-**请求：**
-- Content-Type: `multipart/form-data`
-- Body: `file` (UploadFile)
-
-**响应：**
-```json
-{
-  "success": true,
-  "result": {
-    "class": "disease_name",
-    "confidence": 0.95,
-    ...
-  }
-}
-```
-
-#### GET /health
-
-**响应：**
-```json
-{
-  "status": "ok"
-}
-```
+- 在启动阶段加载模型（`@app.on_event("startup")` 或 lifespan），**不要**在首次请求时懒加载 —— 首请求会撞上 60 s 超时；
+- 启动后有 **40 s 健康宽限期**（Docker `start-period`），加载再久也不会立即被判 unhealthy，但会拖长"等待服务就绪"的时间；
+- `print()` 可实时输出（`PYTHONUNBUFFERED=1`），经 `docker logs` 与构建日志流可见，是主要的排错手段。
 
 ---
 
-## 4. requirements.txt 依赖管理
+## 5. requirements.txt 规范
 
-`requirements.txt` 用于声明算法运行所需的 Python 依赖。
+### 5.1 它实际是必需的
 
-### 写法规范
+Dockerfile 中的安装是条件式（文件缺失不报错），但启动命令依赖 `uvicorn`、代码依赖 `fastapi` 与 `python-multipart`，而**所有基础镜像都不含这三个包**。不提供 `requirements.txt` 的后果是容器起不来。
+
+最小集合：
 
 ```
-# 格式：包名==版本号
-# 推荐指定版本以确保可复现性
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+```
 
-# 核心依赖
-torch==2.0.1
-torchvision==0.15.2
-Pillow==10.0.0
-numpy==1.24.3
+### 5.2 写法要求
 
-# Web 框架（通常已包含在基础镜像）
+- 用 `==` 锁定版本，保证可复现；
+- **不要重复安装基础镜像已有的框架**（`torch` / `tensorflow` 及其 CUDA 版），既拖慢构建又可能与镜像内置版本冲突。只装镜像没有的、算法真正需要的包；
+- 大体积依赖需计入包体与构建耗时预算（见 [6.1 容量边界](#61-容量边界)）。
+
+```txt
+# Web 框架（必须）
 fastapi==0.104.1
 uvicorn==0.24.0
 python-multipart==0.0.6
 
-# 数据处理
-pandas==2.0.3
-opencv-python==4.8.1.78
-
-# 其他工具
-requests==2.31.0
-Pillow-SIMD==10.0.0
+# 业务依赖（按需，示例）
+Pillow==10.0.0
+numpy==1.24.3
+opencv-python-headless==4.8.1.78
+ultralytics==8.0.200
 ```
 
-### 注意事项
-
-1. **避免安装 CPU/GPU 特定版本**：基础镜像已包含对应版本
-2. **控制依赖数量**：只安装必需的包，减小镜像体积
-3. **版本锁定**：使用 `==` 精确指定版本
+> 无头环境请用 `opencv-python-headless`，避免与镜像系统库冲突。
 
 ---
 
-## 5. 完整示例
+## 6. 性能边界
 
-### 示例项目：水稻病害识别
+### 6.1 容量边界
 
-#### 文件结构
+| 项目 | 上限 | 生效位置 | 超限后果 |
+|------|------|----------|----------|
+| 算法包大小 | **1 GB**（1073741824 字节） | 后端 `MAX_ALGORITHM_PACKAGE_SIZE`（应用层兜底）；前端 `env.MAX_FILE_SIZE` | 前端直接拦截；后端返回 **413** |
+| 构建期宿主内存占用 | ≈ 算法包大小 | 构建时整体读入内存再落盘 | 包越大，构建期内存峰值越高，存在 OOM 风险 |
+| 包内文件数 / 解压体积 | 无硬性限制 | — | 计入构建时间与镜像体积 |
+
+> 实践建议：包体尽量控制在数百 MB 内。1 GB 是"能传"的上限，不是"推荐"值 —— 它既决定构建期内存峰值，也决定镜像体积与后续启动速度。
+
+### 6.2 计算资源
+
+| 资源 | 限额 | 说明 |
+|------|------|------|
+| 容器内存 | **4 GB**（`--memory 4g --memory-swap 4g`） | memory 与 swap 相等即**无额外 swap 缓冲**，超用直接 OOM 终止；因 `--restart unless-stopped` 会自动重启，表现为"推理到一半就重来" |
+| CPU | **不限制** | 未设置 `--cpus`，可打满宿主机 CPU；请主动控制 batch / 线程数 |
+| GPU | **不可用** | 启动命令未带 `--gpus`，容器内 `torch.cuda.is_available()` 为 `False`。请勿依赖 CUDA 推理；镜像带 CUDA 仅保证可安装 CUDA 版预编译包 |
+
+### 6.3 时间边界
+
+| 项目 | 数值 | 超限后果 |
+|------|------|----------|
+| 单次推理 | **60 s**（后端代理 `httpx timeout=60.0`；前端 `axios timeout=60000`） | 后端返回 **504**；前端请求超时 |
+| 启动后等待就绪 | 轮询 30 次 × 1 s，单次探测 5 s 超时（常规 ≈30 s，探测挂起时最坏 ≈180 s） | 仅打印告警，状态仍置为 running，但服务可能尚未可用 |
+| Docker 健康检查 | `start-period 40s` / `interval 30s` / `timeout 10s` / `retries 3` | 连续 3 次失败标记 `unhealthy` |
+| 状态探测 | 5 s（`GET /{id}/status`） | 探测失败返回 `container_status=unreachable` |
+| 镜像构建 | **无超时限制** | 依赖装不完会一直构建，任务长期停留在 `building` |
+
+### 6.4 并发与容量池
+
+| 项目 | 边界 | 说明 |
+|------|------|------|
+| 构建并发 | 同一算法同时仅 1 个构建任务 | 重复提交返回 **409**；不同算法可并行 |
+| 主机端口池 | **8001–9999** 动态分配，容器内固定 8000 | 耗尽抛 `PortExhaustedError`，构建失败 |
+| 推理并发 | 单 worker 串行 | 请求排队，队列过长触发 60 s 超时 |
+| 构建日志缓冲 | 订阅队列 200 行、历史上限 500 行 | 刷屏（如 pip 全量输出）会丢弃中间日志，不影响构建结果 |
+| 推理输入大小 | **平台不校验** | 由算法自行限制，否则大文件会吃满 4 GB 内存 |
+
+---
+
+## 7. 部署状态机与构建日志
+
+### 7.1 状态流转
 
 ```
-rice-disease-detection.zip
+pending ──提交构建──> building ──成功──> running
+                         │                │
+                         └──失败──> error  ├──stop──> stopped
+                                          └──restart──> running / error
+```
+
+| 状态 | 含义 | 可在线推理 |
+|------|------|------------|
+| `pending` | 已上传，尚未构建 | 否 |
+| `building` | 构建/启动中（上传后自动进入） | 否 |
+| `running` | 容器已就绪，端口已写回 | 是 |
+| `error` | 构建或启动失败 | 否 |
+| `stopped` | 手动停止 | 否 |
+
+`status != running` 时调用推理接口返回 **400**。
+
+### 7.2 构建日志
+
+上传响应返回 `task_id` 与 `stream_url`，订阅 `stream_url` 得到 NDJSON 流：
+
+```jsonc
+{"type": "log", "line": "[build] 下载算法包并生成 Dockerfile..."}
+{"type": "status", "status": "running", "result": {"port": 8013}, "error": null}
+```
+
+- 每行一个 JSON；`type=log` 为日志行，`type=status` 为状态帧（阶段变化时补发，终态必发）；
+- 后端重启后任务丢失，可用 `GET /api/algorithms/{id}/build?task_id=...` 回查，任务不存在返回 404；
+- 失败时的 `[error]` 行与最近 50 行日志会写入 `build_log`。
+
+---
+
+## 8. 完整示例
+
+### 8.1 目录
+
+```
+rice-disease-detection/
 ├── algorithm.yaml
 ├── requirements.txt
 └── src/
+    ├── __init__.py
     ├── predict.py
-    ├── model.pth
-    ├── utils.py
-    └── config.py
+    └── model.pt
 ```
 
-#### algorithm.yaml
+### 8.2 algorithm.yaml
 
 ```yaml
 name: "水稻病害识别"
 version: "1.0.0"
-description: "基于改进YOLOv8的水稻病害识别模型，支持稻瘟病、白叶枯病、纹枯病检测"
+description: "基于 YOLOv8 的水稻病害识别，支持稻瘟病、白叶枯病、纹枯病检测"
 framework: "pytorch"
 
 input:
@@ -416,7 +354,7 @@ input:
 
 output:
   type: "json"
-  description: "返回病害类型、位置坐标、置信度"
+  description: "病害类型、坐标、置信度"
 
 metadata:
   author: "张三"
@@ -425,134 +363,112 @@ metadata:
   accuracy: "96.5%"
 ```
 
-#### requirements.txt
+### 8.3 requirements.txt
 
-```
-torch==2.0.1
-torchvision==0.15.2
+```txt
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
 Pillow==10.0.0
-opencv-python==4.8.1.78
-ultralytics==8.0.200
 numpy==1.24.3
 ```
 
-#### src/predict.py
+`torch` / `torchvision` / `ultralytics` 由 `pytorch` 基础镜像与算法自行决定，此处不重复声明镜像已提供的框架。
+
+### 8.4 src/predict.py
 
 ```python
-from fastapi import FastAPI, UploadFile, File
+from pathlib import Path
+
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from PIL import Image
 import io
 import torch
-from ultralytics import YOLO
 
 app = FastAPI()
 model = None
+MODEL_PATH = Path(__file__).parent / "model.pt"
+
 
 @app.on_event("startup")
-async def startup_event():
+def load_model():
+    """启动阶段加载模型，避免首请求撞上 60 s 超时"""
     global model
-    model = YOLO("yolov8n.pt")  # 加载预训练模型
+    if MODEL_PATH.exists():
+        model = torch.load(MODEL_PATH, map_location="cpu")
+        model.eval()
+        print(f"模型加载成功: {MODEL_PATH}")
+    else:
+        print(f"警告: 未找到模型文件 {MODEL_PATH}")
+
 
 @app.get("/health")
-async def health():
-    return {"status": "ok"}
+def health():
+    return {"status": "ok", "model_loaded": model is not None}
+
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    contents = await file.read()
-    image = Image.open(io.BytesIO(contents))
+def predict(file: UploadFile = File(...)):
+    """同步 def：CPU 密集推理不阻塞事件循环"""
+    if file.content_type not in {"image/jpeg", "image/png"}:
+        raise HTTPException(status_code=400, detail="只支持 JPEG / PNG")
 
-    # 运行检测
-    results = model(image)
+    data = file.file.read()
+    image = Image.open(io.BytesIO(data)).convert("RGB")
 
-    # 解析结果
-    detections = []
-    for result in results:
-        boxes = result.boxes
-        for box in boxes:
-            detections.append({
-                "class": result.names[int(box.cls)],
-                "confidence": float(box.conf),
-                "bbox": box.xyxy[0].tolist()
-            })
+    if model is None:
+        raise HTTPException(status_code=503, detail="模型未加载")
 
-    return {
-        "success": True,
-        "count": len(detections),
-        "detections": detections
-    }
+    with torch.no_grad():
+        output = model(image)
+
+    return {"success": True, "result": {"output": str(output)}}
 ```
 
----
+### 8.5 打包与上传
 
-## 6. 常见问题
-
-### Q1: 上传后构建失败怎么办？
-
-**检查清单：**
-1. ✅ `algorithm.yaml` 是否存在且格式正确
-2. ✅ `src/predict.py` 是否导出了 `app` 对象
-3. ✅ `/predict` 和 `/health` 接口是否实现
-4. ✅ `requirements.txt` 中的依赖是否可正常安装
-
-### Q2: 容器启动成功但推理失败？
-
-**可能原因：**
-1. 模型文件未正确打包
-2. 路径引用错误（应使用 `os.path.dirname(__file__)`）
-3. GPU 内存不足
-
-### Q3: 支持 GPU 推理吗？
-
-支持。基础镜像已包含 CUDA 环境：
-- `pytorch`: CUDA 11.7 + cuDNN 8
-- `tensorflow`: CUDA 11.8 + TensorRT
-
-### Q4: 如何调试？
-
-在 `predict.py` 中使用 `print()` 语句，日志会输出到容器日志。
-
-```python
-@app.on_event("startup")
-async def startup_event():
-    print("========== 容器启动 ==========")
-    print("加载模型中...")
-    # ...
+```bash
+cd rice-disease-detection
+zip -r ../rice-disease-detection.zip .   # 在目录内部打包，不含外层目录
 ```
 
-### Q5: 镜像大小有限制吗？
-
-单个镜像建议控制在 5GB 以内，过大的镜像会导致构建超时。
+算法广场 → 分享算法 → 填写名称/版本/框架（**与 `algorithm.yaml` 的 `framework` 一致**）→ 上传 ZIP。上传成功即自动开始构建，可在顶部任务入口查看实时日志。
 
 ---
 
-## 快速开始
+## 9. 排错清单
 
-1. **创建目录结构**
-   ```bash
-   mkdir -p my-algorithm/src
-   ```
-
-2. **编写 algorithm.yaml**
-   ```bash
-   vim my-algorithm/algorithm.yaml
-   ```
-
-3. **编写 predict.py**
-   ```bash
-   vim my-algorithm/src/predict.py
-   ```
-
-4. **打包上传**
-   ```bash
-   cd my-algorithm && zip -r ../my-algorithm.zip .
-   ```
-
-5. **上传到算法广场**
-   - 访问算法广场页面
-   - 点击"分享算法"按钮
-   - 填写信息并上传 ZIP 包
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| 构建日志：`算法包缺少 algorithm.yaml` | ZIP 根没有该文件 | 确认在目录内部打包 |
+| 构建成功，但健康检查超时 / 容器反复重启 | ZIP 多包了一层目录（`src/` 不在 `/app` 根） | 重新在目录内部打包 |
+| `ModuleNotFoundError` | 依赖未声明，或 `requirements.txt` 放在了 `src/` 下 | 移到 ZIP 根并补全依赖 |
+| 容器起不来，日志报找不到 `uvicorn` | `requirements.txt` 缺失 | 补 `fastapi` / `uvicorn` / `python-multipart` |
+| `Could not import module "src.predict"` | 入口文件路径或 `app` 名称不对 | 确认 `src/predict.py` 且导出 `app` |
+| 在线推理返回 504 | 单次推理超过 60 s | 优化模型/输入，或在启动阶段完成加载 |
+| 推理中容器被杀、自动重启 | 内存超过 4 GB | 降低 batch、缩小输入、换更轻量模型 |
+| `torch.cuda.is_available()` 为 `False` | 容器未挂载 GPU（预期行为） | 改用 CPU 推理 |
+| `/status` 显示 `unreachable` | 5 s 内 `/health` 未响应 | 检查推理是否阻塞了事件循环（`async def` 改同步 `def`） |
+| 提交构建返回 409 | 该算法已有构建在跑 | 等待当前构建结束 |
+| 构建长时间停在 `building` | 依赖安装过慢；构建无超时限制 | 精简依赖，避免在构建期下载大模型 |
+| 构建日志缺失中间部分 | 日志缓冲上限（队列 200 / 历史 500 行） | 仅影响展示，可查 `docker logs` |
 
 ---
 
-*最后更新: 2026-04-08*
+## 10. 发布检查清单
+
+- [ ] ZIP 在目录内部打包，根层直接是 `algorithm.yaml` / `requirements.txt` / `src/`
+- [ ] `algorithm.yaml` 的 `framework` 与上传表单选择一致
+- [ ] `src/predict.py` 存在且导出 `app`
+- [ ] 实现 `GET /health`（返回 200）与 `POST /predict`（字段名 `file`）
+- [ ] 推理用同步 `def`，不在 `async def` 中做 CPU 密集计算
+- [ ] 模型/资源用 `__file__` 定位，在启动阶段完成加载
+- [ ] `requirements.txt` 含 `fastapi` / `uvicorn` / `python-multipart`，版本已锁定，未重复安装基础镜像已有框架
+- [ ] 包体 ≤ 1 GB，且远小于此值更佳
+- [ ] 峰值内存 < 4 GB，单次推理 < 60 s（实测）
+- [ ] 无 CUDA 依赖（`torch.cuda.is_available()` 为 `False` 时仍可运行）
+- [ ] 已用 `docker logs` 确认启动日志无异常
+
+---
+
+*最后更新: 2026-09-18*

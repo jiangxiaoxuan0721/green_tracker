@@ -32,7 +32,16 @@ export const useFieldCatalog = (): FieldCatalog => {
       .then((rows) => {
         if (cancelled) return
         const next = new Map<string, CatalogEntry>()
-        rows.forEach((r) => next.set(r.id, { ...r }))
+        rows.forEach((r) => {
+          const prev = byIdRef.current.get(r.id)
+          // 继承已按需加载的详情。列表只有轻量字段，不含 description / crop_type 等，
+          // 如果整体替换 Map 就会把它们抹掉 —— 而「单个详情」必然快于「全量列表」，
+          // 这在恢复选中地块时是必定发生的时序（详情先回 -> 列表才到 -> 详情被抹），
+          // 抹掉后 selectedPlotId 没变、补详情的 effect 不会再跑，
+          // 侧栏于是退化成「只剩面积」，直到用户再点一次。
+          // 权威更新另有出处：写操作走 upsertDetail（先于 reload）、删除走 remove。
+          next.set(r.id, prev?.detail ? { ...r, detail: prev.detail } : { ...r })
+        })
         byIdRef.current = next
         setLight(rows)
         setError(null)

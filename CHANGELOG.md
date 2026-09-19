@@ -7,9 +7,27 @@
 
 ---
 
-## [未发布]
+## [v2026.0919] - 2026-09-19
+
+采集任务支持指定执行设备并引入超期自动完成调度；设备在线统计口径与设备列表对齐；
+数据分析看板图表整体紧凑化，并支持点击放大查看详情。
 
 ### 新增
+- **采集任务指定执行设备**: `CollectionSession` 新增 `device_id` 字段（`NULL` = 不限设备，有值 = 仅该设备可执行），
+  创建/更新走 `Device` 存在性校验（设备不存在返回 400）；更新时用 `_UNSET` 哨兵区分「未传该字段（保持原样）」
+  与「显式传 `null`（取消指定）」
+- **设备侧任务下发**: `POST /active_sessions` 语义由「返回所有活跃任务」改为「返回该设备可执行的任务」，
+  设备通过 `?device_id` 或 `X-Device-Id` 请求头自报身份，校验存在性（不存在返回 404）
+- **地块最新采集任务接口**: `GET /collection-sessions/field/{field_id}/latest`，支持按 `mission_type` 过滤
+- **列表分页总数**: 新增 `count_collection_sessions_with_field_info()`，与列表共用 `_build_collection_session_filters()`，
+  避免列表与计数条件漂移；总数经 `X-Total-Count` 响应头返回（CORS 已 `expose_headers`），
+  前端新增 `getSessionsWithPagination()` 读取
+- **超期任务自动完成调度**: 新增 `backend/scheduler/session_auto_complete.py` 守护线程，
+  每 60s 扫描活跃用户库（`SESSION_AUTO_COMPLETE_INTERVAL` 可配，最小 10s；`SESSION_AUTO_COMPLETE_ENABLED=false` 可关闭），
+  把 `end_time` 已过且仍为 `planned` / `running` 的任务置为 `completed`；读接口另有一层兜底执行，
+  调度未启动也不影响查询，`start()` 幂等、`stop()` 优雅退出
+- **图表放大查看**: 数据分析页时序图与数据分布图支持点击放大，`ChartDetailModal` 内展示大尺寸渐变面积图
+  （带 Brush 时间轴缩放）或带数值标签的柱状图，并给出数据点数 / 平均值 / 最值 / 时间范围摘要
 - **系统操作日志**: 全链路操作审计日志系统，覆盖认证、设备、地块、采集会话、数据、API密钥、算法等 23 个关键操作点
 - **日志查询与导出**: 支持按级别/来源/日期筛选、分页查询和 CSV 导出
 - **MQTT 模块**: IoT 设备实时通信支持
@@ -21,12 +39,38 @@
 - **算法下载进度条 & Toast 化**: 上传弹窗新增 `onUploadProgress` 进度反馈；所有失败提示统一走 `useToast`
 
 ### 改进
+- **数据分析图表紧凑化**: 图表区整体压缩到约原尺寸的 2/3——时序网格由 3 列改 4 列（窄屏逐级降为 3 / 2 / 1 列），
+  `gap` 与卡片内边距收紧，消除 `.chart-card` 与 `.card-content` 的双重内边距，图表高度 220 → 150；
+  分布条形图行高 32px → 18px，数值移到条形右侧固定列，不再压在色条上
+- **数据分布与统计明细同行**: 两个区块并入 `.analyze-duo` 两列布局（分布 `1fr` / 明细 `1.7fr`，等高对齐），
+  窄屏（≤1024px）降为单列
+- **采集会话详情重构**: `SessionDetail` 重写为 `sd-` 前缀的自包含分区卡片（任务信息 / 时间安排 / 描述 / 环境快照 + 底部操作区），
+  CSS 不再与全局 `.modal-*` 互相覆盖；结束时间缺席时按状态显示「进行中」或「未记录」，不再一律「未设置」
+- **Sessions 列表实时性**: 新增 30 秒轮询（页面不可见时跳过），与后端自动完成调度配合同步任务状态；
+  并用 `appliedFiltersRef` / `refreshContextRef` 避免闭包拿到过期的页码与筛选条件
+- **筛选查询态**: `FilterPanel` 触发查询后到结果返回前，`DataTable` 显示「正在查询...」占位（含 `querying` 态样式），
+  与真正的「暂无数据」区分开来；期间分页信息弱化展示，避免把上一次结果的总数误读为本次结果
 - 日志表格宽度优化，消息列占位更充分
+- **数据分析页重构**: 自研的 `analysis-controls` 替换为 `FilterPanel` + `FilterSelect` / `FilterMultiSelect`（时间范围、数据大类、
+  监测指标、采集设备、采集任务），并补齐重置入口；顶部 4 张并列 `stat-card` 收敛为一条 `StatsBar` 四合一统计栏
+  （数据记录 / 涉及任务 / 覆盖指标 / 涉及设备 + 统计区间）
+- **分析筛选逻辑修正**: 设备选择此前完全未参与查询，现通过 `session.device_id` 落到 `session_ids`；空选表示「不限」，
+  设备与任务为「与」关系；筛选无命中任务时不再退化成「查全部」，改为空结果 + 提示条
+- **分析图表按需渲染**: 时序图只渲染真正有数据的指标，不再固定渲染 8 张空卡片；统计明细改用 `DataTable`
 - **`MinioClient` API 收敛**: 新增 `iter_object` / `stat_object_size` 公开方法，下载路由不再直访 `_client` 私有属性
 - **`minio_client` 惰性代理**: `from storage.minio_client import minio_client` 改为 `_LazyMinioProxy`，
   后端启动不再因 MinIO 不可达而失败；运行时访问才连接
 
 ### 修复
+- **在线设备数统计口径**: 概览统计与 MQTT `/stats` 此前直接取 MQTT 管理器的全局在线数，可能出现「在线数 > 设备总数」；
+  现统一走 `count_devices_online_status()`，以用户活跃设备为分母、与设备列表/详情的 `online` 同源，
+  保证「在线 + 离线 == 设备总数」（用户库不可用时仍降级为 MQTT 侧统计）
+- **任务状态流转按钮**: `SessionDetail` 的「开始任务 / 完成任务」此前调用 `onEdit(id, newStatus)`，
+  只会弹出编辑框而不会改变状态；现改为独立的 `onUpdateStatus` 回调，未传该回调则不渲染按钮
+- **Sessions 分页参数**: `page` / `page_size` 改为后端约定的 `limit` / `offset`，总数改读 `X-Total-Count`；
+  同时修复首屏加载后因筛选 effect 触发的重复请求，以及删除末页数据后页码越界不回退的问题
+- **采集列表设备信息**: 列表查询改为 `outerjoin Device` 并带出 `device_id` / `device_name`；
+  `device_name` 不再恒为「未知设备」，可区分「未指定（所有设备可执行）」与「指定过但设备已删除」
 - **首页路由**: 项目主页正确挂载于根路径 `/`
 - **API 基础路径**: `VITE_API_BASE_URL` 统一为空 origin 前缀（不含 `/api`）、`VITE_MINIO_PUBLIC_URL` 统一为相对路径（`/minio/<bucket>`），
   开发经 Vite proxy、生产经 Nginx 反代，避免端口号暴露与 HTTPS 混合内容问题
@@ -52,9 +96,19 @@
 - **路由 try/except 模板 (P1.4)**: 8 处重复 `try/except/raise` 模板；现抽象为 `_standard_errors(action_name)` 装饰器
 
 ### 技术升级
+- 新增 `backend/scheduler/` 后台调度包（首个调度任务：采集会话超期自动完成），
+  由 `backend/main.py` 的 startup / shutdown 事件启停，启动失败不影响主应用
+- `.env.example` 新增 `SESSION_AUTO_COMPLETE_ENABLED`（默认 `true`）与 `SESSION_AUTO_COMPLETE_INTERVAL`（默认 60，最小 10）
 - `scripts/render_nginx.sh`: 统一 Nginx 配置渲染与前端模式切换（dev/prod），主站配置与前端片段解耦
 
 ### 文档
+- **`docs/features/algorithm_development_guide.md` 重写**为面向算法开发者的「算法包开发指南」：补齐部署流程总览、
+  性能边界（包体 1 GB、容器内存 4 GB、单次推理 60s、端口池 8001–9999、单 worker 串行）、部署状态机与构建日志、
+  排错清单与发布检查清单；并纠正容器内端口（8001 → 固定 8000）、`requirements.txt` 由「可选」改为「必需」
+  （须含 fastapi / uvicorn / python-multipart）、推理接口须用同步 `def` 以免阻塞 `/health`
+- `ARCHITECTURE.md` 补充「后台调度 `backend/scheduler`」目录、`GET /field/{field_id}/latest` 接口，
+  以及分页约定（`limit/offset` + `X-Total-Count`）、设备下发规则（`device_id` / `X-Device-Id` / `ON DELETE SET NULL` 回退）、
+  超期自动完成三节说明
 - README 新增「开发环境 vs 生产部署」章节，更新 Makefile 命令与项目结构说明
 - **文档体系重构**：根目录收敛为 `README.md` / `ARCHITECTURE.md` / `DEVELOPMENT.md` / `CONTRIBUTING.md` / `CHANGELOG.md` 五篇入口文档，专题文档归入 `docs/` 的 `architecture/` `features/` `ops/` `setup/` 分层目录
 - 新增 `ARCHITECTURE.md`（运行时拓扑、分层、数据模型与全量 API 路由清单）、
