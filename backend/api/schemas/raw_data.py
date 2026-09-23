@@ -96,6 +96,26 @@ class AIStatusRequest(BaseModel):
     }
 
 
+class IntegrityCleanupRequest(BaseModel):
+    """悬空数据清理请求模型"""
+    include_missing_in_session: bool = Field(
+        False,
+        description="是否一并删除「会话仍在、但对象已缺失」的记录（默认只删会话已不存在的孤儿记录）"
+    )
+    dry_run: bool = Field(True, description="true 时只返回将要删除的内容，不实际删除")
+    limit: int = Field(200, ge=1, le=5000, description="本次最多处理的记录数")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "include_missing_in_session": False,
+                "dry_run": True,
+                "limit": 200
+            }
+        }
+    }
+
+
 class RawDataResponse(BaseModel):
     """原始数据响应模型"""
     id: str
@@ -145,6 +165,7 @@ __all__ = [
     "RawDataTagRequest",
     "ProcessingStatusRequest",
     "AIStatusRequest",
+    "IntegrityCleanupRequest",
     "RawDataResponse",
     "RawDataListResponse"
 ]

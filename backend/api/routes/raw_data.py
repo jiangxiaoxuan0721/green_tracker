@@ -43,11 +43,18 @@ from database.db_services.raw_data_service import (
     get_timeseries_data
 )
 from database.db_services.log_service import create_log
+from database.db_services.raw_data_integrity_service import (
+    collect_integrity_targets,
+    delete_raw_data_records,
+    get_object_keys_by_ids,
+    scan_object_key_integrity
+)
 from ..schemas.raw_data import (
     RawDataRequest,
     RawDataTagRequest,
     ProcessingStatusRequest,
-    AIStatusRequest
+    AIStatusRequest,
+    IntegrityCleanupRequest
 )
 from ..schemas.raw_data_upload import (
     DataType,
@@ -1397,4 +1404,128 @@ async def upload_file_data(
     finally:
         if db is not None:
             db.close()
+
+
+def _load_user_storage_snapshot(user_id: str):
+    """
+    取该用户的对象存储句柄，以及该用户前缀下的全部对象路径
+
+    返回 `(storage, object_keys)`：调用方既要用路径集合做存在性比对，
+    也要用同一个句柄做后续的批量删除。
+    """
+    storage = get_storage_manager()
+    prefix = f"user_{user_id}/"
+    return storage, set(storage.list_object_keys(prefix))
+
+
+@router.get("/integrity/object-keys", summary="巡检原始数据与对象存储的一致性")
+async def check_object_key_integrity(
+    sample_limit: int = Query(20, ge=1, le=200, description="报告中返回的问题样例条数"),
+    scan_limit: int = Query(5000, ge=1, le=50000, description="最多扫描多少条记录"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    检查「库里有 object_key、但 MinIO 里没有对应对象」的悬空记录
+
+    典型来源：早期上传使用 user_{id}/raw/images/ 路径，后期统一为
+    user_{id}/data/session_{sid}/，旧路径文件清理后库里的记录就成了悬空记录，
+    前端表现为图片打不开。
+
+    报告字段：
+    - orphan_rows：会话已不存在的孤儿记录（可直接清理）
+    - missing_in_session：会话仍在但文件缺失（需人工确认）
+    - truncated：为 true 表示被 scan_limit 截断，计数只是已扫描部分的统计
+    """
+    db = get_user_db(str(current_user.userid))
+    try:
+        try:
+            storage, object_keys = _load_user_storage_snapshot(str(current_user.userid))
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"无法访问对象存储: {str(e)}")
+
+        report = scan_object_key_integrity(
+            db, object_keys, sample_limit=sample_limit, scan_limit=scan_limit
+        )
+        report["bucket"] = storage.BUCKET_NAME
+        report["objects_in_bucket"] = len(object_keys)
+        return report
+    finally:
+        db.close()
+
+
+@router.post("/integrity/object-keys/cleanup", summary="清理悬空的原始数据记录")
+async def cleanup_object_key_integrity(
+    payload: IntegrityCleanupRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    清理体检发现的问题记录
+
+    - 默认只清理「会话已不存在」的孤儿记录：界面上看不到，其文件也无引用，
+      文件若仍在对象存储中会一并删除
+    - include_missing_in_session=true 时才清理「会话仍在但对象缺失」的记录
+    - dry_run=true（默认）只返回将要删除的内容，不实际删除
+    """
+    db = get_user_db(str(current_user.userid))
+    try:
+        try:
+            storage, object_keys = _load_user_storage_snapshot(str(current_user.userid))
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"无法访问对象存储: {str(e)}")
+
+        targets = collect_integrity_targets(
+            db,
+            object_keys,
+            include_missing_in_session=payload.include_missing_in_session,
+            limit=payload.limit
+        )
+        target_ids = [item["id"] for item in targets]
+
+        # 孤儿记录里仍存在的对象：文件已无人引用，随记录一起清掉
+        stale_object_keys = [
+            key for key in get_object_keys_by_ids(db, target_ids)
+            if key in object_keys
+        ]
+
+        if payload.dry_run:
+            return {
+                "dry_run": True,
+                "deleted_rows": 0,
+                "deleted_objects": 0,
+                "candidate_rows": len(target_ids),
+                "candidate_objects": len(stale_object_keys),
+                "samples": targets[:20],
+                "sample_objects": stale_object_keys[:20]
+            }
+
+        deleted_rows = delete_raw_data_records(db, target_ids)
+
+        deleted_objects = 0
+        if stale_object_keys:
+            result = storage.delete_objects(stale_object_keys)
+            deleted_objects = result.get("deleted", 0) or 0
+
+        try:
+            create_log(db, "warning", "data.integrity_cleanup",
+                       f"用户 {current_user.username} 清理悬空数据记录 {deleted_rows} 条、对象 {deleted_objects} 个",
+                       related_type="raw_data")
+        except Exception:
+            pass
+
+        return {
+            "dry_run": False,
+            "deleted_rows": deleted_rows,
+            "deleted_objects": deleted_objects,
+            "candidate_rows": len(target_ids),
+            "candidate_objects": len(stale_object_keys),
+            "samples": targets[:20]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[悬空数据清理] 失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"清理悬空数据失败: {str(e)}")
+    finally:
+        db.close()
 
