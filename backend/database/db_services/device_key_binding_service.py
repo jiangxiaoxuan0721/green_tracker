@@ -114,17 +114,3 @@ def find_devices_by_api_key(db: Session, api_key_id: str) -> List[Dict[str, Any]
     except Exception as e:
         print(f"[DeviceKeyBinding] 反查密钥关联设备失败: {str(e)}")
         return []
-
-
-def clear_binding(db: Session, device_id: str) -> bool:
-    """清除设备的密钥关联（设备退役/换绑时使用）"""
-    try:
-        affected = db.query(DeviceKeyBinding).filter(
-            DeviceKeyBinding.device_id == str(device_id)
-        ).delete()
-        db.commit()
-        return affected > 0
-    except Exception as e:
-        print(f"[DeviceKeyBinding] 清除设备密钥关联失败: {str(e)}")
-        db.rollback()
-        return False

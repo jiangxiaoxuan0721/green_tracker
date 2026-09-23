@@ -85,7 +85,6 @@ from .log_service import (
 from .device_key_binding_service import (
     record_binding,
     get_binding,
-    clear_binding
 )
 
 from .device_command_service import (
@@ -164,5 +163,4 @@ __all__ = [
     "cancel_command",
     "record_binding",
     "get_binding",
-    "clear_binding",
 ]

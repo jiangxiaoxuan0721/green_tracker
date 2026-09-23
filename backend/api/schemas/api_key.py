@@ -65,7 +65,6 @@ class ApiKeyPermissionInfo(BaseModel):
     description: str = Field(..., description="权限说明")
     scenario: str = Field(..., description="适用场景")
     endpoints: List[str] = Field(default_factory=list, description="该权限放行的接口")
-    requires_device_binding: bool = Field(False, description="是否要求密钥绑定设备")
 
 
 class ApiKeyResponse(BaseModel):

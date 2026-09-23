@@ -46,8 +46,7 @@ PERMISSION_DEFINITIONS: List[dict] = [
         "endpoints": [
             "POST /api/raw-data/upload-data",
             "POST /api/raw-data/upload-file"
-        ],
-        "requires_device_binding": False
+        ]
     },
     {
         "value": PERMISSION_DATA_READ,
@@ -61,8 +60,7 @@ PERMISSION_DEFINITIONS: List[dict] = [
             "GET /api/raw-data/statistics",
             "GET /api/raw-data/overview",
             "GET /api/raw-data/export"
-        ],
-        "requires_device_binding": False
+        ]
     },
     {
         "value": PERMISSION_DEVICE_CONTROL,
@@ -76,9 +74,8 @@ PERMISSION_DEFINITIONS: List[dict] = [
             "POST /api/device-commands/{command_id}/cancel",
             "GET /api/device-commands/pending（设备侧拉取）",
             "POST /api/device-commands/{command_id}/result（设备侧回执）"
-        ],
+        ]
         # 密钥不与设备绑定：一把密钥可作用于该用户名下的任意设备
-        "requires_device_binding": False
     }
 ]
 
@@ -181,17 +178,6 @@ def normalize_permissions(
     return [p for p in ALL_PERMISSIONS if p in cleaned]
 
 
-def has_permission(permissions: Optional[Iterable[str]], permission: str) -> bool:
-    """判断权限列表是否包含指定权限"""
-    return permission in (permissions or [])
-
-
-def requires_device_binding(permission: str) -> bool:
-    """该权限是否要求密钥绑定设备"""
-    definition = get_permission_definition(permission)
-    return bool(definition and definition.get("requires_device_binding"))
-
-
 __all__ = [
     "PERMISSION_DATA_UPLOAD",
     "PERMISSION_DATA_READ",
@@ -203,6 +189,4 @@ __all__ = [
     "parse_permissions",
     "dump_permissions",
     "normalize_permissions",
-    "has_permission",
-    "requires_device_binding",
 ]

@@ -422,7 +422,6 @@ class AuthPrincipal:
     - user        : meta 库中的 User 对象（数据归属方）
     - auth_method : jwt / api_key
     - permissions : API 密钥携带的权限列表（JWT 为空，表示账号全权）
-    - device_ids  : 密钥上的设备ID列表字段（历史字段，不参与鉴权；密钥可作用于任意设备）
     """
 
     def __init__(self, user: User, auth_method: str, api_key: Optional[dict] = None):
@@ -454,17 +453,6 @@ class AuthPrincipal:
             # JWT 登录用户即账号所有者，视为持有全部权限
             return list(ALL_PERMISSIONS)
         return parse_permissions(self.api_key.get("permissions"))
-
-    @property
-    def device_ids(self) -> List[str]:
-        if self.auth_method == AUTH_METHOD_JWT:
-            return []
-        return parse_permissions(self.api_key.get("device_ids"))
-
-    # ---- 判定 ----
-    def has_permission(self, permission: str) -> bool:
-        """JWT 用户恒为 True；API 密钥需显式持有该权限"""
-        return permission in self.permissions
 
     def describe(self) -> str:
         if self.auth_method == AUTH_METHOD_JWT:

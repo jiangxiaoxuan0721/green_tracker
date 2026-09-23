@@ -57,10 +57,6 @@ COMMAND_DEFS: dict = {
     },
 }
 
-# 系统内部指令：由云端在权限变更时自动下发，不出现在控制台指令面板
-SYSTEM_COMMANDS = {"revoke_control"}
-
-
 def list_command_definitions(include_hidden: bool = False) -> list:
     """
     返回指令清单
@@ -73,8 +69,3 @@ def list_command_definitions(include_hidden: bool = False) -> list:
         for command_id, info in COMMAND_DEFS.items()
         if include_hidden or not info.get("hidden")
     ]
-
-
-def is_known_command(command: str) -> bool:
-    """是否为云端已知指令（未知指令仍可下发，由设备端自行判断是否支持）"""
-    return command in COMMAND_DEFS

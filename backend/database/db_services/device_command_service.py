@@ -21,8 +21,6 @@ ACTIVE_STATUSES = ["pending", "sent"]
 # 终态：不再变化
 FINAL_STATUSES = ["acked", "failed", "cancelled", "expired"]
 
-VALID_STATUSES = ACTIVE_STATUSES + ["delivered"] + FINAL_STATUSES
-
 
 def _to_dict(command: DeviceCommand) -> Dict[str, Any]:
     """将指令记录转换为接口响应字典"""
