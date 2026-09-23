@@ -85,9 +85,11 @@ X-API-Key: green-xxxxxxxxxxxx          # 设备 / 第三方系统
 指令状态机：
 
 ```
-pending ──投递(MQTT)──> sent ──回执──> acked / failed
-   │                      │
-   └──设备轮询(HTTP)──> delivered ──┘
+pending ──MQTT 推送──> sent ─────┐
+   │                              ├──回执──> acked / failed
+   └──────HTTP 轮询──> delivered ─┘
+         （sent 也可被轮询补取为 delivered）
+
 任意未完成状态 ──> cancelled（云端取消）/ expired（超过 timeout_seconds）
 ```
 

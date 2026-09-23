@@ -132,7 +132,7 @@ X-Device-Id: <device_id>
 ```
 
 - 返回 `pending` / `sent` 状态且未过期的指令
-- `pending` 指令被拉取后标记为 `delivered`，不会重复下发
+- 被拉取的指令统一标记为 `delivered`，不会在后续轮询中重复返回
 - 该接口要求密钥持有 `device_control`
 
 ---
@@ -161,9 +161,13 @@ X-Device-Id: 3f1c0b8e-0d3a-4a2b-9c1f-7d2e5a4b6c88
 指令状态机：
 
 ```
-pending ──投递──> sent/delivered ──回执──> acked | failed
-   └──────────── 超过 timeout_seconds ──────────> expired
-   └──────────── 云端主动取消 ──────────────────> cancelled
+pending ──MQTT 推送──> sent ─────┐
+   │                              ├──回执──> acked | failed
+   └──────HTTP 轮询──> delivered ─┘
+         （sent 也可被轮询补取为 delivered）
+
+任意未完成状态 ── 超过 timeout_seconds ──> expired
+任意未完成状态 ── 云端主动取消 ──────────> cancelled
 ```
 
 `timeout_seconds` 默认 300 秒，取值范围 10 ~ 86400。已处于终态的指令不会被改写。

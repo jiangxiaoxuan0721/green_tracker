@@ -263,7 +263,8 @@ async def pull_pending_commands(
     设备侧拉取指令
 
     认证：X-API-Key（须持有 device_control 权限）+ X-Device-Id（目标设备）
-    返回 pending/sent 状态且未过期的指令；pending 指令被拉取后标记为 delivered。
+    返回 pending/sent 状态且未过期的指令；被拉取的指令（含已推送到 Broker 但设备
+    可能未收到的 sent）统一标记为 delivered，不会在后续轮询中重复返回。
     适用于设备未连接 MQTT、只能走 HTTP 轮询的场景。
     """
     target_device_id = _resolve_device_id(principal, x_device_id or device_id)
@@ -273,7 +274,7 @@ async def pull_pending_commands(
         _touch_device(db, target_device_id, principal, source="pending")
         commands = get_pending_commands(db, target_device_id, limit=limit)
 
-        # 拉取即视为已投递（仅 pending 会被改写，sent 由设备回执推进）
+        # 拉取即视为已投递：pending / sent 都会推进为 delivered，避免同一条指令被反复返回
         for command in commands:
             mark_delivered(db, command["command_id"])
 

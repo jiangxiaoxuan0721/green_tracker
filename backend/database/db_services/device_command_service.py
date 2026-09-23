@@ -190,7 +190,17 @@ def get_pending_commands(
 
 
 def mark_delivered(db: Session, command_id: str) -> Optional[Dict[str, Any]]:
-    """标记指令已被设备拉取"""
+    """
+    标记指令已被设备拉取
+
+    pending 与 sent 都可推进为 delivered：
+    - pending：MQTT 不可用，设备走 HTTP 轮询取走；
+    - sent：已推送到 Broker，但设备当时可能离线（MQTT 发布在无人订阅时同样成功），
+      轮询是这类指令的补偿投递通道。
+
+    若只允许 pending 推进，sent 指令会被每次轮询反复返回，
+    状态又只能由回执推进，设备可能重复执行或直到过期都不落地。
+    """
     try:
         record = db.query(DeviceCommand).filter(
             DeviceCommand.command_id == command_id
@@ -198,7 +208,7 @@ def mark_delivered(db: Session, command_id: str) -> Optional[Dict[str, Any]]:
         if not record:
             return None
 
-        if record.status == "pending":
+        if record.status in ACTIVE_STATUSES:
             record.status = "delivered"
             record.delivered_at = datetime.utcnow()
             db.commit()
