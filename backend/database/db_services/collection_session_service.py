@@ -1,8 +1,9 @@
-from sqlalchemy import desc, func, or_
+from sqlalchemy import desc, func, inspect, or_
 from sqlalchemy.orm import Session
 from database.db_models.user_models import CollectionSession
 from database.db_models.user_models import Field
 from database.db_models.user_models import Device
+from database.db_models.user_models import RawData, RawDataTag, DataProcessing
 import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -271,24 +272,120 @@ def update_collection_session(
     
     return session
 
-def delete_collection_session(db: Session, session_id: str) -> bool:
+def _delete_raw_data_of_session(db: Session, session_id: str) -> int:
     """
-    删除采集任务
-    
+    批量删除某个会话下的原始数据及其子表记录
+
+    不走 ORM 级联（session.delete 会逐行加载 raw_data → tags → processing）：
+    1. 数据量大时逐行加载/删除会让请求长时间不返回；
+    2. data_processing 等子表在部分存量用户库未建，惰性加载会直接抛 UndefinedTable。
+
+    返回被删除的原始数据条数。
+    """
+    raw_ids = [row[0] for row in db.query(RawData.id).filter(
+        RawData.session_id == session_id
+    ).all()]
+
+    if not raw_ids:
+        return 0
+
+    # 子表可能尚未建（历史库缺表），缺表时跳过，避免拖垮整次删除
+    existing_tables = set(inspect(db.bind).get_table_names())
+
+    if DataProcessing.__tablename__ in existing_tables:
+        db.query(DataProcessing).filter(
+            DataProcessing.raw_data_id.in_(raw_ids)
+        ).delete(synchronize_session=False)
+
+    if RawDataTag.__tablename__ in existing_tables:
+        db.query(RawDataTag).filter(
+            RawDataTag.raw_data_id.in_(raw_ids)
+        ).delete(synchronize_session=False)
+
+    deleted = db.query(RawData).filter(
+        RawData.session_id == session_id
+    ).delete(synchronize_session=False)
+
+    return deleted or 0
+
+
+def _collect_session_object_keys(db: Session, session_id: str) -> List[str]:
+    """收集会话下 raw_data 记录的 MinIO 对象路径（删除行之前调用）"""
+    rows = db.query(RawData.object_key).filter(
+        RawData.session_id == session_id,
+        RawData.object_key.isnot(None)
+    ).all()
+    return [row[0] for row in rows if row[0]]
+
+
+def _cleanup_session_objects(
+    user_id: Optional[str],
+    session_id: str,
+    extra_object_keys: Optional[List[str]] = None
+) -> int:
+    """
+    清理会话在 MinIO 上的文件
+
+    存储清理属于尽力而为：MinIO 不可达/部分失败只记录日志，
+    不影响数据库删除结果，避免「文件删不掉导致任务也删不掉」。
+
+    Returns:
+        int: 成功删除的对象数量
+    """
+    if not user_id:
+        return 0
+
+    try:
+        from storage.storage_manager import get_storage_manager
+
+        result = get_storage_manager().delete_session_objects(
+            user_id=user_id,
+            session_id=session_id,
+            extra_object_keys=extra_object_keys
+        )
+        deleted = result.get("deleted", 0) or 0
+        if deleted:
+            print(f"[后端CollectionSessionService] 清理会话 {session_id} 的 MinIO 对象: {deleted} 个")
+        if not result.get("success"):
+            print(f"[后端CollectionSessionService] 会话 {session_id} 的 MinIO 对象未清理干净: "
+                  f"{result.get('failed') or result.get('message')}")
+        return deleted
+    except Exception as e:
+        print(f"[后端CollectionSessionService] 清理会话 {session_id} 的 MinIO 对象失败: {str(e)}")
+        return 0
+
+
+def delete_collection_session(db: Session, session_id: str, user_id: Optional[str] = None) -> bool:
+    """
+    删除采集任务（连同其原始数据与 MinIO 上的文件）
+
     Args:
         db: 数据库会话
         session_id: 采集任务ID
-    
+        user_id: 用户ID。传入时会一并清理该会话在 MinIO 上的对象
+
     Returns:
         bool: 删除成功返回True，否则返回False
     """
     session = get_collection_session_by_id(db, session_id)
     if not session:
         return False
-    
+
+    # 先取出对象路径，删行之后就拿不到了
+    object_keys = _collect_session_object_keys(db, session_id)
+
+    _delete_raw_data_of_session(db, session_id)
+
+    # 上面的批量删除用 synchronize_session=False，这里让 ORM 重新读取关联，
+    # 避免级联删除时基于过期的 raw_data 集合再逐行处理
+    db.expire(session, ["raw_data"])
+
     db.delete(session)
     db.commit()
-    
+
+    # 数据库删除提交后再清存储：存储异常不会回滚已删任务，最坏只残留孤儿文件
+    _cleanup_session_objects(user_id, session_id, object_keys)
+
     return True
 
 def get_latest_collection_session_by_field(db: Session, field_id: str, mission_type: Optional[str] = None) -> Optional[CollectionSession]:

@@ -196,6 +196,8 @@ const Sessions = () => {
         closeDetail()
       } catch (err) {
         console.error('删除任务失败:', err)
+        // 删除失败要让用户看得见，否则界面毫无变化会被误认为后端无响应
+        setError('删除任务失败: ' + (err.response?.data?.detail || err.message))
       }
     }
   }
