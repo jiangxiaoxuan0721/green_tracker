@@ -151,6 +151,8 @@ Nginx (:80/:443)              终止 TLS、反向代理
 | PUT | `/{raw_data_id}/ai-status` | 更新 AI 状态 |
 | GET/POST | `/{raw_data_id}/tags` | 标签读写 |
 | GET | `/{raw_data_id}/thumbnail` | 缩略图 |
+| GET | `/integrity/object-keys` | 原始数据 ↔ 对象存储一致性体检 |
+| POST | `/integrity/object-keys/cleanup` | 清理悬空的原始数据记录（默认 dry-run） |
 
 ### API 密钥 `/api/api-keys`
 
@@ -289,6 +291,7 @@ Nginx (:80/:443)              终止 TLS、反向代理
 - [`docs/architecture/minio_documentation.md`](docs/architecture/minio_documentation.md) — MinIO 存储
 - [`docs/features/algorithm_development_guide.md`](docs/features/algorithm_development_guide.md) — 算法接入规范
 - [`docs/features/api_key_permissions.md`](docs/features/api_key_permissions.md) — API 密钥权限体系
+- [`docs/features/data_integrity.md`](docs/features/data_integrity.md) — 原始数据 ↔ 对象存储一致性巡检
 - [`docs/features/device_onboarding.md`](docs/features/device_onboarding.md) — 设备端接入（签到 / 指令 / 回执 / 排错）
 - [`docs/features/thumbnail_feature_guide.md`](docs/features/thumbnail_feature_guide.md) — 缩略图链路
 - [`docs/setup/https-setup.md`](docs/setup/https-setup.md) — Nginx 与 HTTPS 部署

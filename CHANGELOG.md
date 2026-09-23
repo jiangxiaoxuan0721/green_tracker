@@ -30,6 +30,10 @@ API 密钥引入三权限体系，设备远程控制形成「下发 → 投递 �
 - **用户库新表** `device_commands`、`device_key_bindings`：纳入模板库建表清单、
   新建库校验与启动期自动迁移
 - **设备端接入文档** `docs/features/device_onboarding.md`
+- **原始数据一致性巡检** `/api/raw-data/integrity/object-keys`：比对库中的 `object_key`
+  与 MinIO 实际对象，区分「会话已删的孤儿记录」与「会话仍在但对象缺失」两类问题；
+  配套 `cleanup` 接口默认 `dry_run=true` 且只清孤儿记录，确认后才落库，
+  并连带删除已无人引用的对象
 
 ### 改进
 
@@ -42,14 +46,27 @@ API 密钥引入三权限体系，设备远程控制形成「下发 → 投递 �
   `DeviceCommand` 且漏掉新表，改为「表名 → 模型」映射统一校验补建
 - **启动期迁移补齐** `device_key_bindings`：`migrate_user_databases()` 此前只补
   `device_commands`，存量用户库设备签到写关联会失败，控制台一直提示「尚未上报密钥」
+- **清理未被引用代码**：移除后端若干模块中未被调用的函数、重复导出与冗余字段，
+  前端 `apiKeyService.ts` 同步收敛
+
+### 修复
+
+- **指令回执归属校验**：`POST /api/device-commands/{command_id}/result` 原只校验密钥是否
+  持有 `device_control`，不校验指令是否属于请求里的设备，持权密钥可伪造他机的执行结果；
+  现按设备归属校验，越权返回 404
+- **轮询补取 sent 指令**：`get_pending_commands` 返回 `pending` 与 `sent` 两类指令，
+  但 `mark_delivered` 只在 `pending` 时生效，MQTT 已推送的指令被 HTTP 拉走后状态不变，
+  会在每次轮询中重复返回；现允许 `sent` 推进为 `delivered`
 
 ### 文档
 
+- 新增 `docs/features/data_integrity.md`（悬空记录体检与清理接口、判定口径、失败影响）
 - 新增 `docs/features/device_onboarding.md`（签到与能力协商、指令接收 / 回执、撤销处理、排错）
 - 修正 `docs/features/api_key_permissions.md`：删除「`device_control` 必须绑定设备、
   否则返回 400」的错误口径，补充 `heartbeat` / `grant` 接口与 `device_key_bindings` 表
-- `ARCHITECTURE.md` 补充共享依赖层、`/api/device-commands` 全量路由与授权口径
-- `docs/README.md` 索引登记两篇新文档
+- `ARCHITECTURE.md` 补充共享依赖层、`/api/device-commands` 与 `/api/raw-data/integrity/*`
+  全量路由及授权口径
+- `docs/README.md` 索引登记三篇新文档
 
 ---
 

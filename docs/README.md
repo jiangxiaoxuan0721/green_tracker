@@ -41,6 +41,7 @@
 |------|------|
 | [`algorithm_development_guide.md`](features/algorithm_development_guide.md) | 算法包开发指南（部署流程、包结构、`algorithm.yaml`、性能边界与排错） |
 | [`api_key_permissions.md`](features/api_key_permissions.md) | API 密钥权限体系（三种权限、认证方式、接口与权限映射） |
+| [`data_integrity.md`](features/data_integrity.md) | 原始数据 ↔ 对象存储一致性巡检（悬空记录体检与安全清理） |
 | [`device_onboarding.md`](features/device_onboarding.md) | 设备端接入说明（签到与能力协商、指令接收/回执、撤销处理、排错） |
 | [`thumbnail_feature_guide.md`](features/thumbnail_feature_guide.md) | 图像缩略图链路 |
 
