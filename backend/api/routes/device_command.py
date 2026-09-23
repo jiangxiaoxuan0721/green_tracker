@@ -286,13 +286,21 @@ async def pull_pending_commands(
 async def report_command_result(
     command_id: str,
     request: DeviceCommandResultRequest,
-    principal: AuthPrincipal = Depends(require_device_control)
+    principal: AuthPrincipal = Depends(require_device_control),
+    meta_db: Session = Depends(get_meta_db),
+    x_device_id: str = Header(None, alias="X-Device-Id", description="设备ID（设备侧调用必填）"),
+    device_id: str = Query(None, description="设备ID，与 X-Device-Id 等价")
 ):
     """
     设备侧回执
 
     status 取 acked（执行成功）或 failed（执行失败）。
-    设备必须与指令的目标设备一致（API 密钥场景下即密钥绑定的设备）。
+
+    归属校验（仅 API 密钥调用方）：声明的 X-Device-Id 必须与指令的目标设备一致，
+    且该设备当前上报的密钥就是本次调用的密钥，否则返回 403。
+    两步都过了才允许回执，避免持 device_control 的密钥伪造其它设备的执行结果。
+
+    JWT 调用方是账号所有者，不做归属校验。
     """
     if request.status not in ("acked", "failed"):
         raise HTTPException(status_code=400, detail="status 仅支持 acked 或 failed")
@@ -302,6 +310,28 @@ async def report_command_result(
         command = get_command(db, command_id)
         if not command:
             raise HTTPException(status_code=404, detail="指令不存在")
+
+        # 先校验再写关联：否则越权调用方会先把自己的密钥绑定上去，等于自我授权
+        if principal.auth_method == AUTH_METHOD_API_KEY:
+            caller_device_id = x_device_id or device_id
+            if not caller_device_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="设备回执请通过 X-Device-Id 请求头或 device_id 参数声明设备身份"
+                )
+            if caller_device_id != command["device_id"]:
+                raise HTTPException(
+                    status_code=403,
+                    detail="该指令不属于当前设备，只能回执下发给自己的指令"
+                )
+
+            bound_state = get_bound_key_state(db, meta_db, command["device_id"])
+            if not bound_state.get("api_key_id") or \
+                    str(bound_state["api_key_id"]) != str(principal.api_key_id):
+                raise HTTPException(
+                    status_code=403,
+                    detail="该设备当前上报的密钥不是本次调用的密钥，请先用该密钥重新签到"
+                )
 
         _touch_device(db, command["device_id"], principal, source="result")
 

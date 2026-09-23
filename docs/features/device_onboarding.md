@@ -143,6 +143,7 @@ X-Device-Id: <device_id>
 POST /api/device-commands/{command_id}/result
 Content-Type: application/json
 X-API-Key: green-xxxxxxxxxxxx
+X-Device-Id: 3f1c0b8e-0d3a-4a2b-9c1f-7d2e5a4b6c88
 
 {
   "status": "acked",
@@ -153,6 +154,9 @@ X-API-Key: green-xxxxxxxxxxxx
 
 - `status` 仅支持 `acked`（成功）/ `failed`（失败），其它值返回 `400`
 - 指令不存在返回 `404`
+- **设备侧必须带 `X-Device-Id`**，且要满足两点，否则返回 `403`：
+  1. 与指令的目标设备一致——不能替别的设备回执；
+  2. 该设备当前上报的密钥就是本次调用的密钥——换过密钥要先重新签到
 
 指令状态机：
 
@@ -197,7 +201,8 @@ pending ──投递──> sent/delivered ──回执──> acked | failed
 | 下发指令返回 `403` | 该设备上报的密钥没有 `device_control`，或密钥已禁用 / 已过期 |
 | `heartbeat` 返回 `registered: false` | 关联写入失败，检查用户库表结构；响应 `message` 会给出具体提示 |
 | 轮询一直拿不到指令 | 密钥缺 `device_control`，或指令已过 `timeout_seconds` 被标记 `expired` |
-| 回执返回 `400` | `status` 只能是 `acked` 或 `failed` |
+| 回执返回 `400` | `status` 只能是 `acked` 或 `failed`；或设备侧未带 `X-Device-Id` |
+| 回执返回 `403` | `X-Device-Id` 与指令目标设备不一致，或该设备当前上报的密钥不是本次调用的密钥 |
 | 返回 `401` | 密钥无效 / 已禁用 / 已过期，换一把有效密钥 |
 
 ---
