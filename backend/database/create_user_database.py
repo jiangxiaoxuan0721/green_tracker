@@ -135,30 +135,38 @@ def create_user_database(user_id: str, database_host: str = None, database_port:
             logger.info(f"Tables in user database {db_name} (copied from template): {existing_tables}")
 
             # 验证所需的表是否存在
-            required_tables = ['fields', 'devices', 'collection_sessions', 'raw_data', 'raw_data_tags', 'crop_objects']
-            missing_tables = [table for table in required_tables if table not in existing_tables]
+            from database.db_models.user_models import (
+                Field,
+                Device,
+                CollectionSession,
+                RawData,
+                RawDataTag,
+                CropObject,
+                DeviceCommand,
+                DeviceKeyBinding,
+                DataProcessing,
+            )
+
+            table_models = {
+                'fields': Field,
+                'devices': Device,
+                'collection_sessions': CollectionSession,
+                'raw_data': RawData,
+                'raw_data_tags': RawDataTag,
+                'crop_objects': CropObject,
+                'device_commands': DeviceCommand,
+                'device_key_bindings': DeviceKeyBinding,
+                'data_processing': DataProcessing,
+            }
+            missing_tables = [name for name in table_models if name not in existing_tables]
 
             if missing_tables:
                 logger.warning(f"Missing tables in database {db_name}: {missing_tables}")
                 logger.warning("This should not happen when using TEMPLATE database. Creating missing tables...")
 
-                # 如果缺少表,尝试创建它们
-                from database.db_models.user_models import Field, Device, CollectionSession, RawData, RawDataTag, CropObject
-                for table_name in ['fields', 'devices', 'collection_sessions', 'raw_data', 'raw_data_tags', 'crop_objects']:
-                    if table_name not in existing_tables:
-                        if table_name == 'fields':
-                            Field.__table__.create(bind=user_engine, checkfirst=True)
-                        elif table_name == 'devices':
-                            Device.__table__.create(bind=user_engine, checkfirst=True)
-                        elif table_name == 'collection_sessions':
-                            CollectionSession.__table__.create(bind=user_engine, checkfirst=True)
-                        elif table_name == 'raw_data':
-                            RawData.__table__.create(bind=user_engine, checkfirst=True)
-                        elif table_name == 'raw_data_tags':
-                            RawDataTag.__table__.create(bind=user_engine, checkfirst=True)
-                        elif table_name == 'crop_objects':
-                            CropObject.__table__.create(bind=user_engine, checkfirst=True)
-                        logger.info(f"Created table: {table_name}")
+                for table_name in missing_tables:
+                    table_models[table_name].__table__.create(bind=user_engine, checkfirst=True)
+                    logger.info(f"Created table: {table_name}")
 
             logger.info(f"Database {db_name} validation completed")
         except Exception as e:
