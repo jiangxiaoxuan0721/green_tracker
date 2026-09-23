@@ -1,6 +1,6 @@
 /**
  * API 密钥服务
- * 提供密钥的增删改查与权限验证
+ * 提供密钥的增删改查
  */
 
 import api from './api';
@@ -74,17 +74,6 @@ const apiKeyService = {
         }
     },
 
-    async validateApiKeyPermissions(apiKey: string): Promise<ApiKey> {
-        try {
-            const response = await api.get('/api/api-keys/validate/permissions', {
-                headers: { 'X-API-Key': apiKey },
-            });
-            return response.data.data;
-        } catch (error) {
-            console.error('验证API密钥权限失败:', error);
-            throw new Error(toMessage(error, '验证API密钥权限失败'));
-        }
-    },
 };
 
 export default apiKeyService;

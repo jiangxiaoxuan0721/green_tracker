@@ -33,14 +33,18 @@ Nginx (:80/:443)              终止 TLS、反向代理
 |----|------|------|
 | 前端 SPA | `frontend/src` | React 18 + Vite 5。页面在 `pages/Dashboard/`，接口封装在 `services/`，状态用 zustand |
 | API 路由 | `backend/api/routes` | FastAPI 路由，仅做参数校验与响应组装 |
+| 路由共享依赖 | `backend/api/dependencies.py` | 跨路由/跨模块复用的 FastAPI 依赖（如设备控制授权守卫） |
 | 数据模型 | `backend/api/schemas` | Pydantic 请求 / 响应模型 |
 | 业务服务 | `backend/database/db_services` | 数据库读写与业务规则 |
 | ORM 模型 | `backend/database/db_models` | SQLAlchemy 2.0 模型（`meta_model.py` 元库、`user_models.py` 用户库） |
 | 存储 | `backend/storage` | MinIO 客户端、Dockerfile 生成、容器与镜像构建 |
 | 设备通信 | `backend/mqtt` | MQTT 客户端、设备状态管理与路由 |
 | 后台调度 | `backend/scheduler` | 周期性数据维护任务，守护线程随应用生命周期启停 |
+| 共享工具 | `backend/utils` | 与框架无关的通用能力：缓存、邮件、图像处理、**API 密钥权限定义**（`utils/permissions.py`） |
 
 依赖方向：**路由 → 服务 → 模型**，路由层不直接写 SQL。
+`backend/utils` 是不依赖 FastAPI 的共享叶子层，可被任意层依赖；**禁止反向依赖**
+（服务层不得被 `api`/`mqtt` 之外的方向倒灌，权限定义因此放在 `utils` 而非 `api`）。
 
 ---
 
@@ -147,6 +151,8 @@ Nginx (:80/:443)              终止 TLS、反向代理
 | PUT | `/{raw_data_id}/ai-status` | 更新 AI 状态 |
 | GET/POST | `/{raw_data_id}/tags` | 标签读写 |
 | GET | `/{raw_data_id}/thumbnail` | 缩略图 |
+| GET | `/integrity/object-keys` | 原始数据 ↔ 对象存储一致性体检 |
+| POST | `/integrity/object-keys/cleanup` | 清理悬空的原始数据记录（默认 dry-run） |
 
 ### API 密钥 `/api/api-keys`
 
@@ -158,6 +164,23 @@ Nginx (:80/:443)              终止 TLS、反向代理
 | PUT | `/{key_id}` | 更新密钥 |
 | DELETE | `/{key_id}` | 删除密钥 |
 | POST | `/validate` | 校验密钥 |
+| GET | `/permissions` | 权限定义清单（供前端/第三方拉取，避免硬编码） |
+
+### 设备指令 `/api/device-commands`
+
+权限：`device_control`。云端侧用 JWT，设备侧用 API Key + `X-Device-Id`。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/catalog` | 支持的指令清单（唯一源 `backend/mqtt/command_defs.py`） |
+| POST | `/heartbeat` | 设备上报所用密钥（签到·能力协商），不要求 `device_control` |
+| GET | `/devices/{device_id}/grant` | 该设备的远程控制授权状态 |
+| POST | `/` | 下发指令（MQTT 优先，失败降级为轮询） |
+| GET | `/` | 指令列表（分页，支持设备/状态/指令名过滤） |
+| GET | `/pending` | 设备拉取待执行指令（设备侧轮询通道） |
+| POST | `/{command_id}/result` | 设备回执（`acked` / `failed`） |
+| POST | `/{command_id}/cancel` | 取消指令 |
+| GET | `/{command_id}` | 指令详情 |
 
 ### 算法 `/api/algorithms`
 
@@ -240,6 +263,8 @@ Nginx (:80/:443)              终止 TLS、反向代理
 |------|------|
 | 用户认证 | JWT（`SECRET_KEY` / `JWT_ALGORITHM` / `JWT_EXPIRE_MINUTES`），密码 bcrypt 哈希 |
 | 设备 / 第三方接入 | API Key（`/api/api-keys`、`/api-keys/validate`） |
+| 密钥权限 | `data_upload` / `data_read` / `device_control`，定义见 `backend/utils/permissions.py`，详见 [`docs/features/api_key_permissions.md`](docs/features/api_key_permissions.md) |
+| 设备控制授权 | 设备用 `POST /api/device-commands/heartbeat` 上报所用密钥，云端据此判定该设备能否被控制 |
 | 租户隔离 | 每用户独立数据库（见第 3 节） |
 | 传输安全 | Nginx 终止 HTTPS，后端仅监听本地 |
 | 跨域 | `CORS_ORIGINS` / `CORS_METHODS` / `CORS_HEADERS` |
@@ -265,6 +290,9 @@ Nginx (:80/:443)              终止 TLS、反向代理
 - [`docs/architecture/database_redesign_v2.md`](docs/architecture/database_redesign_v2.md) — 数据库 v2 设计（现行架构）
 - [`docs/architecture/minio_documentation.md`](docs/architecture/minio_documentation.md) — MinIO 存储
 - [`docs/features/algorithm_development_guide.md`](docs/features/algorithm_development_guide.md) — 算法接入规范
+- [`docs/features/api_key_permissions.md`](docs/features/api_key_permissions.md) — API 密钥权限体系
+- [`docs/features/data_integrity.md`](docs/features/data_integrity.md) — 原始数据 ↔ 对象存储一致性巡检
+- [`docs/features/device_onboarding.md`](docs/features/device_onboarding.md) — 设备端接入（签到 / 指令 / 回执 / 排错）
 - [`docs/features/thumbnail_feature_guide.md`](docs/features/thumbnail_feature_guide.md) — 缩略图链路
 - [`docs/setup/https-setup.md`](docs/setup/https-setup.md) — Nginx 与 HTTPS 部署
 - [`docs/README.md`](docs/README.md) — 文档总索引

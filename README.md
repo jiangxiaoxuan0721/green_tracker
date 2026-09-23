@@ -36,13 +36,13 @@ Nginx (:80/:443)              终止 TLS、反向代理
 | 2 | 设备管理 | `Devices` | `/api/devices` | 设备注册、状态监控、激活 / 停用 |
 | 3 | 地块管理 | `Fields` | `/api/fields` | 基于 PostGIS 的地理空间地块管理 |
 | 4 | 采集会话 | `Sessions` | `/api/collection-sessions` | 会话创建、监控与归档 |
-| 5 | 数据上传 | `DataUpload` | `/api/raw-data` | 步骤式上传图像 / 视频 / 环境 / 土壤数据 |
-| 6 | 数据视图 | `DataView` | `/api/raw-data` | 多维度数据浏览与检索 |
-| 7 | 数据分析 | `DataAnalyze` | `/api/raw-data` | 统计图表与趋势分析 |
-| 8 | 密钥管理 | `KeyManagement` | `/api/api-keys` | API Key 签发、权限与禁用 |
-| 9 | 算法广场 | `AlgorithmSquare` | `/api/algorithms` | 算法浏览、打包上传、镜像构建与部署 |
-| 10 | 算法使用 | `AlgorithmUse` | `/api/algorithms` | 已部署算法的在线推理 |
-| 11 | 系统日志 | `Logs` | `/api/logs` | 全链路审计日志，支持筛选与 CSV 导出 |
+| 5 | 数据视图 | `DataView` | `/api/raw-data` | 多维度数据浏览与检索，内置步骤式上传弹窗（图像 / 视频 / 环境 / 土壤） |
+| 6 | 数据分析 | `DataAnalyze` | `/api/raw-data` | 统计图表与趋势分析 |
+| 7 | 密钥管理 | `KeyManagement` | `/api/api-keys` | API Key 签发、权限（`data_upload` / `data_read` / `device_control`）与禁用 |
+| 8 | 算法广场 | `AlgorithmSquare` | `/api/algorithms` | 算法浏览、打包上传、镜像构建与部署 |
+| 9 | 算法使用 | `AlgorithmUse` | `/api/algorithms` | 已部署算法的在线推理 |
+| 10 | 系统日志 | `Logs` | `/api/logs` | 全链路审计日志，支持筛选与 CSV 导出 |
+| 11 | 设备控制 | `RemoteControl` | `/api/device-commands` | 向设备下发指令、查看授权状态与执行结果 |
 
 其余能力：6 套主题切换、Framer Motion 动效、响应式布局、JWT 认证、用户反馈（`/api/feedback`）、数据库管理（`/api/admin/database`）、MQTT 管理（`/api/mqtt/*`）。
 
@@ -85,11 +85,13 @@ make dev
 ```
 green_tracker/
 ├── backend/                    # FastAPI 后端
-│   ├── main.py                 # 应用入口，注册 11 个路由模块
+│   ├── main.py                 # 应用入口，注册 12 个路由模块
 │   ├── api/routes/             # auth / device / field / collection_session /
 │   │                           # raw_data / api_key / algorithm / log /
-│   │                           # feedback / admin_database / mqtt
+│   │                           # feedback / admin_database / device_command / mqtt
+│   ├── api/dependencies.py     # 跨路由共享依赖（设备控制授权守卫）
 │   ├── api/schemas/            # Pydantic 请求与响应模型
+│   ├── utils/                  # 缓存 / 邮件 / 图像处理 / 密钥权限定义
 │   ├── database/               # 元数据库 + 每用户独立数据库管理
 │   ├── storage/                # MinIO 客户端、Docker 容器与镜像构建
 │   ├── mqtt/                   # MQTT 客户端、设备状态与路由

@@ -136,6 +136,20 @@ class DatabaseInitializer:
                         AlgorithmReview.__table__.create(bind=db.bind, checkfirst=True)
                         logger.info("Algorithm_reviews table created successfully")
 
+                    # 迁移：为已存在的 api_keys 表补充 device_ids 列（设备控制权限使用）
+                    if 'api_keys' in existing_tables and inspector:
+                        from sqlalchemy import text as sa_text
+
+                        api_key_columns = {col['name'] for col in inspector.get_columns('api_keys') or []}
+                        if 'device_ids' not in api_key_columns:
+                            logger.info("Migrating api_keys table: adding device_ids column...")
+                            with db.bind.connect() as migration_conn:
+                                migration_conn.execute(sa_text(
+                                    "ALTER TABLE api_keys ADD COLUMN device_ids TEXT DEFAULT '[]'"
+                                ))
+                                migration_conn.commit()
+                            logger.info("Added device_ids column to api_keys table")
+
                     # 检查 users 表是否需要迁移（添加缺失的字段）
                     if 'users' in existing_tables and inspector:
                         users_columns = {col['name'] for col in inspector.get_columns('users') or []}
@@ -268,7 +282,8 @@ class DatabaseInitializer:
             # 8. 使用 SQLAlchemy 创建所有表（但不检查索引是否存在）
             from database.db_models.user_models import (
                 Field, Device, CollectionSession,
-                RawData, RawDataTag, CropObject, SystemLog
+                RawData, RawDataTag, CropObject, SystemLog,
+                DeviceCommand, DeviceKeyBinding, DataProcessing
             )
             from sqlalchemy import inspect
 
@@ -284,7 +299,11 @@ class DatabaseInitializer:
                 (RawData, 'raw_data'),
                 (RawDataTag, 'raw_data_tags'),
                 (CropObject, 'crop_objects'),
-                (SystemLog, 'system_logs')
+                (SystemLog, 'system_logs'),
+                (DeviceCommand, 'device_commands'),
+                (DeviceKeyBinding, 'device_key_bindings'),
+                # RawData.processing 关联该表，缺表会让「删除采集任务」的级联加载直接失败
+                (DataProcessing, 'data_processing')
             ]:
                 if table_name not in existing_tables:
                     try:
@@ -366,6 +385,29 @@ class DatabaseInitializer:
                             from database.db_models.user_models import SystemLog
                             SystemLog.__table__.create(bind=engine, checkfirst=True)
                             logger.info(f"[{db_name}] system_logs table created")
+
+                        # 迁移：为已有用户数据库创建 device_commands 表（设备控制指令）
+                        if 'device_commands' not in existing_tables:
+                            logger.info(f"[{db_name}] Creating device_commands table...")
+                            from database.db_models.user_models import DeviceCommand
+                            DeviceCommand.__table__.create(bind=engine, checkfirst=True)
+                            logger.info(f"[{db_name}] device_commands table created")
+
+                        # 迁移：为已有用户数据库创建 device_key_bindings 表（设备 ↔ 密钥上报关联）
+                        # 缺失时设备签到写关联失败，控制台会一直提示「设备尚未上报所使用的API密钥」
+                        if 'device_key_bindings' not in existing_tables:
+                            logger.info(f"[{db_name}] Creating device_key_bindings table...")
+                            from database.db_models.user_models import DeviceKeyBinding
+                            DeviceKeyBinding.__table__.create(bind=engine, checkfirst=True)
+                            logger.info(f"[{db_name}] device_key_bindings table created")
+
+                        # 迁移：为已有用户数据库创建 data_processing 表（原始数据处理记录）
+                        # 缺失时删除采集任务会因 ORM 级联加载该表而报 UndefinedTable
+                        if 'data_processing' not in existing_tables:
+                            logger.info(f"[{db_name}] Creating data_processing table...")
+                            from database.db_models.user_models import DataProcessing
+                            DataProcessing.__table__.create(bind=engine, checkfirst=True)
+                            logger.info(f"[{db_name}] data_processing table created")
                     except ProgrammingError as pe:
                         logger.warning(f"[{db_name}] Migration skipped (DB may not exist): {pe}")
                     finally:

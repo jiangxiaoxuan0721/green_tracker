@@ -82,6 +82,32 @@ export interface DeviceCommandsResponse {
   commands: SupportedCommand[];
 }
 
+export interface DeviceControlGrantKey {
+  id: string;
+  key_name: string | null;
+  permissions: string[];
+  is_active: boolean;
+  is_expired: boolean;
+  expires_at: string | null;
+}
+
+export interface DeviceControlGrant {
+  device_id: string;
+  device_name: string | null;
+  // 设备是否已上报所使用的 API 密钥（软关联）
+  bound: boolean;
+  // 控制授权：取决于设备上报的那把密钥是否含 device_control
+  control_granted: boolean;
+  reason: string;
+  api_key_id: string | null;
+  api_key_name: string | null;
+  permissions: string[];
+  is_active: boolean | null;
+  is_expired: boolean | null;
+  expires_at: string | null;
+  last_reported_at: string | null;
+}
+
 export interface MqttHealth {
   status: string;
   service: string;
@@ -126,6 +152,12 @@ export const mqttService = {
       `/api/mqtt/devices/${deviceId}/commands`,
       { command, params: params || {} }
     );
+    return response.data;
+  },
+
+  // 查询设备的远程控制授权状态（依据该设备上报的密钥权限）
+  async getDeviceControlGrant(deviceId: string): Promise<DeviceControlGrant> {
+    const response = await api.get<DeviceControlGrant>(`/api/device-commands/devices/${deviceId}/grant`);
     return response.data;
   },
 

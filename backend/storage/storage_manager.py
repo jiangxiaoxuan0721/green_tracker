@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 # 加载环境变量
 project_root = Path(__file__).parent.parent.parent
@@ -268,6 +268,101 @@ class StorageManager:
         except Exception as e:
             logger.error(f"生成URL失败: {e}")
             return ""
+
+    def _get_session_prefix(self, user_id: str, session_id: str) -> str:
+        """
+        构建某个采集会话的对象目录前缀
+
+        与上传路径 user_{user_id}/data/session_{session_id}/{filename} 对齐
+        """
+        return "/".join([f"user_{user_id}", "data", f"session_{session_id}"]) + "/"
+
+    def list_object_keys(self, prefix: str, bucket_name: Optional[str] = None) -> List[str]:
+        """
+        列举指定前缀下的对象路径（递归）
+
+        Args:
+            prefix: 对象路径前缀
+            bucket_name: 存储桶，默认使用共享桶
+
+        Returns:
+            List[str]: 对象路径列表；查询失败返回空列表（不抛出）
+        """
+        bucket = bucket_name or self.BUCKET_NAME
+        try:
+            objects = self._client.list_objects(bucket, prefix=prefix, recursive=True)
+            return [obj.object_name for obj in objects if getattr(obj, "object_name", None)]
+        except Exception as e:
+            logger.error(f"列举对象失败 bucket={bucket} prefix={prefix}: {e}")
+            return []
+
+    def delete_objects(
+        self,
+        object_paths: List[str],
+        bucket_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        批量删除对象
+
+        Args:
+            object_paths: 对象路径列表
+            bucket_name: 存储桶，默认使用共享桶
+
+        Returns:
+            Dict[str, Any]: {success, deleted, failed}；失败项以字符串列表返回
+        """
+        bucket = bucket_name or self.BUCKET_NAME
+        paths = [p for p in (object_paths or []) if p]
+        if not paths:
+            return {"success": True, "deleted": 0, "failed": []}
+
+        try:
+            from minio.deleteobjects import DeleteObject
+
+            # remove_objects 返回删除失败的迭代器，成功项不产生结果
+            errors = list(self._client.remove_objects(
+                bucket, [DeleteObject(path) for path in paths]
+            ))
+            failed = [f"{err.name}: {err}" for err in errors]
+            deleted = len(paths) - len(failed)
+
+            if failed:
+                logger.warning(f"部分对象删除失败（{len(failed)}/{len(paths)}）: {failed[:5]}")
+            logger.info(f"删除对象完成: bucket={bucket}, 成功={deleted}")
+
+            return {"success": not failed, "deleted": deleted, "failed": failed}
+        except Exception as e:
+            logger.error(f"批量删除对象失败 bucket={bucket}: {e}")
+            return {"success": False, "message": str(e), "deleted": 0, "failed": []}
+
+    def delete_session_objects(
+        self,
+        user_id: str,
+        session_id: str,
+        extra_object_keys: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        清理某个采集会话在 MinIO 上的全部对象
+
+        按会话目录前缀扫描，因此也能清掉未入库（没有 raw_data 记录）的孤儿文件；
+        extra_object_keys 用于补删 raw_data 里记录的路径（路径规范不一致时的兜底）。
+
+        Args:
+            user_id: 用户ID
+            session_id: 采集会话ID
+            extra_object_keys: 额外需要删除的对象路径
+
+        Returns:
+            Dict[str, Any]: {success, deleted, failed}
+        """
+        prefix = self._get_session_prefix(user_id, session_id)
+        keys = set(self.list_object_keys(prefix))
+        keys.update(key for key in (extra_object_keys or []) if key)
+
+        if not keys:
+            return {"success": True, "deleted": 0, "failed": []}
+
+        return self.delete_objects(sorted(keys))
 
     def get_public_url(
         self,

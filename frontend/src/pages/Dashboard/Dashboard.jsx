@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { 
-  LayoutDashboard, Grid3X3, Radio, ListTodo, Upload, Eye, BarChart3, 
+  LayoutDashboard, Grid3X3, Radio, ListTodo, Database, BarChart3, 
   Cpu, Settings, FileText, LogOut, KeyRound 
 } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -49,8 +49,7 @@ const Dashboard = () => {
     { id: 'fields', label: '地块管理', path: '/dashboard/fields', icon: Grid3X3 },
     { id: 'devices', label: '设备管理', path: '/dashboard/devices', icon: Radio },
     { id: 'sessions', label: '任务管理', path: '/dashboard/sessions', icon: ListTodo },
-    { id: 'data-upload', label: '数据上传', path: '/dashboard/data-upload', icon: Upload },
-    { id: 'data-view', label: '数据查看', path: '/dashboard/data-view', icon: Eye },
+    { id: 'data-view', label: '数据管理', path: '/dashboard/data-view', icon: Database },
     { id: 'data-analyze', label: '数据分析', path: '/dashboard/data-analyze', icon: BarChart3 },
     { id: 'algorithm-square', label: '算法广场', path: '/dashboard/algorithm-square', icon: Cpu },
     { id: 'api-keys', label: '密钥管理', path: '/dashboard/api-keys', icon: KeyRound },

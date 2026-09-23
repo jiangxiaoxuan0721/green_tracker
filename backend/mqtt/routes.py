@@ -12,13 +12,18 @@ MQTT 云端管理 REST API
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Query
+from sqlalchemy.orm import Session
 
 from .mqtt_client import get_mqtt_client, BROKER_HOST, BROKER_PORT
 from .device_manager import get_device_manager
+from .command_defs import COMMAND_DEFS, list_command_definitions
+from api.dependencies import assert_device_control_granted
+from database.main_db import get_meta_db
+from database.user_db_manager import get_user_db
 from .service import provision_device_mqtt
 from .schemas import (
     CommandRequest, CommandResponse, CommandResult,
@@ -197,14 +202,62 @@ async def get_mqtt_device(
 # 命令下发
 # ============================================================
 
+def _persist_mqtt_command(
+    user_id: str,
+    device_id: str,
+    command: str,
+    command_id: str,
+    params: Optional[dict] = None
+) -> None:
+    """
+    MQTT 下发的指令必须落库
+
+    设备执行成功后会按 command_id 调用
+    POST /api/device-commands/{command_id}/result 回执；
+    库里没有对应记录时该接口返回 404，表现为「执行成功但回执失败」。
+    """
+    try:
+        from database.db_services.device_command_service import create_command
+
+        user_db = get_user_db(user_id)
+        try:
+            device_name = None
+            device_row = user_db.query(Device).filter(Device.id == device_id).first()
+            if device_row:
+                device_name = device_row.name
+
+            create_command(
+                user_db,
+                command_id=command_id,
+                device_id=device_id,
+                device_name=device_name,
+                command=command,
+                params=params,
+                status="sent",
+                transport="mqtt",
+                issued_by=user_id,
+                sent_at=datetime.utcnow(),
+                expires_at=datetime.utcnow() + timedelta(seconds=300)
+            )
+        finally:
+            user_db.close()
+    except Exception as e:
+        # 落库失败不阻断下发，但会导致设备回执 404，必须显式告警
+        logger.error(f"MQTT 指令落库失败，设备回执将返回404: {command_id}, {e}")
+
+
 @router.post("/devices/{device_id}/commands")
 async def send_device_command(
     device_id: str,
     cmd: CommandRequest,
     current_user: User = Depends(get_current_user),
+    meta_db: Session = Depends(get_meta_db),
 ):
     """
     向指定设备下发命令
+
+    授权：控制台走 JWT，但仍按「设备上报的密钥」判定——
+    该设备上报的密钥若没有 device_control，登录用户同样不能操控它。
 
     支持的命令（由设备端动态声明，以下为当前版本清单）:
     - ping:          心跳检测
@@ -214,6 +267,13 @@ async def send_device_command(
     - set_config:    写配置项 (参数: key, value)
     - list_commands: 获取命令列表（内部使用）
     """
+    # 设备级控制授权（早于连通性检查）：设备上报的密钥无 device_control 时不得下发
+    user_db = get_user_db(str(current_user.userid))
+    try:
+        assert_device_control_granted(user_db, meta_db, device_id)
+    finally:
+        user_db.close()
+
     mqtt_client = get_mqtt_client()
     if not mqtt_client or not mqtt_client.connected:
         raise HTTPException(status_code=503, detail="MQTT 服务未连接")
@@ -228,6 +288,15 @@ async def send_device_command(
     command_id = mqtt_client.send_command(device_id, cmd.command, cmd.params)
     if not command_id:
         raise HTTPException(status_code=500, detail=f"命令发送失败: {device_id}")
+
+    # 落库：设备执行成功后要按 command_id 回执，库里没有记录会回执 404
+    _persist_mqtt_command(
+        user_id=str(current_user.userid),
+        device_id=device_id,
+        command=cmd.command,
+        params=cmd.params,
+        command_id=command_id
+    )
 
     # 记录命令到追踪器
     dm.add_pending_command(
@@ -252,17 +321,8 @@ async def send_device_command(
     )
 
 
-# ── 命令定义表：云端维护每个命令 ID 的显示信息 ──
-# 当设备返回命令名时，在此表中查找 label/icon/require_confirm
-# 设备客户端只需返回命令 ID 列表，无需关心展示细节
-_COMMAND_DEFS: dict[str, dict] = {
-    "ping":          {"label": "心跳检测",   "description": "立即检测设备是否响应",                 "icon": "zap",       "require_confirm": False},
-    "get_info":      {"label": "获取设备信息", "description": "获取设备基本信息、平台、主机名等",    "icon": "info",      "require_confirm": False},
-    "get_metrics":   {"label": "运行指标",   "description": "获取 CPU/内存/温度等运行指标",        "icon": "sliders",   "require_confirm": False},
-    "reboot":        {"label": "重启设备",   "description": "向设备发送重启指令",                  "icon": "rotate-cw", "require_confirm": True,  "params_schema": {"delay": "number"}},
-    "set_config":    {"label": "写配置项",   "description": "写入设备配置项（key/value）",          "icon": "settings",  "require_confirm": False, "params_schema": {"key": "string", "value": "string"}},
-    "list_commands": {"label": "获取命令列表", "description": "获取设备支持的全部命令",             "icon": "list",      "require_confirm": False, "hidden": True},
-}
+# 命令定义表已抽取到 mqtt/command_defs.py，与设备控制接口（/api/device-commands）共用
+_COMMAND_DEFS: dict[str, dict] = COMMAND_DEFS
 
 # 命令列表缓存（避免每次打开控制台都下发 list_commands）
 _command_cache: dict[str, tuple[list, float]] = {}  # device_id -> ([commands], expiry_timestamp)
@@ -302,7 +362,7 @@ async def get_device_commands(
         commands = _build_default_commands()
         return DeviceCommandsResponse(
             device_id=device_id,
-            commands=[SupportedCommand(**c) for c in commands],
+            commands=_to_supported(commands),
         )
 
     # ── 3. 向设备下发 list_commands ──
@@ -312,7 +372,7 @@ async def get_device_commands(
         commands = _build_default_commands()
         return DeviceCommandsResponse(
             device_id=device_id,
-            commands=[SupportedCommand(**c) for c in commands],
+            commands=_to_supported(commands),
         )
 
     command_id = mqtt_client.send_command(device_id, "list_commands")
@@ -321,8 +381,16 @@ async def get_device_commands(
         commands = _build_default_commands()
         return DeviceCommandsResponse(
             device_id=device_id,
-            commands=[SupportedCommand(**c) for c in commands],
+            commands=_to_supported(commands),
         )
+
+    # 同样落库：设备若对它做 HTTP 回执，否则会 404
+    _persist_mqtt_command(
+        user_id=str(current_user.userid),
+        device_id=device_id,
+        command="list_commands",
+        command_id=command_id
+    )
 
     dm.add_pending_command(
         command_id=command_id,
@@ -346,48 +414,98 @@ async def get_device_commands(
             raw_commands = result.get("commands", [])
 
             if raw_commands and isinstance(raw_commands, list):
-                commands = _map_commands(raw_commands)
-                _command_cache[device_id] = (commands, time.time() + _CACHE_TTL)
-                logger.info(f"✅ 从设备获取命令列表成功: {device_id} -> {raw_commands}")
-                return DeviceCommandsResponse(
-                    device_id=device_id,
-                    commands=[SupportedCommand(**c) for c in commands],
-                )
+                mapped = _map_commands(raw_commands)
+                if mapped:
+                    _command_cache[device_id] = (mapped, time.time() + _CACHE_TTL)
+                    logger.info(f"✅ 从设备获取命令列表成功: {device_id} -> {len(mapped)} 条")
+                    return DeviceCommandsResponse(
+                        device_id=device_id,
+                        commands=_to_supported(mapped),
+                    )
+                logger.warning(f"设备返回的指令列表无法识别，回退默认: {device_id} -> {raw_commands}")
 
     # ── 5. 超时或设备未返回有效列表，回退默认 ──
     logger.warning(f"list_commands 超时或无响应: {device_id}，回退默认列表")
     commands = _build_default_commands()
     return DeviceCommandsResponse(
         device_id=device_id,
-        commands=[SupportedCommand(**c) for c in commands],
+        commands=_to_supported(commands),
     )
 
 
 def _build_default_commands() -> list[dict]:
-    """构建默认命令列表（排除 hidden 指令如 list_commands）"""
-    return [
-        v for v in _COMMAND_DEFS.values()
-        if not v.get("hidden")
-    ]
+    """构建默认命令列表（排除 hidden 指令如 list_commands）
+
+    必须带 id 字段：SupportedCommand.id 为必填，
+    早期实现直接取 _COMMAND_DEFS.values() 会缺 id，导致回退路径必然 500。
+    """
+    return [dict(item) for item in list_command_definitions()]
 
 
-def _map_commands(raw_ids: list[str]) -> list[dict]:
-    """将设备返回的命令 ID 列表映射为完整格式"""
+def _to_supported(commands: list[dict]) -> list[SupportedCommand]:
+    """
+    安全构造响应模型
+
+    任何缺少 id 或字段非法的条目一律跳过并记录告警，
+    避免单条脏数据让整个接口 500（指令面板直接不可用）。
+    """
+    items: list[SupportedCommand] = []
+    for command in commands or []:
+        if not isinstance(command, dict) or not command.get("id"):
+            logger.warning(f"指令定义缺少 id，已跳过: {command!r}")
+            continue
+        try:
+            items.append(SupportedCommand(**command))
+        except Exception as e:
+            logger.warning(f"指令定义非法，已跳过: {command!r}, {e}")
+    return items
+
+
+def _map_commands(raw_commands: list) -> list[dict]:
+    """
+    将设备返回的命令映射为完整展示格式
+
+    兼容设备侧两种返回：
+    - 字符串 ID 列表：["ping", "get_info"]
+    - 对象列表：{"id"/"command"/"name": "ping", "label": ...}
+
+    无法识别的条目跳过并告警，不抛异常。
+    """
     result = []
-    for cmd_id in raw_ids:
-        if cmd_id in _COMMAND_DEFS:
-            info = _COMMAND_DEFS[cmd_id]
-            if not info.get("hidden"):
-                result.append({"id": cmd_id, **info})
+    for item in raw_commands:
+        if isinstance(item, str):
+            cmd_id, device_info = item, {}
+        elif isinstance(item, dict):
+            cmd_id = item.get("id") or item.get("command") or item.get("name")
+            device_info = item
         else:
-            # 未知命令，使用默认展示信息
-            result.append({
+            logger.warning(f"设备返回的指令条目格式无法识别，已跳过: {item!r}")
+            continue
+
+        if not cmd_id:
+            logger.warning(f"设备返回的指令条目缺少 id/command 字段，已跳过: {item!r}")
+            continue
+
+        cmd_id = str(cmd_id)
+        info = _COMMAND_DEFS.get(cmd_id)
+
+        if info:
+            if info.get("hidden"):
+                continue
+            merged = {"id": cmd_id, **info}
+        else:
+            # 云端未知指令：优先采用设备自带的展示信息
+            merged = {
                 "id": cmd_id,
-                "label": cmd_id,
-                "description": "",
-                "icon": "terminal",
-                "require_confirm": False,
-            })
+                "label": device_info.get("label") or cmd_id,
+                "description": device_info.get("description", ""),
+                "icon": device_info.get("icon", "terminal"),
+                "require_confirm": bool(device_info.get("require_confirm", False)),
+            }
+            if device_info.get("params_schema"):
+                merged["params_schema"] = device_info["params_schema"]
+
+        result.append(merged)
     return result
 
 

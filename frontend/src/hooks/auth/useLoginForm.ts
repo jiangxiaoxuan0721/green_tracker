@@ -48,38 +48,36 @@ export const useLoginForm = (loginFunction: LoginFunction): UseLoginFormReturn =
     }
   };
 
-  // 表单验证
-  const validateForm = (): boolean => {
+  // 表单验证（返回字段级错误，供页面做输入框高亮与提示）
+  const validateForm = (): LoginFormErrors => {
     const newErrors: LoginFormErrors = {};
-    
+
     if (!formData.username.trim()) {
       newErrors.username = '用户名不能为空';
     }
-    
+
     if (!formData.password) {
       newErrors.password = '密码不能为空';
     } else if (formData.password.length < 6) {
       newErrors.password = '密码长度至少为6位';
     }
-    
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   // 处理表单提交
   const handleSubmit = async (e: FormEvent): Promise<{ success: boolean; error?: string }> => {
     e.preventDefault();
-    
-    console.log('[前端登录表单] 开始处理表单提交');
-    console.log('[前端登录表单] 表单数据:', { ...formData, password: '***' });
-    
-    if (validateForm()) {
-      console.log('[前端登录表单] 表单验证通过，调用登录函数');
+
+    const fieldErrors = validateForm();
+
+    if (Object.keys(fieldErrors).length === 0) {
       return await loginFunction(formData.username, formData.password);
     }
-    
-    console.log('[前端登录表单] 表单验证失败:', errors);
-    return { success: false, error: '请检查表单错误' };
+
+    const firstError = fieldErrors.username || fieldErrors.password;
+    return { success: false, error: firstError };
   };
 
   return {

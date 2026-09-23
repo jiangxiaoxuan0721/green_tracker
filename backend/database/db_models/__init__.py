@@ -2,7 +2,10 @@
 from .meta_model import User, UserDatabase, SchemaVersion, Feedback
 
 # 导入用户数据库模型（新架构）- 这些用于用户独立数据库
-from .user_models import Field, Device, CollectionSession, RawData, RawDataTag, CropObject
+from .user_models import (
+    Field, Device, CollectionSession, RawData, RawDataTag, CropObject,
+    DeviceCommand, DeviceKeyBinding
+)
 
 __all__ = [
     # 元数据模型
@@ -16,5 +19,7 @@ __all__ = [
     "CollectionSession",
     "RawData",
     "RawDataTag",
-    "CropObject"
+    "CropObject",
+    "DeviceCommand",
+    "DeviceKeyBinding"
 ]

@@ -82,6 +82,21 @@ from .log_service import (
     clear_logs,
 )
 
+from .device_key_binding_service import (
+    record_binding,
+    get_binding,
+)
+
+from .device_command_service import (
+    create_command,
+    get_command,
+    list_commands,
+    get_pending_commands,
+    mark_delivered,
+    mark_result,
+    cancel_command
+)
+
 __all__ = [
     "create_user",
     "verify_user",
@@ -139,4 +154,13 @@ __all__ = [
     "get_log_sources",
     "delete_log",
     "clear_logs",
+    "create_command",
+    "get_command",
+    "list_commands",
+    "get_pending_commands",
+    "mark_delivered",
+    "mark_result",
+    "cancel_command",
+    "record_binding",
+    "get_binding",
 ]

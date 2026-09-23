@@ -1,0 +1,133 @@
+/* 登录 / 注册页共用的品牌展示面板 - 单屏适配 */
+/* ============================================= */
+
+.auth-brand-panel {
+  position: relative;
+  flex: 1.05;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: #0b1226;
+  color: #fff;
+  overflow: hidden;
+}
+
+/* 农业航拍背景 */
+.auth-brand-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/images/agri-field-bg.png') center / cover no-repeat;
+  opacity: 0.92;
+  filter: saturate(0.95) brightness(1.12);
+}
+
+/* 深色渐变遮罩，保证文字对比度 */
+.auth-brand-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    rgba(8, 14, 32, 0.58) 0%,
+    rgba(16, 32, 64, 0.42) 55%,
+    rgba(10, 18, 38, 0.64) 100%
+  );
+}
+
+.auth-brand-content,
+.auth-brand-features {
+  position: relative;
+  z-index: 2;
+}
+
+.auth-brand-icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--radius-md);
+  color: #fff;
+}
+
+/* 遮罩变淡后保证文字对比度 */
+.auth-brand-content h1,
+.auth-brand-content p,
+.auth-feature-item h4,
+.auth-feature-item p {
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.auth-brand-content h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: #fff;
+}
+
+.auth-brand-content p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.auth-brand-features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.auth-feature-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md);
+  background: rgba(8, 14, 32, 0.3);
+}
+
+.auth-feature-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.auth-feature-item h4 {
+  margin: 0 0 1px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.auth-feature-item p {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 1024px) {
+  .auth-brand-panel {
+    display: none;
+  }
+}
+
+@media (max-height: 700px) {
+  .auth-brand-features {
+    gap: 2px;
+  }
+}

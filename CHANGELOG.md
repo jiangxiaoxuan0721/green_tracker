@@ -7,6 +7,69 @@
 
 ---
 
+## [v2026.0923] - 2026-09-23
+
+API 密钥引入三权限体系，设备远程控制形成「下发 → 投递 → 回执」闭环，
+并按分层约定归置新增模块、补齐设备端接入文档。
+
+### 新增
+
+- **API 密钥三权限**：`data_upload` / `data_read` / `device_control`。
+  唯一定义源 `backend/utils/permissions.py`，配套 `GET /api/api-keys/permissions`
+  下发权限字典，前端与第三方不再硬编码权限含义
+- **设备控制指令接口** `/api/device-commands`：`catalog`、`heartbeat`、
+  `devices/{device_id}/grant`、下发、列表、`pending`、`{command_id}/result`、
+  `{command_id}/cancel`、详情；指令定义与 MQTT 控制台共用 `backend/mqtt/command_defs.py`
+- **设备上报制授权**：设备用密钥调用 `heartbeat` 建立「设备 → 密钥」软关联
+  （用户库新表 `device_key_bindings`），云端据此判定该设备能否被远程控制；
+  JWT 控制台与 API 密钥走同一套判定，结论一致
+- **指令双通道投递**：MQTT 在线实时下发，离线落为 `pending` 由设备 HTTP 轮询取走；
+  密钥被删除 / 禁用 / 去掉 `device_control` 时自动下发 `revoke_control`
+- **统一认证体** `AuthPrincipal` + `RequirePermission`：收敛 JWT（账号全权）与
+  `X-API-Key`（逐项校验）两条鉴权路径，替换 `raw_data` / `collection_session` 中的旧写法
+- **用户库新表** `device_commands`、`device_key_bindings`：纳入模板库建表清单、
+  新建库校验与启动期自动迁移
+- **设备端接入文档** `docs/features/device_onboarding.md`
+- **原始数据一致性巡检** `/api/raw-data/integrity/object-keys`：比对库中的 `object_key`
+  与 MinIO 实际对象，区分「会话已删的孤儿记录」与「会话仍在但对象缺失」两类问题；
+  配套 `cleanup` 接口默认 `dry_run=true` 且只清孤儿记录，确认后才落库，
+  并连带删除已无人引用的对象
+
+### 改进
+
+- **后端分层规范化**：权限定义下沉至 `backend/utils/permissions.py`（消除
+  `database → api` 反向依赖）；设备控制授权守卫归入 `backend/api/dependencies.py`；
+  密钥撤销通知归入 `database/db_services/device_revoke_service.py`
+- **前端结构收敛**：`DataUpload` 独立页面合并为 `DataView` 内的 `DataUploadDialog` 弹窗；
+  登录 / 注册页品牌展示面板抽取为 `AuthBrandPanel` 公共组件
+- **修正建库补表逻辑**：`create_user_database.py` 的补表分支原会引用未导入的
+  `DeviceCommand` 且漏掉新表，改为「表名 → 模型」映射统一校验补建
+- **启动期迁移补齐** `device_key_bindings`：`migrate_user_databases()` 此前只补
+  `device_commands`，存量用户库设备签到写关联会失败，控制台一直提示「尚未上报密钥」
+- **清理未被引用代码**：移除后端若干模块中未被调用的函数、重复导出与冗余字段，
+  前端 `apiKeyService.ts` 同步收敛
+
+### 修复
+
+- **指令回执归属校验**：`POST /api/device-commands/{command_id}/result` 原只校验密钥是否
+  持有 `device_control`，不校验指令是否属于请求里的设备，持权密钥可伪造他机的执行结果；
+  现按设备归属校验，越权返回 404
+- **轮询补取 sent 指令**：`get_pending_commands` 返回 `pending` 与 `sent` 两类指令，
+  但 `mark_delivered` 只在 `pending` 时生效，MQTT 已推送的指令被 HTTP 拉走后状态不变，
+  会在每次轮询中重复返回；现允许 `sent` 推进为 `delivered`
+
+### 文档
+
+- 新增 `docs/features/data_integrity.md`（悬空记录体检与清理接口、判定口径、失败影响）
+- 新增 `docs/features/device_onboarding.md`（签到与能力协商、指令接收 / 回执、撤销处理、排错）
+- 修正 `docs/features/api_key_permissions.md`：删除「`device_control` 必须绑定设备、
+  否则返回 400」的错误口径，补充 `heartbeat` / `grant` 接口与 `device_key_bindings` 表
+- `ARCHITECTURE.md` 补充共享依赖层、`/api/device-commands` 与 `/api/raw-data/integrity/*`
+  全量路由及授权口径
+- `docs/README.md` 索引登记三篇新文档
+
+---
+
 ## [v2026.0919] - 2026-09-19
 
 采集任务支持指定执行设备并引入超期自动完成调度；设备在线统计口径与设备列表对齐；

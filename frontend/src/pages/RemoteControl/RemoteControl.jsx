@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { deviceService } from '@/services/deviceService'
+import { mqttService } from '@/services/mqttService'
 import { Button } from '@/components/ui'
 import { CommandConsole, StatusBadge } from '@/components/business'
-import { AlertCircle, ArrowLeft, Loader2, Monitor, RefreshCw } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Loader2, Monitor, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react'
 import './RemoteControl.css'
 
 // 直接访问 URL（无跳转来源）时的兜底返回目标
@@ -30,6 +31,9 @@ const RemoteControl = () => {
   const [device, setDevice] = useState(cachedDevice)
   const [loading, setLoading] = useState(!cachedDevice)
   const [error, setError] = useState(null)
+
+  // 远程控制授权状态：由绑定该设备的密钥是否含 device_control 决定，与登录用户无关
+  const [grant, setGrant] = useState(null)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -59,6 +63,21 @@ const RemoteControl = () => {
     if (authLoading || !isAuthenticated) return
     fetchDevice()
   }, [authLoading, isAuthenticated, fetchDevice])
+
+  useEffect(() => {
+    if (!deviceId) return
+    let cancelled = false
+    const fetchGrant = async () => {
+      try {
+        const result = await mqttService.getDeviceControlGrant(deviceId)
+        if (!cancelled) setGrant(result)
+      } catch {
+        if (!cancelled) setGrant(null)
+      }
+    }
+    fetchGrant()
+    return () => { cancelled = true }
+  }, [deviceId])
 
   const title = device?.name || deviceId || '未知设备'
   const online = device?.online
@@ -122,6 +141,19 @@ const RemoteControl = () => {
           <h1 title={title}>{title}</h1>
           {typeof online === 'boolean' && (
             <StatusBadge status={online ? 'online' : 'offline'} />
+          )}
+          {grant && (
+            <span
+              className={`rc-grant ${grant.control_granted ? 'rc-grant--ok' : 'rc-grant--locked'}`}
+              title={
+                grant.control_granted
+                  ? `已授权远程控制，授权密钥：${grant.api_key_name || grant.api_key_id}`
+                  : grant.reason || '该设备未获得远程控制授权'
+              }
+            >
+              {grant.control_granted ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+              {grant.control_granted ? '远程控制已授权' : '远程控制未授权'}
+            </span>
           )}
         </div>
 

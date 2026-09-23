@@ -1,5 +1,5 @@
-from typing import Any, Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from typing import Any, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database.main_db import get_meta_db
@@ -391,3 +391,177 @@ async def get_current_user_from_api_key(
 
     # API密钥使用记录已在validate_api_key函数中更新
     return user
+
+
+# ============================================================
+# 统一认证 + 权限校验依赖
+# ============================================================
+# 设计目标：所有对外接口使用同一套认证约定：
+#   1. Authorization: Bearer <jwt>   —— Web 控制台登录用户（账号所有者，不做权限项校验）
+#   2. X-API-Key: green-xxx          —— 远程设备/第三方系统（按 permissions 逐项校验）
+# 两者都未提供时返回 401；API 密钥缺少所需权限时返回 403。
+
+from utils.permissions import (  # noqa: E402  （放在此处导入，避免影响上方既有逻辑）
+    ALL_PERMISSIONS,
+    PERMISSION_DATA_UPLOAD,
+    PERMISSION_DATA_READ,
+    PERMISSION_DEVICE_CONTROL,
+    parse_permissions,
+)
+
+
+AUTH_METHOD_JWT = "jwt"
+AUTH_METHOD_API_KEY = "api_key"
+
+
+class AuthPrincipal:
+    """
+    统一的调用主体
+
+    同时承载「是谁」和「凭什么调用」两类信息，供路由层复用：
+    - user        : meta 库中的 User 对象（数据归属方）
+    - auth_method : jwt / api_key
+    - permissions : API 密钥携带的权限列表（JWT 为空，表示账号全权）
+    """
+
+    def __init__(self, user: User, auth_method: str, api_key: Optional[dict] = None):
+        self.user = user
+        self.auth_method = auth_method
+        self.api_key = api_key or {}
+
+    # ---- 身份 ----
+    @property
+    def user_id(self) -> str:
+        return str(self.user.userid)
+
+    @property
+    def username(self) -> str:
+        return getattr(self.user, "username", "")
+
+    # ---- 密钥上下文 ----
+    @property
+    def api_key_id(self) -> Optional[str]:
+        return self.api_key.get("id")
+
+    @property
+    def api_key_name(self) -> Optional[str]:
+        return self.api_key.get("key_name")
+
+    @property
+    def permissions(self) -> List[str]:
+        if self.auth_method == AUTH_METHOD_JWT:
+            # JWT 登录用户即账号所有者，视为持有全部权限
+            return list(ALL_PERMISSIONS)
+        return parse_permissions(self.api_key.get("permissions"))
+
+    def describe(self) -> str:
+        if self.auth_method == AUTH_METHOD_JWT:
+            return f"jwt:{self.username}"
+        return f"api_key:{self.api_key_name or self.api_key_id}"
+
+    def open_user_db(self) -> Session:
+        """打开该用户对应的业务数据库会话（调用方负责关闭）"""
+        return get_user_db(self.user_id)
+
+
+class RequirePermission:
+    """
+    认证 + 权限校验依赖工厂
+
+    用法：
+        @router.get("/xxx")
+        async def foo(principal: AuthPrincipal = Depends(require_data_read)):
+            db = principal.open_user_db()
+            ...
+    """
+
+    def __init__(
+        self,
+        permission: Optional[str] = None,
+        *,
+        allow_jwt: bool = True,
+        allow_api_key: bool = True
+    ):
+        self.permission = permission
+        self.allow_jwt = allow_jwt
+        self.allow_api_key = allow_api_key
+
+    async def __call__(
+        self,
+        authorization: Optional[str] = Header(None, description="JWT令牌，格式：Bearer <token>"),
+        x_api_key: Optional[str] = Header(None, description="API密钥，格式：green-xxx"),
+        db: Session = Depends(get_meta_db)
+    ) -> AuthPrincipal:
+        # 1. JWT 优先（与历史上传接口一致）
+        if authorization:
+            if not self.allow_jwt:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="该接口不接受 JWT 认证，请使用 API 密钥调用"
+                )
+            if not authorization.startswith("Bearer "):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="无效的Authorization格式，应为：Bearer <token>",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            credentials = HTTPAuthorizationCredentials(
+                scheme="Bearer", credentials=authorization[7:]
+            )
+            user = await get_current_user(credentials, db)
+            return AuthPrincipal(user=user, auth_method=AUTH_METHOD_JWT)
+
+        # 2. API 密钥
+        if x_api_key:
+            from database.db_services.api_key_service import validate_api_key
+
+            if not self.allow_api_key:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="该接口不接受 API 密钥认证，请使用 JWT 令牌调用"
+                )
+            key_info = validate_api_key(db, x_api_key)
+            if not key_info:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="无效的API密钥（密钥不存在、已禁用或已过期）",
+                    headers={"WWW-Authenticate": "ApiKey"},
+                )
+
+            permissions = parse_permissions(key_info.get("permissions"))
+            if self.permission and self.permission not in permissions:
+                from utils.permissions import get_permission_definition
+
+                definition = get_permission_definition(self.permission) or {}
+                label = definition.get("label") or self.permission
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"密钥未授予「{label}」权限，请在密钥管理中勾选后重试"
+                )
+
+            user = db.query(User).filter(User.userid == key_info["user_id"]).first()
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="API密钥关联的用户不存在"
+                )
+            return AuthPrincipal(user=user, auth_method=AUTH_METHOD_API_KEY, api_key=key_info)
+
+        # 3. 两者都未提供
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=(
+                "需要认证：请提供 Authorization: Bearer <jwt_token> "
+                f"或 X-API-Key: <api_key>{f'（所需权限：{self.permission}）' if self.permission else ''}"
+            )
+        )
+
+
+# 三个权限对应的可复用依赖
+require_data_upload = RequirePermission(PERMISSION_DATA_UPLOAD)
+require_data_read = RequirePermission(PERMISSION_DATA_READ)
+require_device_control = RequirePermission(PERMISSION_DEVICE_CONTROL)
+
+# 仅要求登录/有效密钥、不校验具体权限项的依赖
+# 适用于「拉取云端下发的采集任务」这类与数据读写/设备控制无关的设备作业接口
+require_authenticated = RequirePermission()

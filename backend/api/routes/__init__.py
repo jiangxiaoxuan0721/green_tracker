@@ -12,6 +12,7 @@ from .raw_data import router as raw_data_router
 from .api_key import router as api_key_router
 from .algorithm import router as algorithm_router
 from .log import router as log_router
+from .device_command import router as device_command_router
 
 __all__ = [
     "auth_router",
@@ -24,4 +25,5 @@ __all__ = [
     "admin_database_router",
     "algorithm_router",
     "log_router",
+    "device_command_router",
 ]

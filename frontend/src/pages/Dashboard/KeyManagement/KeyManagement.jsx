@@ -1,511 +1,526 @@
-import { useState, useEffect } from 'react'
-import './KeyManagement.css'
+import { useState, useEffect, useMemo } from 'react'
+import {
+  KeyRound, Plus, RefreshCw, Copy, Check, Pencil, Trash2, Power, PowerOff, ShieldAlert
+} from 'lucide-react'
+import { Button, PageHeader, Modal, Input, Textarea } from '@/components/ui'
+import { DataTable, StatsBar, FilterPanel, FilterInput } from '@/components/business'
 import apiKeyService from '@/services/apiKeyService'
 import useToast from '@/hooks/useToast'
+import './KeyManagement.css'
+
+const PAGE_SIZE = 20
+
+const PERMISSION_OPTIONS = [
+  { value: 'data_upload', label: '数据上传' },
+  { value: 'data_read', label: '数据读取' },
+  { value: 'device_control', label: '设备控制' }
+]
+
+const PERMISSION_LABELS = PERMISSION_OPTIONS.reduce((acc, item) => {
+  acc[item.value] = item.label
+  return acc
+}, {})
+
+const EMPTY_FORM = {
+  key_name: '',
+  description: '',
+  permissions: ['data_upload'],
+  expires_at: ''
+}
 
 const KeyManagement = () => {
-  const [apiKeys, setApiKeys] = useState([])
-  const [loading, setLoading] = useState(false)
   const { success: showSuccess, error: showError } = useToast()
-  
-  // 分页状态
+
+  const [keys, setKeys] = useState([])
+  const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState({
     page: 1,
-    pageSize: 10,
+    pageSize: PAGE_SIZE,
     totalCount: 0,
-    totalPages: 0
+    totalPages: 1
   })
-  
-  // 对话框状态
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [currentKey, setCurrentKey] = useState(null)
-  
-  // 表单状态
-  const [formData, setFormData] = useState({
-    key_name: '',
-    description: '',
-    permissions: ['data_upload'],
-    expires_at: ''
-  })
-  
-  // 显示的完整密钥（仅在创建时显示）
-  const [newApiKey, setNewApiKey] = useState('')
-  const [showNewKey, setShowNewKey] = useState(false)
 
-  // 加载API密钥列表
-  const loadApiKeys = async (page = 1, pageSize = 10) => {
+  const [keyword, setKeyword] = useState('')
+  const [copiedId, setCopiedId] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  // 同一个弹窗槽位：'create' | 'edit' | 'delete' | 'created'
+  const [dialog, setDialog] = useState(null)
+  const [currentKey, setCurrentKey] = useState(null)
+  const [formData, setFormData] = useState(EMPTY_FORM)
+  const [newApiKey, setNewApiKey] = useState('')
+
+  const loadKeys = async (page = 1) => {
     try {
       setLoading(true)
       const response = await apiKeyService.getApiKeys({
         page,
-        page_size: pageSize,
-        include_inactive: true  // 包含禁用的密钥
+        page_size: PAGE_SIZE,
+        include_inactive: true
       })
-      setApiKeys(response.items)
+      setKeys(response?.items || [])
+      const pageInfo = response?.pagination
       setPagination({
-        page: response.pagination.page,
-        pageSize: response.pagination.page_size,
-        totalCount: response.pagination.total_count,
-        totalPages: response.pagination.total_pages
+        page: pageInfo?.page || page,
+        pageSize: pageInfo?.page_size || PAGE_SIZE,
+        totalCount: pageInfo?.total_count || 0,
+        totalPages: pageInfo?.total_pages || 1
       })
     } catch (err) {
-      showError('加载API密钥失败：' + (err.response?.data?.detail || err.message))
+      showError(err?.message || '加载API密钥失败')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadApiKeys()
+    loadKeys(1)
   }, [])
 
-  // 创建API密钥
+  // 后端暂无名称检索参数，这里在当前页数据上做筛选
+  const filteredKeys = useMemo(() => {
+    const kw = keyword.trim().toLowerCase()
+    if (!kw) return keys
+    return keys.filter((key) => (key.key_name || '').toLowerCase().includes(kw))
+  }, [keys, keyword])
+
+  // 启用/禁用/过期为当前页口径（密钥数量通常远小于页大小）
+  const stats = useMemo(() => {
+    const active = keys.filter(k => k.is_active && !k.is_expired).length
+    const disabled = keys.filter(k => !k.is_active).length
+    const expired = keys.filter(k => k.is_expired).length
+    return [
+      { key: 'total', label: '密钥总数', value: pagination.totalCount, icon: KeyRound },
+      { key: 'active', label: '启用中', value: active, icon: Power, tone: 'success' },
+      { key: 'disabled', label: '已禁用', value: disabled, icon: PowerOff, tone: 'warning' },
+      { key: 'expired', label: '已过期', value: expired, icon: ShieldAlert, tone: 'danger' }
+    ]
+  }, [keys, pagination.totalCount])
+
+  const closeDialog = () => {
+    setDialog(null)
+    setCurrentKey(null)
+    setFormData(EMPTY_FORM)
+  }
+
+  const openCreateDialog = () => {
+    setFormData(EMPTY_FORM)
+    setDialog('create')
+  }
+
+  const openEditDialog = (key) => {
+    setCurrentKey(key)
+    setFormData({
+      key_name: key.key_name || '',
+      description: key.description || '',
+      permissions: key.permissions || ['data_upload'],
+      expires_at: key.expires_at ? new Date(key.expires_at).toISOString().slice(0, 16) : ''
+    })
+    setDialog('edit')
+  }
+
+  const openDeleteDialog = (key) => {
+    setCurrentKey(key)
+    setDialog('delete')
+  }
+
+  const togglePermission = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      permissions: prev.permissions.includes(value)
+        ? prev.permissions.filter(p => p !== value)
+        : [...prev.permissions, value]
+    }))
+  }
+
   const handleCreateKey = async () => {
+    if (!formData.key_name.trim() || formData.permissions.length === 0) return
+
+    setSubmitting(true)
     try {
-      setLoading(true)
-      
-      const createRequest = {
-        key_name: formData.key_name,
+      const response = await apiKeyService.createApiKey({
+        key_name: formData.key_name.trim(),
         description: formData.description || undefined,
         permissions: formData.permissions,
         expires_at: formData.expires_at || undefined
-      }
-      
-      const response = await apiKeyService.createApiKey(createRequest)
-      setNewApiKey(response.api_key)
-      setShowNewKey(true)
-      showSuccess('API密钥创建成功！请妥善保存密钥，关闭窗口后将无法再次查看完整密钥。')
-      
-      // 重置表单
-      setFormData({
-        key_name: '',
-        description: '',
-        permissions: ['data_upload'],
-        expires_at: ''
       })
-      setShowCreateModal(false)
-      
-      // 重新加载列表
-      loadApiKeys(pagination.page)
+      setNewApiKey(response?.api_key || '')
+      setDialog('created')
+      setFormData(EMPTY_FORM)
+      showSuccess('API密钥创建成功，请立即保存密钥')
+      loadKeys(1)
     } catch (err) {
-      showError('创建API密钥失败：' + (err.response?.data?.detail || err.message))
+      showError(err?.message || '创建API密钥失败')
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
-  // 更新API密钥
   const handleUpdateKey = async () => {
+    if (!currentKey || !formData.key_name.trim()) return
+
+    setSubmitting(true)
     try {
-      setLoading(true)
-      
-      const updateRequest = {
-        key_name: formData.key_name,
+      await apiKeyService.updateApiKey(currentKey.id, {
+        key_name: formData.key_name.trim(),
         description: formData.description || undefined,
         permissions: formData.permissions,
         is_active: currentKey.is_active,
         expires_at: formData.expires_at || undefined
-      }
-      
-      await apiKeyService.updateApiKey(currentKey.id, updateRequest)
-      showSuccess('API密钥更新成功！')
-      
-      // 重置表单和状态
-      setFormData({
-        key_name: '',
-        description: '',
-        permissions: ['data_upload'],
-        expires_at: ''
       })
-      setCurrentKey(null)
-      setShowEditModal(false)
-      
-      // 重新加载列表
-      loadApiKeys(pagination.page)
+      showSuccess('API密钥更新成功')
+      closeDialog()
+      loadKeys(pagination.page)
     } catch (err) {
-      showError('更新API密钥失败：' + (err.response?.data?.detail || err.message))
+      showError(err?.message || '更新API密钥失败')
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
-  // 删除API密钥
   const handleDeleteKey = async () => {
+    if (!currentKey) return
+
+    setSubmitting(true)
     try {
-      setLoading(true)
-      
       await apiKeyService.deleteApiKey(currentKey.id)
-      showSuccess('API密钥删除成功！')
-      
-      setCurrentKey(null)
-      setShowDeleteModal(false)
-      
-      // 重新加载列表
-      loadApiKeys(pagination.page)
+      showSuccess('API密钥已删除')
+      closeDialog()
+      // 删掉当前页最后一条时回退一页，避免停在一个空页上
+      const isLastItemOnPage = filteredKeys.length === 1 && pagination.page > 1
+      loadKeys(isLastItemOnPage ? pagination.page - 1 : pagination.page)
     } catch (err) {
-      showError('删除API密钥失败：' + (err.response?.data?.detail || err.message))
+      showError(err?.message || '删除API密钥失败')
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
-  // 切换API密钥状态
   const handleToggleStatus = async (key) => {
+    setSubmitting(true)
     try {
-      setLoading(true)
-      
       await apiKeyService.updateApiKey(key.id, { is_active: !key.is_active })
       showSuccess(`API密钥已${key.is_active ? '禁用' : '启用'}`)
-      
-      // 重新加载列表
-      loadApiKeys(pagination.page)
+      loadKeys(pagination.page)
     } catch (err) {
-      showError('操作失败：' + (err.response?.data?.detail || err.message))
+      showError(err?.message || '操作失败')
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
-  // 打开编辑对话框
-  const openEditModal = (key) => {
-    setCurrentKey(key)
-    setFormData({
-      key_name: key.key_name,
-      description: key.description || '',
-      permissions: key.permissions,
-      expires_at: key.expires_at ? new Date(key.expires_at).toISOString().slice(0, 16) : ''
-    })
-    setShowEditModal(true)
+  const copyToClipboard = async (text, keyId) => {
+    if (!text) return
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        const textArea = document.createElement('textarea')
+        textArea.value = text
+        textArea.style.position = 'fixed'
+        textArea.style.opacity = '0'
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+      }
+      setCopiedId(keyId)
+      showSuccess('已复制完整密钥到剪贴板')
+      setTimeout(() => {
+        setCopiedId(prev => (prev === keyId ? null : prev))
+      }, 1500)
+    } catch (err) {
+      console.error('复制失败:', err)
+      showError('复制失败，请手动选择文本复制')
+    }
   }
 
-  // 打开删除对话框
-  const openDeleteModal = (key) => {
-    setCurrentKey(key)
-    setShowDeleteModal(true)
-  }
-
-  // 格式化时间
   const formatDate = (dateString) => {
     if (!dateString) return '-'
     return new Date(dateString).toLocaleString('zh-CN')
   }
 
-  // 复制到剪贴板
-  const copyToClipboard = async (text) => {
-    // 首先尝试使用现代的 Clipboard API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-      await navigator.clipboard.writeText(text)
-      showSuccess('已复制完整密钥到剪贴板')
-      return
-      } catch (err) {
-        console.error('现代复制API失败:', err)
-      }
-    }
-    
-    // 备用方案：使用传统的 execCommand 方法
-    try {
-      const textArea = document.createElement('textarea')
-      textArea.value = text
-      textArea.style.position = 'fixed' // 避免滚动到底部
-      textArea.style.opacity = '0'
-      document.body.appendChild(textArea)
-      textArea.focus()
-      textArea.select()
-      
-      const successful = document.execCommand('copy')
-      document.body.removeChild(textArea)
-      
-      if (successful) {
-        showSuccess('已复制完整密钥到剪贴板')
-      } else {
-        throw new Error('execCommand返回失败')
-      }
-    } catch (fallbackErr) {
-      console.error('备用复制方案也失败:', fallbackErr)
-      showError('复制失败，请手动选择文本复制')
-      
-      // 最后的备用方案：显示文本供用户手动复制
-      if (window.confirm(`复制失败，是否显示密钥进行手动复制？\n\n${text.substring(0, 20)}...`)) {
-        prompt('请手动复制密钥:', text)
-      }
-    }
+  const maskKey = (value) => {
+    if (!value) return '-'
+    if (value.length <= 20) return value
+    return `${value.substring(0, 8)}****${value.substring(value.length - 4)}`
   }
 
-  return (
-    <div className="key-management">
-      {loading && (
-        <div className="loading">
-          <div className="dashboard-loading-dots">
-            <div className="dashboard-loading-dot"></div>
-            <div className="dashboard-loading-dot"></div>
-            <div className="dashboard-loading-dot"></div>
-          </div>
-          <span style={{ fontSize: '0.8125rem' }}>加载中...</span>
+  const columns = [
+    {
+      title: '密钥名称',
+      dataIndex: 'key_name',
+      render: (value, row) => (
+        <div className="km-name">
+          <span className="km-name-text">{value}</span>
+          {row.description && <span className="km-name-desc">{row.description}</span>}
         </div>
-      )}
-
-      <div className="key-list">
-        <div className="list-header">
-          <h2>API密钥管理</h2>
-          <span style={{ flex: 8 }} />
+      )
+    },
+    {
+      title: '密钥',
+      dataIndex: 'api_key',
+      render: (value, row) => (
+        <div className="km-key">
+          <code>{maskKey(value)}</code>
           <button
-            className="primary-btn create-btn"
-            onClick={() => setShowCreateModal(true)}
-            disabled={loading}
+            type="button"
+            className="km-icon-btn"
+            title="复制完整密钥"
+            aria-label="复制完整密钥"
+            onClick={() => copyToClipboard(value, row.id)}
           >
-            + 新建
+            {copiedId === row.id ? <Check size={13} /> : <Copy size={13} />}
           </button>
         </div>
-        
-        {apiKeys.length === 0 ? (
-          <div className="empty-state">
-            <p>暂无API密钥</p>
-            <button onClick={() => setShowCreateModal(true)}>
-              创建第一个API密钥
-            </button>
+      )
+    },
+    {
+      title: '权限',
+      dataIndex: 'permissions',
+      render: (permissions) => {
+        const list = permissions || []
+        if (list.length === 0) return <span className="km-muted">-</span>
+        return (
+          <div className="km-tags">
+            {list.map(p => (
+              <span className="km-tag" key={p}>{PERMISSION_LABELS[p] || p}</span>
+            ))}
           </div>
-        ) : (
-          <table className="key-table">
-            <thead>
-              <tr>
-                <th>密钥名称</th>
-                <th>密钥</th>
-                <th>权限</th>
-                <th>状态</th>
-                <th>使用次数</th>
-                <th>最后使用</th>
-                <th>过期时间</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {apiKeys.map((key) => (
-                <tr key={key.id} className={key.is_expired ? 'expired' : ''}>
-                  <td>{key.key_name}</td>
-                  <td>
-                    <code>
-                      {key.api_key.length > 20 
-                        ? `${key.api_key.substring(0, 8)}****${key.api_key.substring(key.api_key.length - 4)}`
-                        : key.api_key
-                      }
-                    </code>
-                    <button 
-                      className="copy-btn"
-                      onClick={() => copyToClipboard(key.api_key)}
-                      title="复制完整密钥"
-                    >
-                      📋
-                    </button>
-                  </td>
-                  <td>
-                    {key.permissions.map(p => (
-                      <span key={p} className="permission-tag">{p}</span>
-                    ))}
-                  </td>
-                  <td>
-                    <span className={`status-badge ${key.is_active ? 'active' : 'inactive'}`}>
-                      {key.is_expired ? '已过期' : (key.is_active ? '激活' : '禁用')}
-                    </span>
-                  </td>
-                  <td>{key.usage_count}</td>
-                  <td>{formatDate(key.last_used_at)}</td>
-                  <td>{formatDate(key.expires_at)}</td>
-                  <td className="actions">
-                    <button onClick={() => openEditModal(key)}>编辑</button>
-                    <button 
-                      onClick={() => handleToggleStatus(key)}
-                      className={key.is_active ? 'disable' : 'enable'}
-                    >
-                      {key.is_active ? '禁用' : '启用'}
-                    </button>
-                    <button 
-                      onClick={() => openDeleteModal(key)}
-                      className="delete"
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* 分页 */}
-      {pagination.totalPages > 1 && (
-        <div className="pagination">
-          <button 
-            disabled={pagination.page <= 1}
-            onClick={() => loadApiKeys(pagination.page - 1)}
+        )
+      }
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      render: (_, row) => {
+        if (row.is_expired) return <span className="km-badge is-expired">已过期</span>
+        return row.is_active
+          ? <span className="km-badge is-active">启用中</span>
+          : <span className="km-badge is-disabled">已禁用</span>
+      }
+    },
+    {
+      title: '使用次数',
+      dataIndex: 'usage_count',
+      render: (value) => value ?? 0
+    },
+    {
+      title: '最后使用',
+      dataIndex: 'last_used_at',
+      render: (value) => formatDate(value)
+    },
+    {
+      title: '过期时间',
+      dataIndex: 'expires_at',
+      render: (value) => formatDate(value)
+    },
+    {
+      title: '操作',
+      dataIndex: 'id',
+      render: (_, row) => (
+        <div className="km-actions">
+          <button
+            type="button"
+            className="km-icon-btn"
+            title="编辑"
+            aria-label="编辑"
+            disabled={submitting}
+            onClick={() => openEditDialog(row)}
           >
-            上一页
+            <Pencil size={14} />
           </button>
-          <span>
-            第 {pagination.page} 页，共 {pagination.totalPages} 页
-          </span>
-          <button 
-            disabled={pagination.page >= pagination.totalPages}
-            onClick={() => loadApiKeys(pagination.page + 1)}
+          <button
+            type="button"
+            className="km-icon-btn"
+            title={row.is_active ? '禁用' : '启用'}
+            aria-label={row.is_active ? '禁用' : '启用'}
+            disabled={submitting}
+            onClick={() => handleToggleStatus(row)}
           >
-            下一页
+            {row.is_active ? <PowerOff size={14} /> : <Power size={14} />}
+          </button>
+          <button
+            type="button"
+            className="km-icon-btn is-danger"
+            title="删除"
+            aria-label="删除"
+            disabled={submitting}
+            onClick={() => openDeleteDialog(row)}
+          >
+            <Trash2 size={14} />
           </button>
         </div>
-      )}
+      )
+    }
+  ]
 
-      {/* 创建密钥对话框 */}
-      {showCreateModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>创建API密钥</h3>
-            <div className="form-group">
-              <label>密钥名称 *</label>
-              <input
-                type="text"
-                value={formData.key_name}
-                onChange={(e) => setFormData({...formData, key_name: e.target.value})}
-                placeholder="例如：农田数据采集设备"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>描述</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="描述此密钥的用途"
-                rows={3}
-              />
-            </div>
-            <div className="form-group">
-              <label>过期时间</label>
-              <input
-                type="datetime-local"
-                value={formData.expires_at}
-                onChange={(e) => setFormData({...formData, expires_at: e.target.value})}
-              />
-            </div>
-            <div className="form-group">
-              <label>权限</label>
-              <div className="permissions">
-                <label>
+  return (
+    <div className="km-page">
+      <PageHeader
+        icon={KeyRound}
+        title="密钥管理"
+        description="创建与管理 API 密钥，用于设备直传数据的身份鉴权"
+        actions={
+          <div className="km-header-actions">
+            <Button
+              variant="outline"
+              icon={RefreshCw}
+              loading={loading}
+              onClick={() => loadKeys(pagination.page)}
+            >
+              刷新
+            </Button>
+            <Button variant="primary" icon={Plus} onClick={openCreateDialog}>
+              新建密钥
+            </Button>
+          </div>
+        }
+      />
+
+      <StatsBar
+        items={stats}
+        loading={loading}
+        extra={<span className="km-stats-hint">启用/过期为当前页口径</span>}
+      />
+
+      <FilterPanel onReset={() => setKeyword('')}>
+        <FilterInput
+          label="搜索"
+          name="keyword"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          placeholder="按密钥名称筛选（当前页）"
+        />
+      </FilterPanel>
+
+      <DataTable
+        columns={columns}
+        data={filteredKeys}
+        loading={loading}
+        emptyMessage={keyword ? '没有匹配的密钥' : '暂无API密钥，点击「新建密钥」创建'}
+        pagination={{
+          total: pagination.totalCount,
+          currentPage: pagination.page,
+          pageSize: pagination.pageSize,
+          onPageChange: (page) => loadKeys(page)
+        }}
+        rowKey="id"
+      />
+
+      {/* 新建 / 编辑密钥 */}
+      <Modal
+        isOpen={dialog === 'create' || dialog === 'edit'}
+        onClose={closeDialog}
+        title={dialog === 'edit' ? '编辑 API 密钥' : '新建 API 密钥'}
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeDialog}>取消</Button>
+            <Button
+              variant="primary"
+              loading={submitting}
+              disabled={!formData.key_name.trim() || formData.permissions.length === 0}
+              onClick={dialog === 'edit' ? handleUpdateKey : handleCreateKey}
+            >
+              {dialog === 'edit' ? '保存' : '创建'}
+            </Button>
+          </>
+        }
+      >
+        <div className="km-form">
+          <Input
+            label="密钥名称"
+            name="key_name"
+            required
+            value={formData.key_name}
+            onChange={(e) => setFormData(prev => ({ ...prev, key_name: e.target.value }))}
+            placeholder="例如：农田数据采集设备"
+          />
+          <Textarea
+            label="描述"
+            name="description"
+            rows={3}
+            value={formData.description}
+            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="描述此密钥的用途"
+          />
+          <Input
+            type="datetime-local"
+            label="过期时间"
+            name="expires_at"
+            value={formData.expires_at}
+            onChange={(e) => setFormData(prev => ({ ...prev, expires_at: e.target.value }))}
+          />
+          <div className="km-field">
+            <span className="km-field-label">权限</span>
+            <div className="km-check-list">
+              {PERMISSION_OPTIONS.map(option => (
+                <label className="km-check" key={option.value}>
                   <input
                     type="checkbox"
-                    checked={formData.permissions.includes('data_upload')}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setFormData({...formData, permissions: [...formData.permissions, 'data_upload']})
-                      } else {
-                        setFormData({...formData, permissions: formData.permissions.filter(p => p !== 'data_upload')})
-                      }
-                    }}
+                    checked={formData.permissions.includes(option.value)}
+                    onChange={() => togglePermission(option.value)}
                   />
-                  数据上传权限
+                  <span>{option.label}</span>
                 </label>
-              </div>
+              ))}
             </div>
-            <div className="modal-actions">
-              <button 
-                onClick={handleCreateKey}
-                disabled={loading || !formData.key_name}
-              >
-                创建
-              </button>
-              <button onClick={() => setShowCreateModal(false)}>取消</button>
-            </div>
+            {formData.permissions.length === 0 && (
+              <span className="km-field-error">至少选择一项权限</span>
+            )}
           </div>
         </div>
-      )}
+      </Modal>
 
-      {/* 编辑密钥对话框 */}
-      {showEditModal && currentKey && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>编辑API密钥</h3>
-            <div className="form-group">
-              <label>密钥名称 *</label>
-              <input
-                type="text"
-                value={formData.key_name}
-                onChange={(e) => setFormData({...formData, key_name: e.target.value})}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>描述</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                rows={3}
-              />
-            </div>
-            <div className="form-group">
-              <label>过期时间</label>
-              <input
-                type="datetime-local"
-                value={formData.expires_at}
-                onChange={(e) => setFormData({...formData, expires_at: e.target.value})}
-              />
-            </div>
-            <div className="modal-actions">
-              <button onClick={handleUpdateKey} disabled={loading}>
-                更新
-              </button>
-              <button onClick={() => setShowEditModal(false)}>取消</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 删除确认 */}
+      <Modal
+        isOpen={dialog === 'delete'}
+        onClose={closeDialog}
+        title="删除 API 密钥"
+        size="small"
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeDialog}>取消</Button>
+            <Button variant="danger" loading={submitting} onClick={handleDeleteKey}>
+              删除
+            </Button>
+          </>
+        }
+      >
+        <p className="km-dialog-text">
+          确定要删除密钥 <strong>{currentKey?.key_name}</strong> 吗？
+        </p>
+        <p className="km-warning">此操作不可恢复，删除后使用该密钥的设备将无法继续上传数据。</p>
+      </Modal>
 
-      {/* 删除确认对话框 */}
-      {showDeleteModal && currentKey && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>删除API密钥</h3>
-            <p>确定要删除密钥 &quot;<strong>{currentKey.key_name}</strong>&quot; 吗？</p>
-            <p className="warning">此操作不可恢复，删除后将无法使用此密钥进行数据上传。</p>
-            <div className="modal-actions">
-              <button onClick={handleDeleteKey} className="delete" disabled={loading}>
-                删除
-              </button>
-              <button onClick={() => setShowDeleteModal(false)}>取消</button>
-            </div>
+      {/* 创建成功展示完整密钥 —— 关闭后不再可查看 */}
+      <Modal
+        isOpen={dialog === 'created'}
+        onClose={() => { setDialog(null); setNewApiKey('') }}
+        closeOnOverlayClick={false}
+        closeOnEscape={false}
+        title="API 密钥创建成功"
+        footer={
+          <Button variant="primary" onClick={() => { setDialog(null); setNewApiKey('') }}>
+            我已保存
+          </Button>
+        }
+      >
+        <div className="km-newkey">
+          <span className="km-field-label">请立即保存您的 API 密钥</span>
+          <div className="km-newkey-value">
+            <code>{newApiKey}</code>
+            <Button
+              size="small"
+              variant="outline"
+              icon={copiedId === 'new' ? Check : Copy}
+              onClick={() => copyToClipboard(newApiKey, 'new')}
+            >
+              {copiedId === 'new' ? '已复制' : '复制'}
+            </Button>
           </div>
+          <p className="km-warning">关闭本窗口后将无法再次查看完整密钥。</p>
         </div>
-      )}
-
-      {/* 新密钥显示对话框 */}
-      {showNewKey && (
-        <div className="modal-overlay">
-          <div className="modal new-key-modal">
-            <h3>API密钥创建成功！</h3>
-            <div className="new-key-display">
-              <label>请保存您的API密钥：</label>
-              <div className="key-value">
-                <code>{newApiKey}</code>
-                <button 
-                  onClick={() => copyToClipboard(newApiKey)}
-                  className="copy-btn"
-                >
-                  📋 复制
-                </button>
-              </div>
-              <p className="warning">⚠️ 请立即复制并妥善保存此密钥，关闭窗口后将无法再次查看完整密钥。</p>
-            </div>
-            <div className="modal-actions">
-              <button onClick={() => {
-                setShowNewKey(false)
-                setNewApiKey('')
-              }}>
-                我已保存
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   )
 }

@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Sprout, User, Mail, Lock, Eye, EyeOff,
-  ArrowRight, Loader2, Radio, Cloud, Zap, Key
+import { motion } from 'framer-motion'
+import {
+  User, Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, Key
 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
+import AuthBrandPanel from '@/components/AuthBrandPanel'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { useRegisterForm } from '@/hooks/auth/useRegisterForm'
 import { Card, ToastContainer } from '@/components/ui'
@@ -24,6 +24,11 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [sendingCode, setSendingCode] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const countdownRef = useRef(null)
+
+  useEffect(() => () => {
+    if (countdownRef.current) clearInterval(countdownRef.current)
+  }, [])
 
   const handleRegisterSuccess = async (e) => {
     e.preventDefault()
@@ -54,10 +59,11 @@ const Register = () => {
       await authService.sendVerificationCode(formData.email)
       showSuccess('验证码已发送到您的邮箱')
       setCountdown(60)
-      const timer = setInterval(() => {
+      if (countdownRef.current) clearInterval(countdownRef.current)
+      countdownRef.current = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
-            clearInterval(timer)
+            clearInterval(countdownRef.current)
             return 0
           }
           return prev - 1
@@ -70,53 +76,22 @@ const Register = () => {
     }
   }
 
+  const renderFieldError = (message) => (
+    <div className="error-message">{message}</div>
+  )
+
   if (loading) {
     return (
       <>
         <Navbar />
         <div className="register-split-container">
-          <div className="register-brand-panel">
-            <motion.div 
-              className="brand-content"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <div className="brand-icon">
-                <Sprout size={48} />
-              </div>
-              <h1>Green Tracker</h1>
-              <p>空天地一体化农作物智能监测平台</p>
-            </motion.div>
-            <div className="brand-features">
-              <div className="feature-item">
-                <div className="feature-icon"><Radio /></div>
-                <div><h4>多源感知</h4><p>卫星、无人机、地面传感器全覆盖</p></div>
-              </div>
-              <div className="feature-item">
-                <div className="feature-icon"><Cloud /></div>
-                <div><h4>智能分析</h4><p>AI 算法实时病虫害识别</p></div>
-              </div>
-              <div className="feature-item">
-                <div className="feature-icon"><Zap /></div>
-                <div><h4>高效决策</h4><p>科学指导农业生产管理</p></div>
-              </div>
-            </div>
-          </div>
+          <AuthBrandPanel />
           <div className="register-form-panel">
-            <motion.div
-              className="register-form-container"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
+            <div className="register-form-container">
               <Card className="register-card">
-                <EnhancedLoading 
-                  text="正在初始化注册系统..." 
-                  size="medium"
-                  color="primary"
-                />
+                <EnhancedLoading text="正在初始化注册系统" size="small" color="primary" />
               </Card>
-            </motion.div>
+            </div>
           </div>
         </div>
       </>
@@ -128,148 +103,43 @@ const Register = () => {
       <Navbar />
       <ToastContainer />
       <div className="register-split-container">
-        {/* 品牌展示区域 - 与登录页一致 */}
-        <motion.div 
-          className="register-brand-panel"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="brand-content">
-            <motion.div 
-              className="brand-icon"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            >
-              <Sprout size={48} />
-            </motion.div>
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              Green Tracker
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              空天地一体化农作物智能监测平台
-            </motion.p>
-          </div>
-          
-          <motion.div 
-            className="brand-features"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            <motion.div 
-              className="feature-item"
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <div className="feature-icon"><Radio /></div>
-              <div>
-                <h4>多源感知</h4>
-                <p>卫星、无人机、地面传感器全覆盖</p>
-              </div>
-            </motion.div>
-            <motion.div 
-              className="feature-item"
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.7 }}
-            >
-              <div className="feature-icon"><Cloud /></div>
-              <div>
-                <h4>智能分析</h4>
-                <p>AI 算法实时病虫害识别</p>
-              </div>
-            </motion.div>
-            <motion.div 
-              className="feature-item"
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <div className="feature-icon"><Zap /></div>
-              <div>
-                <h4>高效决策</h4>
-                <p>科学指导农业生产管理</p>
-              </div>
-            </motion.div>
-          </motion.div>
-          
-          <div className="brand-decoration">
-            <div className="decoration-circle circle-1"></div>
-            <div className="decoration-circle circle-2"></div>
-            <div className="decoration-circle circle-3"></div>
-          </div>
-        </motion.div>
+        <AuthBrandPanel />
 
-        {/* 注册表单区域 */}
-        <motion.div 
-          className="register-form-panel"
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
+        <div className="register-form-panel">
           <motion.div
             className="register-form-container"
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
+            transition={{ duration: 0.35 }}
           >
             <Card className="register-card">
-              <motion.div 
+              <motion.div
                 className="register-header"
                 variants={scaleIn}
                 initial="hidden"
                 animate="visible"
               >
                 <div className="register-icon-wrapper">
-                  <User size={24} />
+                  <User size={18} />
                 </div>
                 <h2>创建账号</h2>
                 <p>填写以下信息完成注册</p>
               </motion.div>
 
-              <motion.form 
-                className="register-form" 
+              <motion.form
+                className="register-form"
                 onSubmit={handleRegisterSuccess}
                 variants={fadeInUp}
                 initial="hidden"
                 animate="visible"
-                transition={{ delay: 0.4 }}
               >
-                <AnimatePresence>
-                  {authError && (
-                    <motion.div 
-                      className="error-message"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                    >
-                      {authError}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {authError && <div className="error-message">{authError}</div>}
 
-                <div className="input-group">
-                  {/* 用户名 */}
-                  <motion.div
-                    variants={fadeInUp}
-                    initial="hidden"
-                    animate="visible"
-                    transition={{ delay: 0.5 }}
-                  >
+                <div className="register-field-grid">
+                  <div>
                     <div className="input-label">用户名</div>
                     <div className="input-wrapper">
-                      <User className="input-icon" size={18} />
+                      <User className="input-icon" size={16} />
                       <input
                         name="username"
                         value={formData.username}
@@ -279,30 +149,13 @@ const Register = () => {
                         required
                       />
                     </div>
-                    <AnimatePresence>
-                      {errors.username && (
-                        <motion.div
-                          className="error-message"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                        >
-                          {errors.username}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                  
-                  {/* 邮箱 */}
-                  <motion.div
-                    variants={fadeInUp}
-                    initial="hidden"
-                    animate="visible"
-                    transition={{ delay: 0.55 }}
-                  >
+                    {errors.username && renderFieldError(errors.username)}
+                  </div>
+
+                  <div>
                     <div className="input-label">邮箱</div>
                     <div className="input-wrapper">
-                      <Mail className="input-icon" size={18} />
+                      <Mail className="input-icon" size={16} />
                       <input
                         type="email"
                         name="email"
@@ -313,30 +166,13 @@ const Register = () => {
                         required
                       />
                     </div>
-                    <AnimatePresence>
-                      {errors.email && (
-                        <motion.div
-                          className="error-message"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                        >
-                          {errors.email}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
+                    {errors.email && renderFieldError(errors.email)}
+                  </div>
 
-                  {/* 验证码 */}
-                  <motion.div
-                    variants={fadeInUp}
-                    initial="hidden"
-                    animate="visible"
-                    transition={{ delay: 0.6 }}
-                  >
+                  <div className="field-full">
                     <div className="input-label">邮箱验证码</div>
-                    <div className="input-wrapper code-input-wrapper">
-                      <Key className="input-icon" size={18} />
+                    <div className="input-wrapper">
+                      <Key className="input-icon" size={16} />
                       <input
                         type="text"
                         name="code"
@@ -363,71 +199,38 @@ const Register = () => {
                         )}
                       </button>
                     </div>
-                    <AnimatePresence>
-                      {errors.code && (
-                        <motion.div
-                          className="error-message"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                        >
-                          {errors.code}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                  
-                  {/* 密码 */}
-                  <motion.div
-                    variants={fadeInUp}
-                    initial="hidden"
-                    animate="visible"
-                    transition={{ delay: 0.65 }}
-                  >
+                    {errors.code && renderFieldError(errors.code)}
+                  </div>
+
+                  <div>
                     <div className="input-label">密码</div>
                     <div className="input-wrapper">
-                      <Lock className="input-icon" size={18} />
+                      <Lock className="input-icon" size={16} />
                       <input
                         type={showPassword ? 'text' : 'password'}
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
-                        placeholder="请输入密码（至少6位）"
+                        placeholder="至少6位"
                         disabled={authenticating}
                         required
                       />
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         className="password-toggle"
                         onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? '隐藏密码' : '显示密码'}
                       >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
-                    <AnimatePresence>
-                      {errors.password && (
-                        <motion.div
-                          className="error-message"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                        >
-                          {errors.password}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                  
-                  {/* 确认密码 */}
-                  <motion.div
-                    variants={fadeInUp}
-                    initial="hidden"
-                    animate="visible"
-                    transition={{ delay: 0.7 }}
-                  >
+                    {errors.password && renderFieldError(errors.password)}
+                  </div>
+
+                  <div>
                     <div className="input-label">确认密码</div>
                     <div className="input-wrapper">
-                      <Lock className="input-icon" size={18} />
+                      <Lock className="input-icon" size={16} />
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
                         name="confirmPassword"
@@ -437,80 +240,43 @@ const Register = () => {
                         disabled={authenticating}
                         required
                       />
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         className="password-toggle"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        aria-label={showConfirmPassword ? '隐藏密码' : '显示密码'}
                       >
-                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
-                    <AnimatePresence>
-                      {errors.confirmPassword && (
-                        <motion.div
-                          className="error-message"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                        >
-                          {errors.confirmPassword}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
+                    {errors.confirmPassword && renderFieldError(errors.confirmPassword)}
+                  </div>
                 </div>
 
-                <motion.div
-                  variants={fadeInUp}
-                  initial="hidden"
-                  animate="visible"
-                  transition={{ delay: 0.75 }}
-                >
-                  <motion.button
-                    type="submit"
-                    className="register-btn"
-                    disabled={authenticating}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    {authenticating ? (
-                      <>
-                        <Loader2 className="spinner" size={20} />
-                        注册中...
-                      </>
-                    ) : (
-                      <>
-                        立即注册
-                        <ArrowRight size={18} />
-                      </>
-                    )}
-                  </motion.button>
-                </motion.div>
+                <button type="submit" className="register-btn" disabled={authenticating}>
+                  {authenticating ? (
+                    <>
+                      <Loader2 className="spinner" size={16} />
+                      注册中...
+                    </>
+                  ) : (
+                    <>
+                      立即注册
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
 
-                <motion.div 
-                  className="login-link"
-                  variants={fadeInUp}
-                  initial="hidden"
-                  animate="visible"
-                  transition={{ delay: 0.8 }}
-                >
+                <div className="login-link">
                   <span>已有账号？</span>
-                  <motion.a 
-                    href="#" 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate('/login');
-                    }} 
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate('/login'); }}>
                     去登录
-                  </motion.a>
-                </motion.div>
+                  </a>
+                </div>
               </motion.form>
             </Card>
           </motion.div>
-        </motion.div>
+        </div>
       </div>
     </>
   )

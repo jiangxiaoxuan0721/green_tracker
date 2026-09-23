@@ -107,7 +107,15 @@ class User(MetaBase):
 class ApiKey(MetaBase):
     """
     API密钥管理表
-    存储用户的数据上传API密钥，支持无网页界面的设备上传数据
+    存储用户签发给远程设备/第三方系统的API密钥，支持无网页界面的设备调用云端接口
+
+    权限（permissions，JSON 数组字符串）：
+    - data_upload    : 上传自身采集的数据
+    - data_read      : 读取云端已存储的数据（只读）
+    - device_control : 控制本密钥绑定的设备（下发指令/回收结果）
+
+    设备绑定（device_ids，JSON 数组字符串）：
+    - 仅在持有 device_control 权限时有意义，限定该密钥可控制的设备范围
     """
     __tablename__ = "api_keys"
 
@@ -116,7 +124,8 @@ class ApiKey(MetaBase):
     key_name = Column(String(100), nullable=False, comment="密钥名称")
     api_key = Column(String(100), nullable=False, unique=True, index=True, comment="API密钥（green-开头）")
     description = Column(Text, nullable=True, comment="密钥描述")
-    permissions = Column(Text, nullable=False, default='["data_upload"]', comment="权限列表（JSON）")
+    permissions = Column(Text, nullable=False, default='["data_upload"]', comment="权限列表（JSON数组字符串）")
+    device_ids = Column(Text, nullable=True, default='[]', comment="设备ID列表（JSON数组字符串）；密钥不与设备绑定，该字段仅作记录，不参与鉴权")
     is_active = Column(Boolean, nullable=False, default=True, comment="是否激活")
     last_used_at = Column(DateTime, nullable=True, comment="最后使用时间")
     usage_count = Column(Integer, nullable=False, default=0, comment="使用次数")
