@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { Eye } from 'lucide-react'
+import { Database, Upload, Download } from 'lucide-react'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { rawDataService } from '@/services/rawDataService'
 import { collectionSessionService } from '@/services/collectionSessionService'
 import { Button, PageHeader } from '@/components/ui'
 import { DataTable, FilterPanel, FilterSelect } from '@/components/business'
 import ImageThumbnail from '@/components/ui/ImageThumbnail'
+import DataUploadDialog from './DataUploadDialog'
 import '../AdditionalStyles.css'
 import './DataView.css'
 
@@ -29,6 +30,7 @@ const DataView = () => {
   const [querying, setQuerying] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showUploadDialog, setShowUploadDialog] = useState(false)
 
   // 翻译映射：仅三大数据大类，旧类型保留兼容
   const dataTypeTranslations = {
@@ -276,6 +278,12 @@ const DataView = () => {
     fetchData(newPage)
   }
 
+  // 上传完成后回到第一页重新拉取，确保新数据出现在列表里
+  const handleUploaded = () => {
+    setCurrentPage(1)
+    fetchData(1)
+  }
+
   const handleExport = async (format) => {
     if (!user?.id) return
 
@@ -375,43 +383,53 @@ const DataView = () => {
   return (
     <div className="dashboard-data-view">
       <PageHeader
-        icon={Eye}
-        title="数据查看"
-        description="查看和导出采集数据，支持多种格式"
+        icon={Database}
+        title="数据管理"
+        description="统一管理采集数据：上传、筛选与导出"
         actions={
-          <div className="export-wrapper">
+          <div className="dv-actions">
             <Button
               variant="primary"
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              disabled={loading || querying || exporting}
+              icon={Upload}
+              onClick={() => setShowUploadDialog(true)}
             >
-              {exporting ? '导出中...' : '导出数据 ▼'}
+              数据上传
             </Button>
-            {showExportMenu && (
-              <div className="export-menu">
-                <div className="export-menu-item" onClick={() => handleExport('csv')}>
-                  <span className="export-icon">📊</span>
-                  <div className="export-info">
-                    <span className="export-title">CSV 表格</span>
-                    <span className="export-desc">适合Excel分析，包含所有数值数据</span>
+            <div className="export-wrapper">
+              <Button
+                variant="outline"
+                icon={Download}
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={loading || querying || exporting}
+              >
+                {exporting ? '导出中...' : '导出数据 ▼'}
+              </Button>
+              {showExportMenu && (
+                <div className="export-menu">
+                  <div className="export-menu-item" onClick={() => handleExport('csv')}>
+                    <span className="export-icon">📊</span>
+                    <div className="export-info">
+                      <span className="export-title">CSV 表格</span>
+                      <span className="export-desc">适合Excel分析，包含所有数值数据</span>
+                    </div>
+                  </div>
+                  <div className="export-menu-item" onClick={() => handleExport('json')}>
+                    <span className="export-icon">📋</span>
+                    <div className="export-info">
+                      <span className="export-title">JSON 数据</span>
+                      <span className="export-desc">完整数据格式，包含元数据</span>
+                    </div>
+                  </div>
+                  <div className="export-menu-item" onClick={() => handleExport('zip')}>
+                    <span className="export-icon">📦</span>
+                    <div className="export-info">
+                      <span className="export-title">ZIP 压缩包</span>
+                      <span className="export-desc">图片/视频文件 + CSV元数据</span>
+                    </div>
                   </div>
                 </div>
-                <div className="export-menu-item" onClick={() => handleExport('json')}>
-                  <span className="export-icon">📋</span>
-                  <div className="export-info">
-                    <span className="export-title">JSON 数据</span>
-                    <span className="export-desc">完整数据格式，包含元数据</span>
-                  </div>
-                </div>
-                <div className="export-menu-item" onClick={() => handleExport('zip')}>
-                  <span className="export-icon">📦</span>
-                  <div className="export-info">
-                    <span className="export-title">ZIP 压缩包</span>
-                    <span className="export-desc">图片/视频文件 + CSV元数据</span>
-                  </div>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         }
       />
@@ -455,6 +473,11 @@ const DataView = () => {
         }}
       />
 
+      <DataUploadDialog
+        isOpen={showUploadDialog}
+        onClose={() => setShowUploadDialog(false)}
+        onUploaded={handleUploaded}
+      />
     </div>
   )
 }

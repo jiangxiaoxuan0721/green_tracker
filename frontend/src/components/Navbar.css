@@ -47,9 +47,8 @@
   box-shadow: 0 2px 8px var(--primary-medium);
 }
 
-.logo-emoji {
-  font-size: 1.2rem;
-  filter: grayscale(100%) brightness(200%);
+.logo-mark {
+  color: #fff;
 }
 
 .logo-text {

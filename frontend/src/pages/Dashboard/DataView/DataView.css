@@ -134,6 +134,13 @@
   box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb, 0, 168, 107), 0.1);
 }
 
+/* 顶部操作区：上传 + 导出 */
+.dv-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
 /* 导出菜单样式 */
 .export-wrapper {
   position: relative;

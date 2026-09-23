@@ -1,0 +1,294 @@
+/* 数据上传弹窗样式 */
+
+/* ========== 步骤条 ========== */
+.du-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.du-step {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.du-step-indicator {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-primary);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.du-step.is-active .du-step-indicator {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+}
+
+.du-step.is-completed .du-step-indicator {
+  background: var(--success-color);
+  border-color: var(--success-color);
+  color: #fff;
+}
+
+.du-step-label {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.du-step.is-active .du-step-label,
+.du-step.is-completed .du-step-label {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.du-step-arrow {
+  color: var(--text-subtle);
+  margin: 0 var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+/* ========== 步骤内容 ========== */
+.du-content {
+  animation: du-fade-in 0.2s ease;
+}
+
+@keyframes du-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.du-title {
+  margin: 0 0 var(--spacing-xs);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.du-desc {
+  margin: 0 0 var(--spacing-md);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* ========== 会话卡片 ========== */
+.du-session-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.du-session-card {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.du-session-card:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.du-session-card.is-selected {
+  border-color: var(--primary-color);
+  background: var(--primary-subtle);
+}
+
+.du-session-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.du-session-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.du-session-badge {
+  padding: 1px 6px;
+  background: var(--success-color);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.du-session-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ========== 空状态 ========== */
+.du-empty {
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-md);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+}
+
+.du-empty p {
+  margin: 0 0 var(--spacing-xs);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.du-empty span {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* ========== 数据类型卡片 ========== */
+.du-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.du-type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.du-type-card:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.du-type-card.is-selected {
+  border-color: var(--primary-color);
+  background: var(--primary-subtle);
+}
+
+.du-type-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--primary-subtle);
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.du-type-card.is-selected .du-type-icon {
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.du-type-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+/* ========== 子类型选择 ========== */
+.du-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+
+.du-chip {
+  padding: 5px 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.du-chip:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.du-chip.is-active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+}
+
+/* ========== 上传区 ========== */
+.du-upload-box {
+  padding: var(--spacing-md);
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+.du-value-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.du-value-input {
+  min-width: 160px;
+  flex: 1;
+}
+
+/* 输入框带 label，需要把底部间距让给对齐 */
+.du-value-input .input-group {
+  margin-bottom: 0;
+}
+
+.du-unit {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  padding-bottom: 8px;
+  min-width: 40px;
+}
+
+@media (max-width: 640px) {
+  .du-step-label {
+    display: none;
+  }
+
+  .du-step-arrow {
+    display: none;
+  }
+
+  .du-session-grid,
+  .du-type-grid {
+    grid-template-columns: 1fr;
+  }
+}

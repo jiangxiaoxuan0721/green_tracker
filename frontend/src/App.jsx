@@ -2,7 +2,7 @@ import { Routes, Route, useLocation } from 'react-router-dom'
 import { DeployTasksFab } from '@/components/deploy/DeployTasksFab'
 import { useEffect } from 'react'
 import { AuthProvider } from './hooks/auth/useAuth'
-import { Home, About, Contact, Login, Register, ForgotPassword, Dashboard, Feedback, NotFound, Overview, Fields, Devices, Sessions, DataUpload, DataView, DataAnalyze, System, Logs, AlgorithmSquare, AlgorithmUse, KeyManagement, RemoteControl } from './pages'
+import { Home, About, Contact, Login, Register, ForgotPassword, Dashboard, Feedback, NotFound, Overview, Fields, Devices, Sessions, DataView, DataAnalyze, System, Logs, AlgorithmSquare, AlgorithmUse, KeyManagement, RemoteControl } from './pages'
 import { ToastContainer } from './components/ui'
 import './App.css'
 
@@ -45,7 +45,6 @@ function AppContent() {
             <Route path="fields" element={<Fields />} />
             <Route path="devices" element={<Devices />} />
             <Route path="sessions" element={<Sessions />} />
-            <Route path="data-upload" element={<DataUpload />} />
             <Route path="data-view" element={<DataView />} />
             <Route path="data-analyze" element={<DataAnalyze />} />
             <Route path="system" element={<System />} />

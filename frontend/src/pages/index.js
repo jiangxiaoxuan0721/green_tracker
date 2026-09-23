@@ -16,7 +16,6 @@ export {
   Fields,
   Devices,
   Sessions,
-  DataUpload,
   DataView,
   DataAnalyze,
   System,
