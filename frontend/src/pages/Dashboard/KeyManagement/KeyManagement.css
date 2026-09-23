@@ -1,493 +1,251 @@
-/* 密钥管理页面样式 - 紧凑版 */
-.key-management {
-  padding: 0;
+/* 密钥管理页面样式
+   类名统一用 km- 前缀：本页样式是全局引入的，早期 .modal/.status-badge 等
+   通用类名会污染其它页面（尤其是 ui/Modal 与 business/StatusBadge）。 */
+
+.km-page {
+  padding: var(--spacing-sm);
   max-width: 100%;
-  height: 100%;
+}
+
+.km-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.km-stats-hint {
+  font-size: 0.75rem;
+  color: var(--text-subtle);
+}
+
+/* ========== 表格单元格 ========== */
+.km-name {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-/* 列表头部样式 */
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
-  padding: 0;
-}
-
-.list-header h2 {
-  margin: 0;
+.km-name-text {
   color: var(--text-primary);
-  font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
-.primary-btn.create-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 6px 12px;
-  cursor: pointer;
+.km-name-desc {
+  color: var(--text-subtle);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  flex-shrink: 0;
-  font-size: 0.8125rem;
-  transition: var(--transition-fast);
-  font-weight: 500;
+  max-width: 220px;
+}
+
+.km-key {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.km-key code {
+  padding: 2px 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.km-muted {
+  color: var(--text-subtle);
+}
+
+.km-tags {
+  display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
-.primary-btn.create-btn:hover {
-  background-color: var(--primary-dark);
-  transform: translateY(-1px);
-}
-
-.primary-btn.create-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-xl);
-  gap: var(--spacing-sm);
-  color: var(--text-muted);
-}
-
-.key-list {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.key-table {
-  width: 100%;
-  background-color: var(--bg-subtle);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid var(--border-primary);
-  border-collapse: collapse;
-}
-
-.key-table th {
-  background-color: var(--bg-header);
-  padding: 8px 12px;
-  text-align: left;
-  font-weight: 500;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border-primary);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.key-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-light);
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-}
-
-.key-table tr:last-child td {
-  border-bottom: none;
-}
-
-.key-table tr:hover {
-  background-color: var(--bg-hover);
-}
-
-.key-table tr.expired {
-  background-color: rgba(var(--error-color-rgb), 0.05);
-}
-
-.key-table code {
-  background-color: var(--bg-input);
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.copy-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 0.8125rem;
-  margin-left: 6px;
-  opacity: 0.7;
-  transition: var(--transition-fast);
-  color: var(--text-muted);
-  padding: 2px 6px;
-}
-
-.copy-btn:hover {
-  opacity: 1;
-  color: var(--primary-color);
-}
-
-.permission-tag {
+.km-tag {
   display: inline-block;
-  background-color: var(--primary-subtle);
-  color: var(--primary-light);
-  padding: 2px 6px;
+  padding: 1px 6px;
   border-radius: var(--radius-sm);
+  background: var(--primary-subtle);
+  color: var(--primary-light);
   font-size: 0.6875rem;
-  margin-right: 4px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
-.status-badge {
-  display: inline-block;
+.km-badge {
+  display: inline-flex;
+  align-items: center;
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-size: 0.6875rem;
   font-weight: 500;
+  white-space: nowrap;
 }
 
-.status-badge.active {
-  background-color: var(--success-bg);
+.km-badge.is-active {
+  background: rgba(var(--success-color-rgb), 0.15);
   color: var(--success-color);
 }
 
-.status-badge.inactive {
-  background-color: var(--warning-bg);
+.km-badge.is-disabled {
+  background: rgba(var(--warning-color-rgb), 0.15);
   color: var(--warning-color);
 }
 
-.actions {
-  white-space: nowrap;
+.km-badge.is-expired {
+  background: rgba(var(--error-color-rgb), 0.15);
+  color: var(--error-color);
+}
+
+/* ========== 行内操作按钮 ========== */
+.km-actions {
   display: flex;
+  align-items: center;
   gap: 4px;
 }
 
-.actions button {
+.km-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
   background: transparent;
-  border: 1px solid var(--border-medium);
-  padding: 3px 8px;
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  color: var(--text-muted);
   cursor: pointer;
   transition: var(--transition-fast);
-  color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
-.actions button:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--border-light);
-}
-
-.actions button.delete {
-  color: var(--error-color);
-  border-color: var(--error-color);
-}
-
-.actions button.delete:hover {
-  background-color: var(--error-bg);
-}
-
-.actions button.enable {
-  color: var(--success-color);
-  border-color: var(--success-color);
-}
-
-.actions button.enable:hover {
-  background-color: var(--success-bg);
-}
-
-.actions button.disable {
-  color: var(--warning-color);
-  border-color: var(--warning-color);
-}
-
-.actions button.disable:hover {
-  background-color: var(--warning-bg);
-}
-
-/* 对话框样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal {
-  background-color: var(--bg-component);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-lg);
-  max-width: 480px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-  border: 1px solid var(--border-primary);
-}
-
-.modal h3 {
-  margin: 0 0 var(--spacing-md) 0;
-  color: var(--text-primary);
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.form-group {
-  margin-bottom: var(--spacing-md);
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  transition: var(--transition-fast);
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
+.km-icon-btn:hover:not(:disabled) {
+  background: var(--bg-subtle-hover);
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px var(--primary-subtle);
+  color: var(--primary-color);
 }
 
-.form-group textarea {
-  resize: vertical;
-  min-height: 60px;
+.km-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-.permissions {
+.km-icon-btn.is-danger:hover:not(:disabled) {
+  border-color: var(--error-color);
+  color: var(--error-color);
+  background: rgba(var(--error-color-rgb), 0.1);
+}
+
+/* ========== 弹窗表单 ========== */
+.km-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.km-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.permissions label {
+.km-field-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.km-field-error {
+  font-size: 0.75rem;
+  color: var(--error-color);
+}
+
+.km-check-list {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.km-check {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
-  font-weight: 400;
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-}
-
-.permissions input[type="checkbox"] {
-  width: auto;
-  margin: 0;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: var(--spacing-md);
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--border-primary);
-}
-
-.modal-actions button {
-  padding: 6px 14px;
+  padding: 4px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-sm);
   font-size: 0.8125rem;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition-fast);
-  border: 1px solid transparent;
+  user-select: none;
 }
 
-.modal-actions button:first-child {
-  background-color: var(--primary-color);
-  color: white;
+.km-check:hover {
+  border-color: var(--primary-color);
 }
 
-.modal-actions button:first-child:hover {
-  background-color: var(--primary-dark);
+.km-check input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--primary-color);
+  cursor: pointer;
 }
 
-.modal-actions button:last-child {
-  background-color: var(--bg-subtle);
-  color: var(--text-secondary);
-  border-color: var(--border-medium);
+.km-dialog-text {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 0.875rem;
+  color: var(--text-primary);
 }
 
-.modal-actions button:last-child:hover {
-  background-color: var(--bg-hover);
-}
-
-.modal-actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.modal-actions button.delete {
-  background-color: var(--error-color);
-  color: white;
-}
-
-.modal-actions button.delete:hover {
-  opacity: 0.9;
-}
-
-.warning {
+.km-warning {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.8125rem;
   color: var(--warning-color);
-  font-size: 0.8125rem;
-  margin: 8px 0;
-  padding: 8px;
-  background-color: var(--warning-bg);
-  border-radius: var(--radius-sm);
+  background: rgba(var(--warning-color-rgb), 0.12);
   border-left: 3px solid var(--warning-color);
+  border-radius: var(--radius-sm);
 }
 
-/* 新密钥显示对话框 */
-.new-key-modal {
-  max-width: 560px;
+/* ========== 新密钥展示 ========== */
+.km-newkey {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
-.new-key-display {
-  margin: var(--spacing-md) 0;
-}
-
-.new-key-display label {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  font-size: 0.8125rem;
-}
-
-.key-value {
+.km-newkey-value {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--spacing-sm);
   padding: 10px;
-  background-color: var(--bg-input);
+  background: var(--bg-input);
   border: 1px solid var(--primary-color);
   border-radius: var(--radius-sm);
 }
 
-.key-value code {
+.km-newkey-value code {
   flex: 1;
-  background: transparent;
-  border: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8125rem;
-  word-break: break-all;
   color: var(--text-primary);
+  word-break: break-all;
 }
 
-.key-value .copy-btn {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  opacity: 1;
-  margin: 0;
-  border: none;
-}
-
-.key-value .copy-btn:hover {
-  background-color: var(--primary-dark);
-}
-
-/* 分页样式 */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
-}
-
-.pagination button {
-  background-color: var(--bg-subtle);
-  border: 1px solid var(--border-medium);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-}
-
-.pagination button:hover:not(:disabled) {
-  background-color: var(--bg-hover);
-  border-color: var(--border-light);
-}
-
-.pagination button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pagination span {
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .key-management {
-    padding: var(--spacing-sm);
+  .km-header-actions {
+    width: 100%;
   }
-  
 
-  
-  .key-table {
-    font-size: 0.75rem;
-  }
-  
-  .key-table th,
-  .key-table td {
-    padding: var(--spacing-sm) var(--spacing-xs);
-  }
-  
-  .actions {
-    flex-direction: column;
-    gap: var(--spacing-xs);
-  }
-  
-  .actions button {
-    margin-right: 0;
-  }
-  
-  .modal {
-    margin: var(--spacing-lg);
-    width: calc(100% - 2 * var(--spacing-lg));
-  }
-  
-  .modal-actions {
-    flex-direction: column;
-  }
-  
-  .key-value {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .key-value .copy-btn {
-    align-self: flex-start;
+  .km-name-desc {
+    max-width: 140px;
   }
 }

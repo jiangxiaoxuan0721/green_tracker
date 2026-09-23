@@ -7,6 +7,7 @@ import './CommandConsole.css'
 import {
   Terminal, Send, Zap, Sliders, RotateCw, Info,
   CheckCircle2, XCircle, Clock, ChevronDown, AlertTriangle, Loader2, Trash2,
+  ShieldAlert, ShieldCheck,
 } from 'lucide-react'
 
 const POLL_INTERVAL = 2000
@@ -27,6 +28,13 @@ const EMPTY_ENTRIES = []
 const EMPTY_IDS = []
 const EMPTY_PARAMS = {}
 const EMPTY_HISTORY = []
+
+// 密钥权限中文名：界面上明确区分「数据读取」与「远程控制」
+const PERMISSION_LABELS = {
+  data_upload: '数据上传',
+  data_read: '数据读取',
+  device_control: '设备控制',
+}
 
 // 图标映射
 const ICON_MAP = {
@@ -142,6 +150,12 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
   const paramValues = session?.paramValues ?? EMPTY_PARAMS
   const inputHistory = session?.inputHistory ?? EMPTY_HISTORY
 
+  // 设备的远程控制授权：由该设备上报的密钥是否含 device_control 决定，
+  // 与控制台登录用户无关——设备用的密钥没有控制权限，控制台同样不可下发
+  const [grant, setGrant] = useState(null)
+  const [grantLoading, setGrantLoading] = useState(true)
+  const [grantError, setGrantError] = useState(null)
+
   // 动态获取设备支持指令
   const [commands, setCommands] = useState([])
   const [commandsLoading, setCommandsLoading] = useState(true)
@@ -169,6 +183,35 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
     fetchCommands()
     return () => { cancelled = true }
   }, [deviceId])
+
+  useEffect(() => {
+    let cancelled = false
+    const fetchGrant = async () => {
+      setGrantLoading(true)
+      setGrantError(null)
+      try {
+        const result = await mqttService.getDeviceControlGrant(deviceId)
+        if (!cancelled) setGrant(result)
+      } catch (err) {
+        if (!cancelled) {
+          setGrant(null)
+          setGrantError(err?.response?.data?.detail || '远程控制授权状态获取失败')
+        }
+      } finally {
+        if (!cancelled) setGrantLoading(false)
+      }
+    }
+    fetchGrant()
+    return () => { cancelled = true }
+  }, [deviceId])
+
+  // 授权未知（加载中或查询失败）按未授权处理，界面与后端 403 保持一致
+  const controlGranted = Boolean(grant?.control_granted)
+  const controlLocked = !grantLoading && !controlGranted
+  const lockTitle = grant?.reason || grantError || '该设备未获得远程控制授权'
+  const boundKeyText = grant?.api_key_name
+    ? `${grant.api_key_name}（${(grant.permissions || []).map((p) => PERMISSION_LABELS[p] || p).join('、') || '无权限'}）`
+    : ''
 
   // 命令列表加载后补齐未填参数的空值；已由上一次会话保留下来的值不动
   useEffect(() => {
@@ -244,6 +287,12 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
 
   // 下发一条指令并记账（预设命令与命令行输入共用）
   const dispatch = useCallback(async ({ command, params, source = 'preset', display }) => {
+    // 设备未获得远程控制授权时界面直接拦截（后端同样 403）
+    if (controlLocked) {
+      showError(lockTitle)
+      return
+    }
+
     const entryId = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
     const payloadParams = params && Object.keys(params).length > 0 ? params : undefined
 
@@ -271,7 +320,7 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
     } finally {
       setSending(null)
     }
-  }, [deviceId, appendEntry, updateEntry, resolveEntry, startPolling, showSuccess, showError, onCommandSent])
+  }, [deviceId, appendEntry, updateEntry, resolveEntry, startPolling, showSuccess, showError, onCommandSent, controlLocked, lockTitle])
 
   const handleSendCommand = useCallback((command) => {
     const cmdDef = commands.find(c => c.id === command)
@@ -290,7 +339,7 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
   // 命令行：整行输入交给设备端的 execute_shell
   const handleShellSubmit = useCallback((line) => {
     const trimmed = line.trim()
-    if (!trimmed || sending !== null) return
+    if (!trimmed || sending !== null || controlLocked) return
 
     setSending(SHELL_COMMAND)
     pushInput(deviceId, trimmed)
@@ -302,7 +351,7 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
       source: 'shell',
       display: trimmed,
     })
-  }, [deviceId, sending, pushInput, dispatch])
+  }, [deviceId, sending, pushInput, dispatch, controlLocked])
 
   // 命令行输入框的按键处理：回车执行、↑↓ 翻历史、Ctrl+C 清空
   const handleInputKeyDown = useCallback((e) => {
@@ -488,8 +537,8 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleInputKeyDown}
-            placeholder={`输入命令行内容，回车经 ${SHELL_COMMAND} 下发`}
-            disabled={sending !== null}
+            placeholder={controlLocked ? '未获得远程控制授权，无法下发' : `输入命令行内容，回车经 ${SHELL_COMMAND} 下发`}
+            disabled={sending !== null || controlLocked}
             spellCheck={false}
             autoComplete="off"
           />
@@ -499,7 +548,8 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
             variant="primary"
             icon={sending === SHELL_COMMAND ? null : Send}
             loading={sending === SHELL_COMMAND}
-            disabled={sending !== null || input.trim() === ''}
+            disabled={sending !== null || controlLocked || input.trim() === ''}
+            title={controlLocked ? lockTitle : ''}
           >
             执行
           </Button>
@@ -534,9 +584,58 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
           <span className="cmd-presets-device" title={deviceId}>
             {deviceId.length > 12 ? `${deviceId.slice(0, 12)}…` : deviceId}
           </span>
+          {!grantLoading && grant && (
+            <span
+              className={`cmd-grant-badge ${controlGranted ? 'cmd-grant-badge--ok' : 'cmd-grant-badge--locked'}`}
+              title={controlGranted ? `设备上报的密钥：${boundKeyText}` : lockTitle}
+            >
+              {controlGranted ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+              {controlGranted ? '可远程控制' : '不可远程控制'}
+            </span>
+          )}
         </header>
 
         <div className="cmd-presets-body">
+          {/* 授权校验中 */}
+          {grantLoading && (
+            <div className="command-console-loading">
+              <Loader2 size={18} className="spinning-inline" />
+              <span>正在校验远程控制授权…</span>
+            </div>
+          )}
+
+          {/* 未授权：禁用下发并说明原因（区分"未上报密钥"与"密钥无控制权限"） */}
+          {controlLocked && (
+            <div className="command-console-notice command-console-notice--locked">
+              <ShieldAlert size={14} />
+              <div className="cmd-lock">
+                <p className="cmd-lock-title">{lockTitle}，已禁用全部指令下发</p>
+                <p className="cmd-lock-hint">
+                  {grant?.bound ? (
+                    <>
+                      该设备上报的密钥：{boundKeyText}。数据上传 / 数据读取权限只用于数据读写，
+                      不等于远程控制权限；请为该密钥勾选「设备控制」权限。
+                    </>
+                  ) : (
+                    <>
+                      该设备尚未上报所使用的API密钥，云端无法判定其控制权限。
+                      请让设备用其密钥调用一次 POST /api/device-commands/heartbeat
+                      （Header: X-API-Key 与 X-Device-Id）完成上报。
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 已授权：说明授权来源 */}
+          {!grantLoading && controlGranted && (
+            <div className="command-console-notice command-console-notice--ok">
+              <ShieldCheck size={14} />
+              <span>已授权远程控制，授权密钥：{boundKeyText || grant?.api_key_id}</span>
+            </div>
+          )}
+
           {/* 指令列表加载中 */}
           {commandsLoading && (
             <div className="command-console-loading">
@@ -581,8 +680,8 @@ const CommandConsole = ({ deviceId, onCommandSent, fill = false }) => {
                       icon={sending === cmd.id ? null : Send}
                       loading={sending === cmd.id}
                       onClick={() => handleSendCommand(cmd.id)}
-                      disabled={sending !== null || (hasParams && !isReady)}
-                      title={hasParams && !isReady ? '请填写所有参数' : ''}
+                      disabled={sending !== null || controlLocked || (hasParams && !isReady)}
+                      title={controlLocked ? lockTitle : (hasParams && !isReady ? '请填写所有参数' : '')}
                     >
                       {sending === cmd.id ? '发送中' : '发送'}
                     </Button>
