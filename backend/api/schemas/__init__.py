@@ -34,7 +34,18 @@ from .api_key import (
     ApiKeyUpdateRequest,
     ApiKeyResponse,
     ApiKeyListResponse,
-    ApiKeyCreateResponse
+    ApiKeyCreateResponse,
+    ApiKeyPermissionInfo
+)
+from .device_command import (
+    DeviceCommandCreateRequest,
+    DeviceCommandResultRequest,
+    DeviceCommandResponse,
+    DeviceCommandListResponse,
+    DeviceCommandDefinition,
+    DeviceCapabilities,
+    DeviceHeartbeatResponse,
+    DeviceControlGrant
 )
 
 __all__ = [
@@ -81,5 +92,15 @@ __all__ = [
     "ApiKeyUpdateRequest",
     "ApiKeyResponse",
     "ApiKeyListResponse",
-    "ApiKeyCreateResponse"
+    "ApiKeyCreateResponse",
+    "ApiKeyPermissionInfo",
+    # Device Command
+    "DeviceCommandCreateRequest",
+    "DeviceCommandResultRequest",
+    "DeviceCommandResponse",
+    "DeviceCommandListResponse",
+    "DeviceCommandDefinition",
+    "DeviceCapabilities",
+    "DeviceHeartbeatResponse",
+    "DeviceControlGrant"
 ]

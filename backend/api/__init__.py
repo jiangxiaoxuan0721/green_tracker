@@ -15,6 +15,7 @@ from .routes import (
     admin_database_router,
     algorithm_router,
     log_router,
+    device_command_router,
 )
 
 # MQTT 模块路由
@@ -79,6 +80,7 @@ __all__ = [
     "api_key_router",
     "admin_database_router",
     "algorithm_router",
+    "device_command_router",
     "mqtt_router",
     # Schemas - Auth
     "UserRegister",

@@ -317,3 +317,84 @@ class SystemLog(UserBase):
 
     def __repr__(self):
         return f"<SystemLog(id={self.id}, level={self.level}, source={self.source})>"
+
+
+class DeviceCommand(UserBase):
+    """
+    设备指令表 - 记录云端下发给设备的控制指令及其执行结果
+
+    生命周期：
+    pending   —— 已创建，尚未投递（MQTT 不可用，等待设备轮询）
+    sent      —— 已投递到 Broker，等待设备确认
+    delivered —— 设备已拉取（HTTP 轮询场景）
+    acked     —— 设备执行成功并回执
+    failed    —— 设备执行失败或投递失败
+    cancelled —— 云端主动取消
+    expired   —— 超过有效期仍未被执行
+
+    数据归属：本表位于用户库，天然按用户隔离；api_key_id 记录下发所用的 API 密钥（位于 meta 库，不做外键约束）
+    """
+    __tablename__ = "device_commands"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="记录ID")
+    command_id = Column(String(64), nullable=False, unique=True, index=True, comment="指令唯一标识（下发给设备使用）")
+    device_id = Column(String(36), nullable=False, index=True, comment="目标设备ID")
+    device_name = Column(Text, nullable=True, comment="目标设备名称（冗余，便于检索展示）")
+    command = Column(String(50), nullable=False, index=True, comment="指令名称：ping/get_info/get_metrics/reboot/set_config 等")
+    params = Column(JSON, nullable=True, comment="指令参数")
+    status = Column(String(20), nullable=False, default='pending', index=True,
+                    comment="指令状态：pending/sent/delivered/acked/failed/cancelled/expired")
+    transport = Column(String(20), nullable=True, comment="投递通道：mqtt/http")
+    source = Column(String(20), nullable=False, default='cloud', comment="指令来源：cloud（云端下发）")
+    api_key_id = Column(String(36), nullable=True, index=True, comment="下发所用的API密钥ID（meta库 api_keys.id）")
+    issued_by = Column(String(36), nullable=True, comment="下发者用户ID")
+    result = Column(JSON, nullable=True, comment="设备回执的执行结果")
+    error_message = Column(Text, nullable=True, comment="失败原因")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True, comment="创建时间")
+    sent_at = Column(DateTime, nullable=True, comment="投递时间")
+    delivered_at = Column(DateTime, nullable=True, comment="设备拉取时间")
+    executed_at = Column(DateTime, nullable=True, comment="设备回执时间")
+    expires_at = Column(DateTime, nullable=True, comment="指令有效期（过期后不再执行）")
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+
+    __table_args__ = (
+        Index('idx_device_commands_device', 'device_id'),
+        Index('idx_device_commands_status', 'status'),
+        Index('idx_device_commands_device_status', 'device_id', 'status'),
+        Index('idx_device_commands_created', 'created_at'),
+        Index('idx_device_commands_api_key', 'api_key_id'),
+        {'comment': '设备指令表'}
+    )
+
+    def __repr__(self):
+        return f"<DeviceCommand(id={self.command_id}, device={self.device_id}, command={self.command}, status={self.status})>"
+
+
+class DeviceKeyBinding(UserBase):
+    """
+    设备 → API密钥 软关联表
+
+    设备不配置「绑定哪把密钥」，而是在启动/心跳时用自己持有的密钥上报一次，
+    云端据此知道「这台设备当前用的是哪把密钥」，进而用该密钥的权限判定它能否被远程控制。
+
+    一台设备只保留一条当前关联（device_id 唯一），重新上报即覆盖。
+    api_key_id 指向 meta 库 api_keys.id，跨库不做外键约束。
+    """
+    __tablename__ = "device_key_bindings"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="记录ID")
+    device_id = Column(String(36), nullable=False, unique=True, index=True, comment="设备ID（用户库内唯一）")
+    api_key_id = Column(String(36), nullable=False, index=True, comment="设备上报使用的API密钥ID（meta库 api_keys.id）")
+    api_key_name = Column(Text, nullable=True, comment="密钥名称（冗余，便于展示）")
+    source = Column(String(32), nullable=False, default='report', comment="上报来源：heartbeat/pending/result/active_sessions")
+    last_reported_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True, comment="最近一次上报时间")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment="创建时间")
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+
+    __table_args__ = (
+        Index('idx_device_key_bindings_key', 'api_key_id'),
+        {'comment': '设备与API密钥的软关联表（设备上报制）'}
+    )
+
+    def __repr__(self):
+        return f"<DeviceKeyBinding(device={self.device_id}, api_key={self.api_key_id})>"

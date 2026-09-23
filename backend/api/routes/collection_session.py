@@ -3,7 +3,13 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 from database.user_db_manager import get_user_db
-from api.routes.auth import get_current_user
+from api.routes.auth import (
+    AUTH_METHOD_API_KEY,
+    get_current_user,
+    AuthPrincipal,
+    require_authenticated
+)
+from database.db_services.device_key_binding_service import record_binding
 from database.db_models.meta_model import User
 from database.db_models.user_models import Device
 from database.main_db import get_meta_db
@@ -389,7 +395,10 @@ async def delete_session(
         if not session_with_details:
             raise HTTPException(status_code=404, detail="采集任务不存在")
 
-        success = delete_collection_session(db, session_id)
+        # user_id 用于一并清理该会话在 MinIO 上的文件
+        success = delete_collection_session(
+            db, session_id, user_id=str(current_user.userid)
+        )
 
         if not success:
             raise HTTPException(status_code=404, detail="采集任务不存在")
@@ -403,6 +412,14 @@ async def delete_session(
             pass
 
         return {"message": "采集任务删除成功"}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        # 删除失败时回滚并暴露原因，避免前端只看到「无响应」
+        db.rollback()
+        print(f"[API] 删除采集任务失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"删除采集任务失败: {str(e)}")
     finally:
         db.close()
 
@@ -436,17 +453,21 @@ async def get_sessions_by_status(
     finally:
         db.close()
 
-# API密钥认证的接口
-@router.post("/active_sessions", summary="根据API密钥获取设备可执行的采集任务")
+# 远程设备作业通道（JWT 或任意有效 API 密钥）
+@router.post("/active_sessions", summary="获取设备可执行的采集任务（云端下发的作业）")
 async def get_active_sessions_via_api_key(
-    x_api_key: str = Header(..., description="API密钥"),
+    principal: AuthPrincipal = Depends(require_authenticated),
     device_id: Optional[str] = Query(None, description="请求任务的设备ID。不传表示不限制设备"),
     x_device_id: Optional[str] = Header(None, alias="X-Device-Id",
-                                        description="请求任务的设备ID，与 device_id 查询参数等价"),
-    meta_db: Session = Depends(get_meta_db)
+                                        description="请求任务的设备ID，与 device_id 查询参数等价")
 ):
     """
     根据API密钥获取该设备可执行的采集任务，只返回ID、名称、描述和设备ID
+
+    认证：JWT（Web）或 X-API-Key（任意有效密钥均可）
+
+    权限口径：data_read 只约束「数据（raw_data）读取」接口；
+    拉取云端下发的采集任务属于设备作业通道，不占用 data_read 权限。
 
     下发规则：
     - 任务指定了 device_id：只有该设备能拉到此任务
@@ -457,27 +478,11 @@ async def get_active_sessions_via_api_key(
     # 设备标识：查询参数与请求头任选其一
     requester_device_id = device_id or x_device_id
 
-    print(f"[API] 收到通过API密钥获取可用采集任务请求: API密钥={x_api_key[:10]}..., 设备={requester_device_id}")
-    
-    # 验证API密钥
-    from database.db_services.api_key_service import validate_api_key
-    key_info = validate_api_key(meta_db, x_api_key)
-    
-    if not key_info:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="无效的API密钥"
-        )
-    
-    # 从数据库获取用户
-    user = meta_db.query(User).filter(User.userid == key_info['user_id']).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户不存在"
-        )
-    
-    print(f"[API] API密钥验证成功: 用户={user.username}")
+    print(f"[API] 收到获取可用采集任务请求: 调用方={principal.describe()}, 设备={requester_device_id}")
+
+    # 认证（JWT 或持有 data_read 权限的 API 密钥）已在依赖中完成
+    user = principal.user
+    print(f"[API] 认证通过: 用户={user.username}")
     
     # 获取用户的数据库会话
     db = get_user_db(str(user.userid))
@@ -488,6 +493,16 @@ async def get_active_sessions_via_api_key(
             device = db.query(Device).filter(Device.id == requester_device_id).first()
             if not device:
                 raise HTTPException(status_code=404, detail=f"设备不存在: {requester_device_id}")
+
+            # 设备用密钥拉取作业时顺带刷新「设备 → 密钥」软关联（与控制授权判定同源）
+            if principal.auth_method == AUTH_METHOD_API_KEY and principal.api_key_id:
+                record_binding(
+                    db,
+                    device_id=requester_device_id,
+                    api_key_id=principal.api_key_id,
+                    api_key_name=principal.api_key_name,
+                    source="active_sessions"
+                )
 
         # 只返回该设备可执行的运行中任务
         sessions_with_info = get_available_sessions_for_device(

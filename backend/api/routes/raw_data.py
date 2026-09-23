@@ -16,7 +16,13 @@ import io
 logger = logging.getLogger(__name__)
 from PIL import Image
 
-from ..routes.auth import get_current_user, get_current_user_from_api_key
+from ..routes.auth import (
+    get_current_user,
+    get_current_user_from_api_key,
+    AuthPrincipal,
+    require_data_read,
+    require_data_upload
+)
 
 from database.db_models.meta_model import User
 from database.db_models.user_models import RawData, CollectionSession, Field, Device
@@ -126,15 +132,17 @@ async def create_new_raw_data(
 @router.get("/session/{session_id}/data-types", summary="获取会话的数据类型")
 async def get_session_data_types_endpoint(
     session_id: str,
-    data_type: Optional[str] = Query(None, description="数据类型过滤，用于过滤子类型"),
-    user_id: str = Query("3d5e8a9f-1fc1-4374-8afe-1277b4e0b175", description="用户ID")
+    principal: AuthPrincipal = Depends(require_data_read),
+    data_type: Optional[str] = Query(None, description="数据类型过滤，用于过滤子类型")
 ):
     """
     获取指定会话中可用的数据类型和子类型
     用于前端动态生成筛选选项
+
+    认证：JWT（Web）或 X-API-Key（需 data_read 权限）
     """
     # 连接到用户数据库
-    db = get_user_db(user_id)
+    db = principal.open_user_db()
     try:
         result = get_session_data_types(db, session_id, data_type)
         return {"code": 200, "message": "success", "data": result}
@@ -146,15 +154,17 @@ async def get_session_data_types_endpoint(
 
 @router.get("/statistics", summary="获取数据统计信息")
 async def get_raw_data_statistics_endpoint(
+    principal: AuthPrincipal = Depends(require_data_read),
     session_ids: Optional[str] = Query(None, description="会话ID列表，用逗号分隔"),
     data_type: Optional[str] = Query(None, description="数据类型过滤"),
     data_subtype: Optional[str] = Query(None, description="数据子类型过滤"),
     start_time: Optional[str] = Query(None, description="开始时间（ISO格式）"),
-    end_time: Optional[str] = Query(None, description="结束时间（ISO格式）"),
-    user_id: str = Query("3d5e8a9f-1fc1-4374-8afe-1277b4e0b175", description="用户ID")
+    end_time: Optional[str] = Query(None, description="结束时间（ISO格式）")
 ):
     """
     获取原始数据的统计信息，用于数据分析页面
+
+    认证：JWT（Web）或 X-API-Key（需 data_read 权限）
 
     该接口直接在数据库层面进行聚合统计，不需要分页限制，
     返回统计数据而非数据列表，性能更好。
@@ -168,7 +178,7 @@ async def get_raw_data_statistics_endpoint(
     - session_count: 涉及的会话数量
     """
     # 连接到用户数据库
-    db = get_user_db(user_id)
+    db = principal.open_user_db()
     try:
         # 处理会话ID列表
         session_id_list = None
@@ -210,20 +220,22 @@ async def get_raw_data_statistics_endpoint(
 
 @router.get("/timeseries", summary="获取时序数据（折线图）")
 async def get_timeseries_data_endpoint(
+    principal: AuthPrincipal = Depends(require_data_read),
     session_ids: Optional[str] = Query(None, description="会话ID列表，用逗号分隔"),
     data_subtypes: Optional[str] = Query(None, description="数据子类型列表，用逗号分隔，如 temperature,humidity"),
     start_time: Optional[str] = Query(None, description="开始时间（ISO格式）"),
     end_time: Optional[str] = Query(None, description="结束时间（ISO格式）"),
-    limit: int = Query(200, ge=10, le=1000, description="每个子类型最多返回的数据点数"),
-    user_id: str = Query("3d5e8a9f-1fc1-4374-8afe-1277b4e0b175", description="用户ID")
+    limit: int = Query(200, ge=10, le=1000, description="每个子类型最多返回的数据点数")
 ):
     """
     获取时序数据，用于前端折线图展示
 
+    认证：JWT（Web）或 X-API-Key（需 data_read 权限）
+
     按 data_subtype 分组返回时间-数值对，支持按会话、子类型、时间范围过滤。
     专为温度、湿度、CO2、光照等数值型数据的折线图优化。
     """
-    db = get_user_db(user_id)
+    db = principal.open_user_db()
     try:
         session_id_list = None
         if session_ids:
@@ -265,15 +277,17 @@ async def get_timeseries_data_endpoint(
 
 @router.get("/list", summary="获取原始数据列表")
 async def get_raw_data_list(
+    principal: AuthPrincipal = Depends(require_data_read),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     session_id: Optional[str] = Query(None, description="会话ID过滤"),
     data_type: Optional[str] = Query(None, description="数据类型过滤"),
-    data_subtype: Optional[str] = Query(None, description="数据子类型过滤"),
-    user_id: str = Query("3d5e8a9f-1fc1-4374-8afe-1277b4e0b175", description="用户ID")
+    data_subtype: Optional[str] = Query(None, description="数据子类型过滤")
 ):
     """
     获取原始数据列表
+
+    认证：JWT（Web）或 X-API-Key（需 data_read 权限）
 
     前端列表显示，返回以下字段：
     - 数据ID
@@ -283,7 +297,7 @@ async def get_raw_data_list(
     - 操作按钮 - 删除和详情
     """
     # 连接到用户数据库
-    db = get_user_db(user_id)
+    db = principal.open_user_db()
     try:
         result = get_raw_data_list_for_frontend(
             db=db,
@@ -301,10 +315,12 @@ async def get_raw_data_list(
 
 @router.get("/overview", summary="获取概览统计数据")
 async def get_overview_statistics_endpoint(
-    current_user: User = Depends(get_current_user)
+    principal: AuthPrincipal = Depends(require_data_read)
 ):
     """
     获取概览页面的统计数据
+
+    认证：JWT（Web）或 X-API-Key（需 data_read 权限）
 
     返回数据包括：
     - total_devices: 设备总数
@@ -316,11 +332,10 @@ async def get_overview_statistics_endpoint(
     """
     db = None
     try:
-        user_id = str(current_user.userid)
-        print(f"[概览API] 收到请求, user_id={user_id}")
+        print(f"[概览API] 收到请求, 调用方={principal.describe()}")
         
         # 连接到用户数据库
-        db = get_user_db(user_id)
+        db = principal.open_user_db()
         print(f"[概览API] 数据库连接成功")
 
         # 获取概览统计信息
@@ -363,14 +378,16 @@ async def get_overview_statistics_endpoint(
 
 @router.get("/export", summary="导出原始数据")
 async def export_raw_data(
+    principal: AuthPrincipal = Depends(require_data_read),
     format: str = Query('csv', description="导出格式: csv/json/zip"),
     session_id: Optional[str] = Query(None, description="会话ID过滤"),
     data_type: Optional[str] = Query(None, description="数据类型过滤"),
-    data_subtype: Optional[str] = Query(None, description="数据子类型过滤"),
-    user_id: str = Query(..., description="用户ID")
+    data_subtype: Optional[str] = Query(None, description="数据子类型过滤")
 ):
     """
     导出原始数据
+
+    认证：JWT（Web）或 X-API-Key（需 data_read 权限），导出范围固定为调用者名下数据
 
     支持三种格式：
     - csv: 数值数据CSV表格，适合Excel分析
@@ -385,12 +402,12 @@ async def export_raw_data(
     import json
     from typing import Dict, Any, List
 
-    logger.info(f"[导出数据] 开始导出，用户ID: {user_id}, 格式: {format}")
+    logger.info(f"[导出数据] 开始导出，调用方: {principal.describe()}, 格式: {format}")
     logger.info(f"[导出数据] 过滤条件: session_id={session_id}, data_type={data_type}, data_subtype={data_subtype}")
 
     # 连接到用户数据库
     try:
-        db = get_user_db(user_id)
+        db = principal.open_user_db()
         logger.info(f"[导出数据] 数据库连接成功")
     except Exception as e:
         logger.error(f"[导出数据] 数据库连接失败: {str(e)}")
@@ -416,7 +433,7 @@ async def export_raw_data(
         # 记录操作日志
         try:
             create_log(db, "info", "data.export",
-                       f"用户 {user_id} 导出数据: {format} 格式, {len(raw_data_list)} 条",
+                       f"{principal.describe()} 导出数据: {format} 格式, {len(raw_data_list)} 条",
                        detail=f"过滤条件: session_id={session_id}, data_type={data_type}, data_subtype={data_subtype}")
         except Exception:
             pass
@@ -725,11 +742,12 @@ async def export_raw_data(
 @router.get("/{raw_data_id}", summary="获取原始数据详情")
 async def get_raw_data_detail(
     raw_data_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_current_user_db)
+    principal: AuthPrincipal = Depends(require_data_read)
 ):
     """
     获取原始数据详情
+
+    认证：JWT（Web）或 X-API-Key（需 data_read 权限）
 
     返回完整的数据信息，包括：
     - 基本信息：数据ID、采集时间、采集位置
@@ -817,23 +835,27 @@ async def add_tag_to_raw_data(
 @router.get("/{raw_data_id}/tags", summary="获取原始数据标签")
 async def get_tags_for_raw_data(
     raw_data_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_current_user_db)
+    principal: AuthPrincipal = Depends(require_data_read)
 ):
-    """获取原始数据的所有标签"""
-    tags = get_raw_data_tags(db, raw_data_id)
-
-    return {"code": 200, "message": "success", "data": {"tags": tags}}
+    """获取原始数据的所有标签（需 data_read 权限）"""
+    db = principal.open_user_db()
+    try:
+        tags = get_raw_data_tags(db, raw_data_id)
+        return {"code": 200, "message": "success", "data": {"tags": tags}}
+    finally:
+        db.close()
 
 
 @router.get("/{raw_data_id}/thumbnail", summary="获取图像缩略图")
 async def get_raw_data_thumbnail(
     raw_data_id: str,
-    user_id: str = Query(..., description="用户ID"),
+    principal: AuthPrincipal = Depends(require_data_read),
     size: int = Query(150, description="缩略图尺寸", ge=50, le=500)
 ):
     """
     获取原始数据的缩略图
+
+    认证：JWT（Web）或 X-API-Key（需 data_read 权限）
     
     特性：
     - 真正的缩略图处理（不是原图压缩）
@@ -863,11 +885,7 @@ async def get_raw_data_thumbnail(
         if raw_data.get("data_type") != "image":
             raise HTTPException(status_code=400, detail="该数据不是图像类型")
         
-        # 权限检查：验证用户是否有权限访问该数据
-        session_id = raw_data.get("session_id")
-        if session_id:
-            # 这里可以添加更严格的权限检查逻辑
-            pass
+        # 权限检查：数据来自调用者自身的用户库，天然隔离（已由 require_data_read 完成认证）
         
         # 生成缩略图缓存键
         cache_key = f"thumb:{raw_data_id}:{size}:v1"
@@ -1100,9 +1118,7 @@ def generate_thumbnail(image_data: bytes, size: int, original_format: str = 'jpe
 @router.post("/upload-data", summary="上传数字数据")
 async def upload_numeric_data(
     request: UploadDataRequest,
-    x_api_key: Optional[str] = Header(None, description="API密钥（可选）"),
-    authorization: Optional[str] = Header(None, description="JWT令牌（可选）"),
-    meta_db: Session = Depends(get_meta_db)
+    principal: AuthPrincipal = Depends(require_data_upload)
 ):
     """
     上传数字类型数据（环境数据、土壤数据等）
@@ -1110,47 +1126,20 @@ async def upload_numeric_data(
     认证方式（按优先级排序）：
     1. JWT令牌认证（推荐，主要用于Web应用）
        - Header: Authorization: Bearer <jwt_token>
-    2. API密钥认证（备用，用于设备和第三方集成）
+    2. API密钥认证（用于远程设备与第三方集成，密钥须持有 data_upload 权限）
        - Header: X-API-Key: <api_key>
 
     数据值说明：
     - environmental/soil 类型：data_value 为数值字符串
     - 单位通过 data_subtype 推断，不需要单独上传单位字段
     """
+    current_user = principal.user
+
     try:
-        # 认证用户：优先使用JWT令牌，备用API密钥认证
-        current_user = None
-        db: Session | None = None
+        logger.info(f"[上传数据] 认证成功: {principal.describe()}")
 
-        # 优先尝试JWT认证
-        if authorization:
-            try:
-                from fastapi.security import HTTPAuthorizationCredentials
-                if authorization.startswith('Bearer '):
-                    token = authorization[7:]
-                    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
-                    current_user = await get_current_user(credentials, meta_db)
-                    db = get_current_user_db(current_user)
-                    logger.info(f"[上传数据] JWT认证成功: {current_user.username}")
-                else:
-                    raise HTTPException(status_code=401, detail="无效的Authorization格式")
-            except Exception as e:
-                raise HTTPException(status_code=401, detail=f"JWT认证失败: {str(e)}")
-
-        # 如果没有JWT，尝试API密钥认证
-        elif x_api_key:
-            try:
-                current_user = await get_current_user_from_api_key(x_api_key, meta_db)
-                db = get_current_user_db(current_user)
-                logger.info(f"[上传数据] API密钥认证成功: {current_user.username}")
-            except Exception as e:
-                raise HTTPException(status_code=401, detail=f"API密钥认证失败: {str(e)}")
-
-        else:
-            raise HTTPException(
-                status_code=401,
-                detail="需要认证：请提供JWT令牌（推荐）或API密钥"
-            )
+        # 连接到调用者对应的业务数据库
+        db: Session | None = principal.open_user_db()
 
         # 验证数据类型和子类型的匹配
         if request.data_type == DataType.ENVIRONMENTAL:
@@ -1242,9 +1231,7 @@ async def upload_file_data(
     location_geom: Optional[str] = Form(None, description="位置几何信息（WKT格式）"),
     altitude_m: Optional[float] = Form(None, description="采集高度（米）"),
     heading: Optional[float] = Form(None, description="朝向（度）"),
-    x_api_key: Optional[str] = Header(None, description="API密钥（可选）"),
-    authorization: Optional[str] = Header(None, description="JWT令牌（可选）"),
-    meta_db: Session = Depends(get_meta_db)
+    principal: AuthPrincipal = Depends(require_data_upload)
 ):
     """
     上传文件类型数据（图像、视频等存储在MinIO中的文件）
@@ -1252,7 +1239,7 @@ async def upload_file_data(
     认证方式（按优先级排序）：
     1. JWT令牌认证（推荐，主要用于Web应用）
        - Header: Authorization: Bearer <jwt_token>
-    2. API密钥认证（备用，用于设备和第三方集成）
+    2. API密钥认证（用于远程设备与第三方集成，密钥须持有 data_upload 权限）
        - Header: X-API-Key: <api_key>
 
     支持的数据子类型：
@@ -1263,40 +1250,13 @@ async def upload_file_data(
     - multispectral: 多光谱图像
     - video: 视频文件
     """
+    current_user = principal.user
+
     try:
-        # 认证用户：优先使用JWT令牌，备用API密钥认证
-        current_user = None
-        db: Session | None = None
+        logger.info(f"[上传文件] 认证成功: {principal.describe()}")
 
-        # 优先尝试JWT认证
-        if authorization:
-            try:
-                from fastapi.security import HTTPAuthorizationCredentials
-                if authorization.startswith('Bearer '):
-                    token = authorization[7:]
-                    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
-                    current_user = await get_current_user(credentials, meta_db)
-                    db = get_current_user_db(current_user)
-                    logger.info(f"[上传文件] JWT认证成功: {current_user.username}")
-                else:
-                    raise HTTPException(status_code=401, detail="无效的Authorization格式")
-            except Exception as e:
-                raise HTTPException(status_code=401, detail=f"JWT认证失败: {str(e)}")
-
-        # 如果没有JWT，尝试API密钥认证
-        elif x_api_key:
-            try:
-                current_user = await get_current_user_from_api_key(x_api_key, meta_db)
-                db = get_current_user_db(current_user)
-                logger.info(f"[上传文件] API密钥认证成功: {current_user.username}")
-            except Exception as e:
-                raise HTTPException(status_code=401, detail=f"API密钥认证失败: {str(e)}")
-
-        else:
-            raise HTTPException(
-                status_code=401,
-                detail="需要认证：请提供JWT令牌（推荐）或API密钥"
-            )
+        # 连接到调用者对应的业务数据库
+        db: Session | None = principal.open_user_db()
 
         # 验证数据子类型（使用统一枚举，仅允许 file 类型的子类型）
         file_subtypes = [
@@ -1390,7 +1350,7 @@ async def upload_file_data(
             },
             acquisition_meta={
                 "upload_time": datetime.now().isoformat(),
-                "upload_method": "api" if x_api_key else "web"
+                "upload_method": principal.auth_method
             },
             quality_score=1.0,
             checksum=checksum,
