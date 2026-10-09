@@ -13,7 +13,7 @@
 .home-bg-layer {
   position: absolute;
   inset: 0;
-  background: url('/images/agri-field-bg.png') center / cover no-repeat;
+  background: url('/images/agri-field-bg.webp') center / cover no-repeat;
   opacity: 0.95;
   filter: saturate(0.95) brightness(1.1) contrast(0.98);
 }

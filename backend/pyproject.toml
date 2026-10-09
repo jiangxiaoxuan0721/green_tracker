@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "green_tracker_backend"
 version = "0.1.0"
-description = "Backend for Green Tracker application"
+description = "绿意追踪农业管控云服务平台后端服务"
 authors = [
     {name = "JiangXiaoXuan", email = "3335447591@qq.com"},
 ]

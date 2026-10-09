@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 # 创建FastAPI应用实例
 app = FastAPI(
-    title="Green Tracker API",
-    description="环境监测系统后端API",
+    title="绿意追踪农业管控云服务平台 API",
+    description="绿意追踪农业管控云服务平台后端 API",
     version="1.0.0"
 )
 
@@ -187,7 +187,7 @@ app.include_router(mqtt_router, prefix="/api") # /api/mqtt/*
 # 健康检查端点
 @app.get("/health") # /health
 async def health_check():
-    return {"status": "healthy", "message": "Green Tracker API is running"}
+    return {"status": "healthy", "message": "绿意追踪农业管控云服务平台 API 正常运行"}
 
 # 运行配置
 if __name__ == "__main__":

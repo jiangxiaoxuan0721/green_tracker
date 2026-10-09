@@ -19,7 +19,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: url('/images/agri-field-bg.png') center / cover no-repeat;
+  background: url('/images/agri-field-bg.webp') center / cover no-repeat;
   opacity: 0.92;
   filter: saturate(0.95) brightness(1.12);
 }
@@ -43,19 +43,6 @@
   z-index: 2;
 }
 
-.auth-brand-icon {
-  width: 44px;
-  height: 44px;
-  margin-bottom: var(--spacing-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: var(--radius-md);
-  color: #fff;
-}
-
 /* 遮罩变淡后保证文字对比度 */
 .auth-brand-content h1,
 .auth-brand-content p,
@@ -67,6 +54,7 @@
 .auth-brand-content h1 {
   font-size: 1.25rem;
   font-weight: 700;
+  line-height: 1.4;
   margin: 0 0 4px;
   color: #fff;
 }

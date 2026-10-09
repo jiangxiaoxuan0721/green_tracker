@@ -20,7 +20,7 @@ SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
-SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Green Tracker")
+SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "绿意追踪农业管控云服务平台")
 SMTP_TIMEOUT = int(os.getenv("SMTP_TIMEOUT", "10"))  # SMTP连接超时秒数
 
 

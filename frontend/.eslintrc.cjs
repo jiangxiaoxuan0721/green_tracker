@@ -1,4 +1,4 @@
-/* Green Tracker ESLint 配置
+/* 绿意追踪农业管控云服务平台 ESLint 配置
  * 背景：package.json 曾声明 npm run lint 但仓库无任何 ESLint 配置，命令必然失败。
  * no-undef 是关键规则——曾在 App.jsx 漏解构 KeyManagement 导致整页白屏，该规则可直接拦截。
  */

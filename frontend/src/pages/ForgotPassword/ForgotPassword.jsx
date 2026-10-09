@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  Sprout, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft,
+  Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft,
   Shield, Zap, Cloud, Radio, Loader2, Key
 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
@@ -132,27 +132,19 @@ const ForgotPassword = () => {
           transition={{ duration: 0.6 }}
         >
           <div className="brand-content">
-            <motion.div 
-              className="brand-icon"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            >
-              <Sprout size={48} />
-            </motion.div>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              Green Tracker
+              绿意追踪农业管控云服务平台
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              空天地一体化农作物智能监测平台
+              设备接入 · 数据管理 · 算法部署 · 审计追溯
             </motion.p>
           </div>
           

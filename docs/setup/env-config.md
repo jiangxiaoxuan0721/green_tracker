@@ -160,7 +160,7 @@
 - `SMTP_PORT` - SMTP 端口，默认为 465（SSL）
 - `SMTP_USER` - SMTP 账号（QQ邮箱需使用授权码）
 - `SMTP_PASSWORD` - SMTP 密码/授权码
-- `SMTP_FROM_NAME` - 发件人显示名称，默认为 "Green Tracker"
+- `SMTP_FROM_NAME` - 发件人显示名称，默认为 "绿意追踪农业管控云服务平台"
 
 ### MinIO 前端配置
 

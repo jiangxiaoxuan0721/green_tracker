@@ -1,6 +1,6 @@
-# 🏛️ Green Tracker 架构设计
+# 🏛️ 绿意追踪农业管控云服务平台 架构设计
 
-本文描述 Green Tracker 的运行时拓扑、分层结构、数据模型与 API 路由清单。
+本文描述绿意追踪农业管控云服务平台的运行时拓扑、分层结构、数据模型与 API 路由清单。
 面向**首次接手代码的开发者**：想直接跑起来请先看 [`README.md`](README.md) 与 [`DEVELOPMENT.md`](DEVELOPMENT.md)。
 
 ---

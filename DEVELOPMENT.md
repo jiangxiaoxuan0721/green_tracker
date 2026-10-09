@@ -1,4 +1,4 @@
-# 🧑‍💻 Green Tracker 开发指南
+# 🧑‍💻 绿意追踪农业管控云服务平台 开发指南
 
 面向**日常开发**：如何跑起来、环境变量怎么配、质量门禁怎么过。
 架构设计见 [`ARCHITECTURE.md`](ARCHITECTURE.md)，贡献流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
@@ -211,7 +211,7 @@ make dev-backend            # 仅后端 uvicorn --reload
 | `SMTP_PORT` | `465` | SMTP 端口 |
 | `SMTP_USER` | `your_email@example.com` | SMTP 账号 |
 | `SMTP_PASSWORD` | `your_smtp_auth_code` | SMTP 授权码（非登录密码） |
-| `SMTP_FROM_NAME` | `Green Tracker` | 发件人显示名 |
+| `SMTP_FROM_NAME` | `绿意追踪农业管控云服务平台` | 发件人显示名 |
 
 完整说明见 [`docs/setup/env-config.md`](docs/setup/env-config.md)。
 

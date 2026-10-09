@@ -1,4 +1,4 @@
-# 🌱 Green Tracker
+# 🌱 绿意追踪农业管控云服务平台
 
 [![frontend](https://img.shields.io/badge/frontend-0.0.0-blue?style=flat-square)](frontend/package.json) [![backend](https://img.shields.io/badge/backend-0.1.0-orange?style=flat-square)](backend/pyproject.toml) [![React](https://img.shields.io/badge/React-18.2.0-61DAFB?style=flat-square&logo=react)](https://reactjs.org/) [![Vite](https://img.shields.io/badge/Vite-5.0.8-646CFF?style=flat-square&logo=vite)](https://vitejs.dev/) [![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-0.124.4-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/) [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python)](https://www.python.org/) [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](https://opensource.org/licenses/MIT) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
 

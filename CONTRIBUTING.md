@@ -1,6 +1,6 @@
 # 🤝 贡献指南
 
-感谢你愿意为 Green Tracker 出力。本文说明分支、提交、评审与文档约定。
+感谢你愿意为 绿意追踪农业管控云服务平台 出力。本文说明分支、提交、评审与文档约定。
 上手开发请先读 [`DEVELOPMENT.md`](DEVELOPMENT.md)，理解系统先看 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
 
 ---

@@ -2,7 +2,7 @@
 
 # Docker 一键安装脚本
 # 用于在Ubuntu/Debian系统上安装Docker和Docker Compose
-# 用途: 为Green Tracker算法镜像构建提供Docker支持
+# 用途: 为绿意追踪农业管控云服务平台算法镜像构建提供Docker支持
 
 set -euo pipefail
 
@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}=====================================${NC}"
 echo -e "${GREEN}  Docker 一键安装脚本${NC}"
-echo -e "${GREEN}  为Green Tracker算法构建提供支持${NC}"
+echo -e "${GREEN}  为绿意追踪农业管控云服务平台算法构建提供支持${NC}"
 echo -e "${GREEN}=====================================${NC}"
 echo ""
 

@@ -1,4 +1,4 @@
-# Green Tracker Nginx 配置目录
+# 绿意追踪农业管控云服务平台 Nginx 配置目录
 
 本目录包含 `green-tracker` 站点的 Nginx 反向代理模板与「前端访问模式」片段。
 

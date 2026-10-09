@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { 
-  Satellite, Plane, Radio, Brain, Sprout, AlertTriangle, 
+  Satellite, Plane, Radio, Brain, AlertTriangle, 
   Droplets, TrendingUp, Cloud, Database, Cpu, Wifi 
 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
@@ -38,12 +38,9 @@ const About = () => {
           variants={fadeInUp}
         >
           <motion.div className="about-header" variants={fadeInUp}>
-            <div className="about-logo">
-              <Sprout size={48} />
-            </div>
             <h1>关于平台</h1>
             <p className="about-intro">
-              空天地一体化农作物智能平台是一个集卫星遥感、无人机监测和地面传感于一体的
+              绿意追踪农业管控云服务平台是一个集卫星遥感、无人机监测和地面传感于一体的
               现代化农业智能管理系统，旨在为农业生产提供全方位的数据支持和决策服务。
             </p>
           </motion.div>

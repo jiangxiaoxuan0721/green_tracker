@@ -2,7 +2,7 @@
 
 ## 概述
 
-MinIO作为Green Tracker系统的对象存储组件，负责存储所有原始感知数据，包括图像、视频、环境数据和点云等多源数据。MinIO与PostgreSQL协同工作，PostgreSQL存储元数据和索引，MinIO存储实际的二进制文件。
+MinIO作为绿意追踪农业管控云服务平台的对象存储组件，负责存储所有原始感知数据，包括图像、视频、环境数据和点云等多源数据。MinIO与PostgreSQL协同工作，PostgreSQL存储元数据和索引，MinIO存储实际的二进制文件。
 
 ## 架构设计
 
@@ -394,4 +394,4 @@ async def parallel_upload_files(files_data, session_id, device_id):
 
 ## 总结
 
-MinIO作为Green Tracker系统的对象存储组件，与PostgreSQL协同工作，实现了原始感知数据的高效存储、检索和管理。通过合理的设计和优化，系统可以支持大规模农情数据的存储和分析，为空-天-地一体化农情监测提供可靠的数据基础。
+MinIO作为绿意追踪农业管控云服务平台的对象存储组件，与PostgreSQL协同工作，实现了原始感知数据的高效存储、检索和管理。通过合理的设计和优化，系统可以支持大规模农情数据的存储和分析，为空-天-地一体化农情监测提供可靠的数据基础。
