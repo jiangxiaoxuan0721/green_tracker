@@ -1316,7 +1316,12 @@ async def upload_file_data(
         unique_filename = f"{uuid.uuid4().hex}_{int(datetime.now().timestamp())}.{data_format}"
 
         # 上传文件到MinIO (路径规范: user_{userid}/data/session_{session_id}/)
-        storage_manager = get_storage_manager()
+        try:
+            storage_manager = get_storage_manager()
+        except Exception as e:
+            logger.error(f"[上传文件] 对象存储不可用: {str(e)}")
+            raise HTTPException(status_code=503, detail=f"对象存储服务不可用: {str(e)}")
+
         upload_result = storage_manager.upload_bytes(
             user_id=str(current_user.userid),
             data=file_data,
@@ -1326,7 +1331,7 @@ async def upload_file_data(
         )
 
         if not upload_result['success']:
-            raise HTTPException(status_code=500, detail=f"文件上传失败: {upload_result['message']}")
+            raise HTTPException(status_code=503, detail=f"文件写入对象存储失败: {upload_result['message']}")
 
         # 计算文件校验和
         checksum = None

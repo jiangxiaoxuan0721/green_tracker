@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Green Tracker - HTTPS 证书智能配置脚本
+# 绿意追踪农业管控云服务平台 - HTTPS 证书智能配置脚本
 # =============================================================================
 # 功能：
 #   1. 检测域名 DNS 是否解析到本机公网 IP
@@ -98,7 +98,7 @@ MINIO_PORT="${MINIO_PORT:-${MINIO_LISTEN_PORT:-9100}}"
 EMAIL="${SSL_EMAIL:-admin@${DOMAIN}}"
 
 log_info "================================================="
-log_info " Green Tracker HTTPS 证书配置"
+log_info " 绿意追踪农业管控云服务平台 HTTPS 证书配置"
 log_info "================================================="
 log_info "  域名        : $DOMAIN"
 log_info "  前端端口    : $FRONTEND_PORT"
@@ -170,7 +170,7 @@ generate_selfsigned() {
     local key="$SSL_DIR/${DOMAIN}.key"
 
     openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
-        -subj "/CN=${DOMAIN}/O=Green Tracker (Self-signed)/OU=Dev" \
+        -subj "/CN=${DOMAIN}/O=绿意追踪农业管控云服务平台 (Self-signed)/OU=Dev" \
         -addext "subjectAltName=DNS:${DOMAIN},DNS:www.${DOMAIN},IP:127.0.0.1" \
         -keyout "$key" \
         -out  "$cert" 2>/dev/null

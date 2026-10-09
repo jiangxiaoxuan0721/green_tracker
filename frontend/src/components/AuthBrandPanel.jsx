@@ -1,4 +1,4 @@
-import { Sprout, Radio, Cpu, Database } from 'lucide-react'
+import { Radio, Cpu, Database } from 'lucide-react'
 import './AuthBrandPanel.css'
 
 // 仅描述平台实际提供的能力，避免无来源的夸大表述
@@ -11,11 +11,8 @@ const brandFeatures = [
 const AuthBrandPanel = () => (
   <aside className="auth-brand-panel">
     <div className="auth-brand-content">
-      <div className="auth-brand-icon">
-        <Sprout size={26} />
-      </div>
-      <h1>Green Tracker</h1>
-      <p>空天地一体化农作物监测平台</p>
+      <h1>绿意追踪农业管控云服务平台</h1>
+      <p>设备接入 · 数据管理 · 算法部署 · 审计追溯</p>
     </div>
 
     <div className="auth-brand-features">

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# Green Tracker MQTT Broker 一键部署脚本
+# 绿意追踪农业管控云服务平台 MQTT Broker 一键部署脚本
 #
 # 用法:
 #   ./deploy_mqtt.sh start     首次部署 (初始化配置 + 启动 Broker)

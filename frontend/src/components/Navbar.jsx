@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Home, LogIn, Info, MessageSquare, Send, Sprout } from 'lucide-react'
+import { Home, LogIn, Info, MessageSquare, Send } from 'lucide-react'
 import './Navbar.css'
 
 const Navbar = () => {
@@ -18,10 +18,7 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="nav-container">
         <Link to="/" className="nav-logo">
-          <div className="logo-icon">
-            <Sprout size={20} className="logo-mark" />
-          </div>
-          <span className="logo-text">空天地智能平台</span>
+          <span className="logo-text">绿意追踪农业管控云服务平台</span>
         </Link>
         <ul className="nav-menu">
           {navItems.map((item) => {

@@ -1,4 +1,4 @@
-# Green Tracker 项目 Makefile
+# 绿意追踪农业管控云服务平台项目 Makefile
 # 用于启动和管理前端、后端、Nginx 与 HTTPS 证书
 
 .PHONY: help install start stop dev dev-frontend dev-backend clean restart check-env \
@@ -8,7 +8,7 @@
 
 # 默认目标
 help:
-	@echo "Green Tracker 项目命令列表:"
+	@echo "绿意追踪农业管控云服务平台项目命令列表:"
 	@echo ""
 	@echo "【基础】"
 	@echo "  install          - 安装所有依赖 (前端和后端)"

@@ -7,7 +7,7 @@ import ThemeSelector from './ThemeSelector'
 const SETTINGS_KEY = 'green_tracker_settings'
 
 const defaultSettings = {
-  systemName: '物联网监控平台',
+  systemName: '绿意追踪农业管控云服务平台',
   collectionInterval: 30,
   dataRetentionDays: 90,
   autoBackup: true,

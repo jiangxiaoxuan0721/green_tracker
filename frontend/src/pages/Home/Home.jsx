@@ -10,7 +10,7 @@ import { fadeInUp, scaleIn, listContainer, listItem } from '@/utils/animations'
 import { Button } from '@/components/ui'
 import './Home.css'
 
-// 平台能力：均对应系统已实现的模块，未实现的功能不列入
+// 平台能力
 const capabilities = [
   {
     icon: Radio,
@@ -62,8 +62,8 @@ const Home = () => {
         <div className="home-bg-mask" aria-hidden="true" />
 
         {/* 页面边缘字幕 */}
-        <div className="home-edge-caption home-edge-left" aria-hidden="true">云农情监测系统</div>
-        <div className="home-edge-caption home-edge-right" aria-hidden="true">云农情监测系统</div>
+        <div className="home-edge-caption home-edge-left" aria-hidden="true">绿意追踪农业管控云服务平台</div>
+        <div className="home-edge-caption home-edge-right" aria-hidden="true">绿意追踪农业管控云服务平台</div>
 
         {/* 边角装饰线 */}
         <div className="home-frame" aria-hidden="true">
@@ -86,7 +86,7 @@ const Home = () => {
             animate="visible"
           >
             <span className="home-eyebrow">设备接入 · 数据管理 · 算法部署 · 审计追溯</span>
-            <h1 className="home-title">空天地一体化农作物监测</h1>
+            <h1 className="home-title">绿意追踪农业管控云服务平台</h1>
             <motion.p
               className="home-subtitle"
               variants={fadeInUp}

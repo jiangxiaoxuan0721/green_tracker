@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Green Tracker 冒烟回归
+# 绿意追踪农业管控云服务平台 冒烟回归
 # 验证：后端存活、API 路由可达、Nginx 反代正确、双前缀防护、前端入口可用
 # 用法: bash scripts/smoke_test.sh [FRONT_BASE_URL] [API_BASE_URL]
 #   FRONT_BASE_URL 默认 https://localhost（自签名证书自动加 -k）
@@ -30,7 +30,7 @@ check() {
 }
 
 echo "=========================================="
-echo " Green Tracker 冒烟回归"
+echo " 绿意追踪农业管控云服务平台 冒烟回归"
 echo " 前端入口: $FRONT_URL"
 echo " 后端直连: $API_URL"
 echo "=========================================="

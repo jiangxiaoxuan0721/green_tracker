@@ -1,5 +1,5 @@
 """
-Green Tracker API 模块
+绿意追踪农业管控云服务平台 API 模块
 提供统一的 API 路由和 Schema 导入接口
 """
 

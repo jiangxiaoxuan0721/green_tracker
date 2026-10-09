@@ -1,6 +1,6 @@
 # HTTPS 一键部署指南
 
-本文介绍如何为 Green Tracker 项目快速部署 HTTPS 反向代理，让用户通过 `https://green-tracker.cn` 访问网站（**URL 中不出现端口号**）。
+本文介绍如何为绿意追踪农业管控云服务平台快速部署 HTTPS 反向代理，让用户通过 `https://green-tracker.cn` 访问网站（**URL 中不出现端口号**）。
 
 ---
 
